@@ -1,7 +1,8 @@
 import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { fetchKnuter, type Knute } from '../lib/api'
+import { Link } from 'expo-router'
+import { fetchKnuter, tryFetchPendingCount, type Knute } from '../lib/api'
 import { colors, spacing, radius, fontSize, fontWeight } from '../lib/theme'
 
 export default function KnuterScreen() {
@@ -11,10 +12,18 @@ export default function KnuterScreen() {
     queryFn: fetchKnuter,
   })
 
+  // null → not knutesjef (or 403); number → pending count to display.
+  const pendingCount = useQuery({
+    queryKey: ['submissions', 'pending', 'count'],
+    queryFn: tryFetchPendingCount,
+    staleTime: 10_000,
+  })
+
   if (isLoading) return <LoadingState />
   if (error) return <ErrorState message={(error as Error).message} onRetry={() => void refetch()} />
 
   const knuter = data?.knuter ?? []
+  const showReviewLink = typeof pendingCount.data === 'number'
 
   return (
     <ScrollView
@@ -34,6 +43,23 @@ export default function KnuterScreen() {
         </Text>
         {isRefetching && <Text style={styles.muted}>Oppdaterer…</Text>}
       </View>
+
+      {showReviewLink && (
+        <Link href="/review" asChild>
+          <Pressable
+            style={styles.reviewLink}
+            accessibilityRole="link"
+            accessibilityLabel={`${pendingCount.data} venter på godkjenning`}
+          >
+            <Text style={styles.reviewLinkText}>
+              {pendingCount.data === 0
+                ? 'Ingen innsendinger venter'
+                : `${pendingCount.data} innsendinger venter på godkjenning`}
+            </Text>
+            <Text style={styles.reviewLinkArrow}>›</Text>
+          </Pressable>
+        </Link>
+      )}
       {knuter.length === 0 ? (
         <View style={styles.center}>
           <Text style={styles.muted}>Ingen knuter ennå. Knutesjefen lager dem fra knutesjef-panelet.</Text>
@@ -181,5 +207,26 @@ const styles = StyleSheet.create({
   skeleton: {
     backgroundColor: colors.border,
     borderRadius: radius.sm,
+  },
+  reviewLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: spacing.base,
+    marginBottom: spacing.base,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.brand.primary,
+    borderRadius: radius.md,
+  },
+  reviewLinkText: {
+    color: colors.text.inverse,
+    fontWeight: fontWeight.semibold,
+    fontSize: fontSize.base,
+  },
+  reviewLinkArrow: {
+    color: colors.text.inverse,
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
   },
 })

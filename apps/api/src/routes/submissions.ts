@@ -1,10 +1,11 @@
 import { Hono } from 'hono'
-import { eq } from 'drizzle-orm'
+import { and, desc, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 import { auth, type AuthVariables } from '../middleware/auth.js'
 import { tenantContext } from '../middleware/tenant-context.js'
-import { knuter, submissions } from '../db/schema/index.js'
+import { requireRole } from '../middleware/require-role.js'
+import { knuter, submissions, users } from '../db/schema/index.js'
 import { NotFoundError } from '../lib/errors.js'
 import type { db } from '../db/client.js'
 
@@ -71,5 +72,125 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
       const created = inserted[0]!
 
       return c.json({ submission: created }, 201)
+    },
+  )
+
+  // GET /api/submissions/pending — knutesjef sees the school's pending queue.
+  // Joins russenavn + knute title/points for one-shot display (no N+1).
+  .get('/pending', requireRole('knutesjef', 'admin'), async (c) => {
+    const tx = c.get('tx')
+    const schoolId = c.get('schoolId')
+
+    const rows = await tx
+      .select({
+        id: submissions.id,
+        userId: submissions.userId,
+        knuteId: submissions.knuteId,
+        imageKey: submissions.imageKey,
+        caption: submissions.caption,
+        createdAt: submissions.createdAt,
+        russenavn: users.russenavn,
+        knuteTitle: knuter.title,
+        knutePoints: knuter.points,
+      })
+      .from(submissions)
+      .innerJoin(users, eq(users.id, submissions.userId))
+      .innerJoin(knuter, eq(knuter.id, submissions.knuteId))
+      .where(
+        and(
+          eq(submissions.schoolId, schoolId),
+          eq(submissions.status, 'pending'),
+        ),
+      )
+      .orderBy(desc(submissions.createdAt))
+
+    return c.json({ submissions: rows })
+  })
+
+  // PATCH /api/submissions/:id/approve — knutesjef approves a pending submission.
+  // Multi-table transaction: flip status + record reviewer + award points to user.
+  .patch(
+    '/:id/approve',
+    requireRole('knutesjef', 'admin'),
+    zValidator('param', z.object({ id: z.string().uuid() })),
+    async (c) => {
+      const tx = c.get('tx')
+      const schoolId = c.get('schoolId')
+      const reviewerId = c.get('userId')
+      const { id } = c.req.valid('param')
+
+      // Load the submission + the knute's points in one query. RLS scopes
+      // to this school; an id from another school yields zero rows → 404.
+      const found = await tx
+        .select({
+          submissionUserId: submissions.userId,
+          submissionStatus: submissions.status,
+          knutePoints: knuter.points,
+        })
+        .from(submissions)
+        .innerJoin(knuter, eq(knuter.id, submissions.knuteId))
+        .where(and(eq(submissions.id, id), eq(submissions.schoolId, schoolId)))
+        .limit(1)
+      if (found.length === 0) throw new NotFoundError('Submission')
+      const row = found[0]!
+
+      if (row.submissionStatus !== 'pending') {
+        // Idempotency-ish — already reviewed. Treat as 404 to avoid leaking
+        // the prior state to the client.
+        throw new NotFoundError('Submission')
+      }
+
+      const [updated] = await tx
+        .update(submissions)
+        .set({
+          status: 'approved',
+          reviewedBy: reviewerId,
+          reviewedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(and(eq(submissions.id, id), eq(submissions.schoolId, schoolId)))
+        .returning()
+
+      await tx
+        .update(users)
+        .set({ points: sql`${users.points} + ${row.knutePoints}` })
+        .where(and(eq(users.id, row.submissionUserId), eq(users.schoolId, schoolId)))
+
+      return c.json({ submission: updated })
+    },
+  )
+
+  // PATCH /api/submissions/:id/reject — knutesjef rejects. No points awarded.
+  .patch(
+    '/:id/reject',
+    requireRole('knutesjef', 'admin'),
+    zValidator('param', z.object({ id: z.string().uuid() })),
+    async (c) => {
+      const tx = c.get('tx')
+      const schoolId = c.get('schoolId')
+      const reviewerId = c.get('userId')
+      const { id } = c.req.valid('param')
+
+      const found = await tx
+        .select({ status: submissions.status })
+        .from(submissions)
+        .where(and(eq(submissions.id, id), eq(submissions.schoolId, schoolId)))
+        .limit(1)
+      if (found.length === 0 || found[0]!.status !== 'pending') {
+        throw new NotFoundError('Submission')
+      }
+
+      const [updated] = await tx
+        .update(submissions)
+        .set({
+          status: 'rejected',
+          reviewedBy: reviewerId,
+          reviewedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(and(eq(submissions.id, id), eq(submissions.schoolId, schoolId)))
+        .returning()
+
+      return c.json({ submission: updated })
     },
   )

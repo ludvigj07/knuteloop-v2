@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { sql } from 'drizzle-orm'
+import { sql, eq } from 'drizzle-orm'
 import { schools, users, knuter, submissions } from '../../db/schema/index.js'
 import { setupTestDb, type TestHandles } from '../helpers/test-db.js'
 import { signDevToken } from '../../lib/auth-dev.js'
@@ -11,8 +11,11 @@ let schoolAId: string
 let schoolBId: string
 let studentAId: string
 let studentBId: string
+let knutesjefAId: string
 let studentTokenA: string
-let knuteAId: string // a knute belonging to school A
+let knutesjefTokenA: string
+let knutesjefTokenB: string
+let knuteAId: string // a knute belonging to school A (10 points)
 let knuteBId: string // a knute belonging to school B
 
 type SubmissionRow = {
@@ -43,10 +46,14 @@ beforeAll(async () => {
     .values([
       { schoolId: schoolAId, russenavn: 'StudentA', role: 'student' },
       { schoolId: schoolBId, russenavn: 'StudentB', role: 'student' },
+      { schoolId: schoolAId, russenavn: 'KnutesjefA', role: 'knutesjef' },
+      { schoolId: schoolBId, russenavn: 'KnutesjefB', role: 'knutesjef' },
     ])
     .returning()
   studentAId = insertedUsers[0]!.id
   studentBId = insertedUsers[1]!.id
+  knutesjefAId = insertedUsers[2]!.id
+  const knutesjefBId = insertedUsers[3]!.id
 
   const insertedKnuter = await h.superDb
     .insert(knuter)
@@ -59,6 +66,16 @@ beforeAll(async () => {
   knuteBId = insertedKnuter[1]!.id
 
   studentTokenA = await signDevToken({ sub: studentAId, school_id: schoolAId, role: 'student' })
+  knutesjefTokenA = await signDevToken({
+    sub: knutesjefAId,
+    school_id: schoolAId,
+    role: 'knutesjef',
+  })
+  knutesjefTokenB = await signDevToken({
+    sub: knutesjefBId,
+    school_id: schoolBId,
+    role: 'knutesjef',
+  })
 })
 
 afterAll(async () => {
@@ -166,6 +183,194 @@ describe('POST /api/submissions', () => {
     expect(res.status).toBe(201)
     const body = (await res.json()) as CreateResponse
     expect(body.submission.caption).toBeNull()
+  })
+})
+
+describe('GET /api/submissions/pending', () => {
+  it('returns 401 without auth', async () => {
+    const res = await app.request('/api/submissions/pending')
+    expect(res.status).toBe(401)
+  })
+
+  it('returns 403 when caller is a student', async () => {
+    const res = await app.request('/api/submissions/pending', {
+      headers: { Authorization: `Bearer ${studentTokenA}` },
+    })
+    expect(res.status).toBe(403)
+  })
+
+  it('happy path — knutesjef sees their school pending queue with russenavn + knute', async () => {
+    // Seed one pending submission for school A via the public POST.
+    const post = await app.request('/api/submissions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${studentTokenA}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        knuteId: knuteAId,
+        imageKey: 'bunny/q/pending-1.webp',
+        caption: 'For knutesjef',
+      }),
+    })
+    expect(post.status).toBe(201)
+
+    const res = await app.request('/api/submissions/pending', {
+      headers: { Authorization: `Bearer ${knutesjefTokenA}` },
+    })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as {
+      submissions: {
+        id: string
+        russenavn: string
+        knuteTitle: string
+        knutePoints: number
+        caption: string | null
+      }[]
+    }
+
+    expect(body.submissions.length).toBeGreaterThanOrEqual(1)
+    const matching = body.submissions.find((s) => s.caption === 'For knutesjef')
+    expect(matching).toBeDefined()
+    expect(matching?.russenavn).toBe('StudentA')
+    expect(matching?.knuteTitle).toBe('A: Spis frokost under pulten')
+    expect(matching?.knutePoints).toBe(10)
+  })
+
+  it('cross-tenant: school B knutesjef does NOT see school A pending', async () => {
+    const res = await app.request('/api/submissions/pending', {
+      headers: { Authorization: `Bearer ${knutesjefTokenB}` },
+    })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { submissions: { russenavn: string }[] }
+    expect(body.submissions.every((s) => s.russenavn !== 'StudentA')).toBe(true)
+  })
+})
+
+describe('PATCH /api/submissions/:id/approve', () => {
+  it('returns 401 without auth', async () => {
+    const res = await app.request('/api/submissions/00000000-0000-0000-0000-000000000000/approve', {
+      method: 'PATCH',
+    })
+    expect(res.status).toBe(401)
+  })
+
+  it('returns 403 when caller is a student', async () => {
+    const someId = '00000000-0000-0000-0000-000000000001'
+    const res = await app.request(`/api/submissions/${someId}/approve`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${studentTokenA}` },
+    })
+    expect(res.status).toBe(403)
+  })
+
+  it('happy path — approving sets status, records reviewer, awards points', async () => {
+    // Seed a pending submission via POST endpoint
+    const post = await app.request('/api/submissions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${studentTokenA}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ knuteId: knuteAId, imageKey: 'bunny/approve-test.webp' }),
+    })
+    const submission = ((await post.json()) as CreateResponse).submission
+
+    // Snapshot StudentA points before
+    const [before] = await h.superDb.select({ points: users.points }).from(users).where(eq(users.id, studentAId))
+
+    const res = await app.request(`/api/submissions/${submission.id}/approve`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${knutesjefTokenA}` },
+    })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as CreateResponse
+    expect(body.submission.status).toBe('approved')
+    expect(body.submission.id).toBe(submission.id)
+
+    // Points should have gone up by the knute's points (10).
+    const [after] = await h.superDb.select({ points: users.points }).from(users).where(eq(users.id, studentAId))
+    expect(after!.points).toBe(before!.points + 10)
+  })
+
+  it('cross-tenant: school B knutesjef cannot approve school A submission (404)', async () => {
+    const post = await app.request('/api/submissions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${studentTokenA}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ knuteId: knuteAId, imageKey: 'bunny/cross-tenant.webp' }),
+    })
+    const submission = ((await post.json()) as CreateResponse).submission
+
+    const res = await app.request(`/api/submissions/${submission.id}/approve`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${knutesjefTokenB}` },
+    })
+    expect(res.status).toBe(404)
+  })
+
+  it('returns 404 when approving an already-approved submission', async () => {
+    // Create + approve once
+    const post = await app.request('/api/submissions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${studentTokenA}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ knuteId: knuteAId, imageKey: 'bunny/double-approve.webp' }),
+    })
+    const submission = ((await post.json()) as CreateResponse).submission
+
+    await app.request(`/api/submissions/${submission.id}/approve`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${knutesjefTokenA}` },
+    })
+
+    // Approve again — should fail with 404
+    const second = await app.request(`/api/submissions/${submission.id}/approve`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${knutesjefTokenA}` },
+    })
+    expect(second.status).toBe(404)
+  })
+})
+
+describe('PATCH /api/submissions/:id/reject', () => {
+  it('happy path — rejecting sets status, no points awarded', async () => {
+    const post = await app.request('/api/submissions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${studentTokenA}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ knuteId: knuteAId, imageKey: 'bunny/reject-test.webp' }),
+    })
+    const submission = ((await post.json()) as CreateResponse).submission
+
+    const [before] = await h.superDb.select({ points: users.points }).from(users).where(eq(users.id, studentAId))
+
+    const res = await app.request(`/api/submissions/${submission.id}/reject`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${knutesjefTokenA}` },
+    })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as CreateResponse
+    expect(body.submission.status).toBe('rejected')
+
+    // Points unchanged
+    const [after] = await h.superDb.select({ points: users.points }).from(users).where(eq(users.id, studentAId))
+    expect(after!.points).toBe(before!.points)
+  })
+
+  it('returns 403 when caller is a student', async () => {
+    const someId = '00000000-0000-0000-0000-000000000002'
+    const res = await app.request(`/api/submissions/${someId}/reject`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${studentTokenA}` },
+    })
+    expect(res.status).toBe(403)
   })
 })
 
