@@ -1,0 +1,102 @@
+{
+  "$comment": "Knuteloop v2 — Claude Code project settings. Checked into git. Personal overrides go in settings.local.json (gitignored). Permissions and hooks together enforce the 'CRITICAL RULES' in CLAUDE.md. Prose alone is ~70% effective; hooks are 100%.",
+
+  "permissions": {
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Bash(rm -rf /:*)",
+      "Bash(rm -rf ~:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(* --dangerously-skip-permissions:*)",
+      "Bash(claude --dangerously-skip-permissions:*)",
+      "Read(.env)",
+      "Read(.env.production)",
+      "Read(.env.staging)",
+      "Read(.env.local)",
+      "Read(./apps/api/.env*)",
+      "Read(./apps/mobile/.env*)",
+      "Bash(git push origin main:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(drizzle-kit push:*)",
+      "Bash(pnpm drizzle-kit push:*)",
+      "Bash(psql:*production*)",
+      "Bash(npm publish:*)",
+      "Bash(eas submit --profile production:*)"
+    ],
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(drizzle-kit migrate:*)",
+      "Bash(pnpm drizzle-kit migrate:*)",
+      "Bash(eas build:*)",
+      "Bash(eas submit:*)",
+      "Bash(eas update:*)",
+      "Edit(CLAUDE.md)",
+      "Edit(.claude/settings.json)",
+      "Edit(.claude/rules/**)",
+      "Edit(docs/adr/**)",
+      "Edit(apps/api/src/db/migrations/**)",
+      "Edit(.env*)"
+    ]
+  },
+
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/session-start.sh",
+            "$comment": "Reads recent handoff, checks CLAUDE.md integrity (LayerX defense), shows unread ADRs, summarizes recent commits."
+          }
+        ]
+      }
+    ],
+
+    "PreToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/pre-edit-protect.sh",
+            "$comment": "Blocks edits to applied migrations, .env, accepted ADRs."
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/pre-edit-protect.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/pre-bash-validate.sh",
+            "$comment": "Catches drizzle-kit push to non-local, raw SQL on prod, etc."
+          }
+        ]
+      }
+    ],
+
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/post-edit-quality.sh",
+            "$comment": "Runs typecheck + lint on changed file. If db/schema/** changed, runs RLS test. If server code, greps for console.log and sql.raw with interpolation."
+          }
+        ]
+      }
+    ]
+  }
+}
