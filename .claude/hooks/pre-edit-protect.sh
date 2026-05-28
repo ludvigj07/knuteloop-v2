@@ -12,8 +12,11 @@ if [ -z "$FILE_PATH" ]; then
   exit 0  # can't parse — let it through, the action will fail naturally
 fi
 
-# 1. Block edits to .env files (secrets)
+# 1. Block edits to .env files (secrets) — but allow committed templates
 case "$FILE_PATH" in
+  *.env.example|*.env.sample|*/.env.example|*/.env.sample)
+    # Committed templates are documentation, not secrets — allowed.
+    ;;
   *.env|*.env.*|*/.env|*/.env.*)
     echo "🚫 BLOCKED: Edits to .env files require explicit human action."
     echo "   File: $FILE_PATH"

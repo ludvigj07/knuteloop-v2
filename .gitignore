@@ -1,0 +1,66 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Environment files — NEVER commit
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+apps/api/.env
+apps/api/.env.local
+apps/mobile/.env
+apps/mobile/.env.local
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+logs/
+
+# IDE
+.vscode/*
+!.vscode/settings.json.example
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Expo
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+# Native
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Local Claude state
+.claude/worktrees/
+.claude/local/
+
+# Aiven CA cert (must be added manually per environment)
+apps/api/src/lib/aiven-ca.pem
+
+# Misc
+*.tgz
+.eslintcache
