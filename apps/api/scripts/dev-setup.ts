@@ -73,12 +73,16 @@ const testskolen = insertedSchools[1]!
 const insertedUsers = await supDb
   .insert(schema.users)
   .values([
-    { schoolId: stOlav.id, russenavn: 'Loke', role: 'student' },
+    // Loke is St. Olav's knutesjef so dev:token gives you a token that
+    // can both READ via GET /api/knuter and WRITE via POST /api/knuter.
+    { schoolId: stOlav.id, russenavn: 'Loke', role: 'knutesjef' },
+    { schoolId: stOlav.id, russenavn: 'Frida', role: 'student' },
     { schoolId: testskolen.id, russenavn: 'Tor', role: 'student' },
   ])
   .returning()
 const userLoke = insertedUsers[0]!
-const userTor = insertedUsers[1]!
+const userFrida = insertedUsers[1]!
+const userTor = insertedUsers[2]!
 
 // 4. Seed knuter. St. Olav gets the 43 v1-spec knuter (treated as dev test
 // data here — NOT a production seed, never auto-applied to other envs).
@@ -152,8 +156,11 @@ await supDb.insert(schema.knuter).values(
 )
 
 process.stdout.write(`  seeded:\n`)
-process.stdout.write(`    ${stOlav.name}  → ${stOlavKnuter.length} knuter, user "${userLoke.russenavn}" (${userLoke.id.slice(0, 8)}…)\n`)
-process.stdout.write(`    ${testskolen.name} → ${testskolenKnuter.length} knuter, user "${userTor.russenavn}" (${userTor.id.slice(0, 8)}…)\n`)
+process.stdout.write(`    ${stOlav.name}: ${stOlavKnuter.length} knuter, users:\n`)
+process.stdout.write(`      ${userLoke.russenavn} (${userLoke.role}, ${userLoke.id.slice(0, 8)}…)\n`)
+process.stdout.write(`      ${userFrida.russenavn} (${userFrida.role}, ${userFrida.id.slice(0, 8)}…)\n`)
+process.stdout.write(`    ${testskolen.name}: ${testskolenKnuter.length} knuter, users:\n`)
+process.stdout.write(`      ${userTor.russenavn} (${userTor.role}, ${userTor.id.slice(0, 8)}…)\n`)
 process.stdout.write(`\nDone. Run 'pnpm dev' to start the API, 'pnpm dev:token' to get a token.\n`)
 
 await supSql.end({ timeout: 5 })
