@@ -9,10 +9,12 @@
 // Re-running this WIPES the dev DB. That's the point — predictable starting
 // state for every dev session.
 
+import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import postgres from 'postgres'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import * as schema from '../src/db/schema/index.js'
+import { signDevToken } from '../src/lib/auth-dev.js'
 
 const SUPERUSER_URL =
   process.env.SUPERUSER_DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5432/postgres'
@@ -183,7 +185,35 @@ process.stdout.write(`      ${userLoke.russenavn} (${userLoke.role}, ${userLoke.
 process.stdout.write(`      ${userFrida.russenavn} (${userFrida.role}, ${userFrida.id.slice(0, 8)}…)\n`)
 process.stdout.write(`    ${testskolen.name}: ${testskolenKnuter.length} knuter, users:\n`)
 process.stdout.write(`      ${userTor.russenavn} (${userTor.role}, ${userTor.id.slice(0, 8)}…)\n`)
-process.stdout.write(`\nDone. Run 'pnpm dev' to start the API, 'pnpm dev:token' to get a token.\n`)
+
+// 5. Inject a fresh Loke token into apps/mobile/.env so the mobile app's
+// bundled EXPO_PUBLIC_DEV_TOKEN matches the just-seeded user ids. Without
+// this, every dev:setup invalidates the old token and the mobile shows
+// either "0 knuter" (stale schoolId) or 401 (expired). TTL is 8h here —
+// longer than 15min so it survives a typical dev session.
+const lokeToken = await signDevToken(
+  { sub: userLoke.id, school_id: stOlav.id, role: 'knutesjef' },
+  '8h',
+)
+
+const mobileEnvPath = new URL('../../mobile/.env', import.meta.url).pathname.replace(
+  /^\/([A-Za-z]:)/,
+  '$1',
+)
+const tokenLine = `EXPO_PUBLIC_DEV_TOKEN=${lokeToken}`
+let envContent: string
+if (existsSync(mobileEnvPath)) {
+  const current = readFileSync(mobileEnvPath, 'utf8')
+  envContent = /^EXPO_PUBLIC_DEV_TOKEN=.*$/m.test(current)
+    ? current.replace(/^EXPO_PUBLIC_DEV_TOKEN=.*$/m, tokenLine)
+    : current.replace(/\s*$/, `\n${tokenLine}\n`)
+} else {
+  envContent = `EXPO_PUBLIC_API_URL=http://localhost:3000\n${tokenLine}\n`
+}
+writeFileSync(mobileEnvPath, envContent)
+process.stdout.write(`  wrote fresh Loke token to apps/mobile/.env\n`)
+
+process.stdout.write(`\nDone. Run 'pnpm dev:all' to start API + mobile.\n`)
 
 await supSql.end({ timeout: 5 })
 process.exit(0)
