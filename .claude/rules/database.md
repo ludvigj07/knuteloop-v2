@@ -262,72 +262,36 @@ export const db = drizzle(client, { schema })
 
 ---
 
-## 7. The shared catalog schemas
+## 7. The knuter schema (per-school)
 
-The knute catalog is shared across schools — every school can subscribe to master folders. No RLS here, but only admin can write.
+Every school's knutesjef creates their own knuter — there is **no shared catalog at this stage**. The `knuter` table is fully tenant-scoped (see §2 for the canonical pattern; `knuter` follows it exactly):
 
 ```ts
-// apps/api/src/db/schema/knute-folders.ts
-import { pgTable, uuid, text, boolean, timestamp } from 'drizzle-orm/pg-core'
-
-export const knuteFolders = pgTable('knute_folders', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  slug: text('slug').notNull().unique(),
-  name: text('name').notNull(),
-  description: text('description'),
-  isActive: boolean('is_active').notNull().default(true),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-})
-
 // apps/api/src/db/schema/knuter.ts
 export const knuter = pgTable('knuter', {
   id: uuid('id').primaryKey().defaultRandom(),
-  folderId: uuid('folder_id').notNull().references(() => knuteFolders.id, { onDelete: 'restrict' }),
-  title: text('title').notNull(),
-  description: text('description').notNull(),
-  points: integer('points').notNull(),
-  isSponsored: boolean('is_sponsored').notNull().default(false),
-  sponsorName: text('sponsor_name'),
-  sponsorLogoKey: text('sponsor_logo_key'),
-  sponsorActiveFrom: timestamp('sponsor_active_from', { withTimezone: true }),
-  sponsorActiveTo: timestamp('sponsor_active_to', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (table) => [
-  index('knuter_folder_idx').on(table.folderId),
-  index('knuter_sponsored_active_idx')
-    .on(table.isSponsored, table.sponsorActiveFrom, table.sponsorActiveTo)
-    .where(sql`is_sponsored = true`),
-])
-
-// apps/api/src/db/schema/school-folder-subscriptions.ts
-export const schoolFolderSubscriptions = pgTable('school_folder_subscriptions', {
-  schoolId: uuid('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }),
-  folderId: uuid('folder_id').notNull().references(() => knuteFolders.id, { onDelete: 'cascade' }),
-  enabledAt: timestamp('enabled_at', { withTimezone: true }).notNull().defaultNow(),
-}, (table) => [
-  primaryKey({ columns: [table.schoolId, table.folderId] }),
-  index('school_folder_subs_school_idx').on(table.schoolId),
-])
-
-// Custom knuter — tenant-scoped, full RLS treatment
-export const customKnuter = pgTable('custom_knuter', {
-  id: uuid('id').primaryKey().defaultRandom(),
   schoolId: uuid('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
   description: text('description'),
   points: integer('points').notNull(),
+  difficulty: text('difficulty', { enum: ['Lett', 'Medium', 'Hard', 'Valgfri'] })
+    .notNull().default('Medium'),
+  isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
-  pgPolicy('custom_knuter_tenant_isolation', {
-    as: 'permissive',
-    for: 'all',
-    to: 'app_role',
-    using: sql`school_id = current_setting('app.school_id', true)::uuid`,
-    withCheck: sql`school_id = current_setting('app.school_id', true)::uuid`,
+  pgPolicy('knuter_tenant_isolation', {
+    as: 'permissive', for: 'all', to: 'app_role',
+    using: sql`school_id = NULLIF(current_setting('app.school_id', true), '')::uuid`,
+    withCheck: sql`school_id = NULLIF(current_setting('app.school_id', true), '')::uuid`,
   }),
-  index('custom_knuter_school_idx').on(table.schoolId),
+  index('knuter_school_created_idx').on(table.schoolId, table.createdAt.desc()),
 ]).enableRLS()
 ```
+
+**Future feature, not yet modeled:** a **curated library** — separate `library_folders`, `library_knuter`, and a `school_library_imports` linking table — would let schools browse pre-made knuter and adopt them into their own `knuter` table. Designed when real curated content exists, not before. v1's 43 demo knuter from `docs/v1-spec.md §2` are **test data only**, not library content.
+
+**Sponsor fields** (`is_sponsored`, `sponsor_name`, etc. shown in earlier drafts of this rule) move out of `knuter` and into a dedicated `sponsored_knuter` join table when the sponsor flow ships. Keep `knuter` small until then.
 
 ---
 

@@ -6,7 +6,7 @@ This document is the **30-second flyover** of the entire system. If you're retur
 
 A native iOS+Android app for Norwegian russ that:
 
-1. Lists challenges ("knuter") — both shared catalog knuter and school-specific custom ones.
+1. Lists challenges ("knuter") — each school's knutesjef creates their own. A curated library of pre-made knuter that schools can browse and import is planned as a separate feature later, but is NOT modeled yet.
 2. Lets a russ submit a photo as proof of completing a knute.
 3. Sends the submission to the school's knutesjef for one-tap approval.
 4. Updates the russ's score, leaderboard position, and badges in real time.
@@ -104,18 +104,14 @@ schools  (uuid id, name, entra_tenant_id, region, ...)
    │
    ├──< russenavn_allowlist  (school_id, russenavn, email, claimed_by_user_id)
    │
-   ├──< custom_knuter        (school_id, title, points, ...)         ← tenant-scoped
+   ├──< knuter               (school_id, title, points, difficulty, is_active, ...)  ← tenant-scoped
    │
-   ├──< school_folder_subscriptions  (school_id, folder_id)
-   │
-   └──< refresh_tokens  (school_id, user_id, device_id, token_hash, ...)
-
-knute_folders  (id, slug, name)                ← shared catalog (no RLS, admin write only)
-   │
-   └──< knuter  (folder_id, title, points, is_sponsored, sponsor_name, ...)
+   └──< refresh_tokens       (school_id, user_id, device_id, token_hash, ...)
 
 audit_log  (school_id, actor_id, action, target_type, target_id, payload, ts)
 ```
+
+**Future (not yet modeled):** a curated library — separate `library_folders`, `library_knuter`, and a `school_library_imports` linking table — would let schools browse pre-made knuter and adopt them into their own `knuter` table. Designed when real curated content exists, not before.
 
 Every table with `school_id` has:
 - `enableRLS()`
