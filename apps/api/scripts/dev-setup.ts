@@ -148,12 +148,34 @@ const testskolenKnuter: SeedKnute[] = [
   { title: 'Testskolen: Bær lærerens sekk en hel dag', description: null, points: 20, difficulty: 'Medium' },
 ]
 
-await supDb.insert(schema.knuter).values(
-  stOlavKnuter.map((k) => ({ ...k, schoolId: stOlav.id })),
-)
+const insertedStOlavKnuter = await supDb
+  .insert(schema.knuter)
+  .values(stOlavKnuter.map((k) => ({ ...k, schoolId: stOlav.id })))
+  .returning()
 await supDb.insert(schema.knuter).values(
   testskolenKnuter.map((k) => ({ ...k, schoolId: testskolen.id })),
 )
+
+// A handful of submissions so the DB has something to look at when we wire
+// up the feed / review queue endpoints next. Frida submits a few, all pending.
+await supDb.insert(schema.submissions).values([
+  {
+    schoolId: stOlav.id,
+    userId: userFrida.id,
+    knuteId: insertedStOlavKnuter[0]!.id, // "Spis frokost under pulten"
+    imageKey: 'bunny/dev-seed/frokost-pulten.webp',
+    caption: 'Klarte det i 1. time uten å bli tatt',
+    status: 'pending',
+  },
+  {
+    schoolId: stOlav.id,
+    userId: userFrida.id,
+    knuteId: insertedStOlavKnuter[2]!.id, // "Møt opp med røde sokker hele dagen"
+    imageKey: 'bunny/dev-seed/rode-sokker.webp',
+    caption: null,
+    status: 'pending',
+  },
+])
 
 process.stdout.write(`  seeded:\n`)
 process.stdout.write(`    ${stOlav.name}: ${stOlavKnuter.length} knuter, users:\n`)
