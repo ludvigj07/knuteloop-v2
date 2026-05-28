@@ -16,6 +16,7 @@
     "mobile": "pnpm --filter @knuteloop/mobile start",
     "dev:setup": "pnpm --filter @knuteloop/api dev:setup",
     "dev:token": "pnpm --filter @knuteloop/api dev:token",
+    "dev:all": "pnpm dev:setup && concurrently -n api,mobile -c green,blue --kill-others-on-fail \"pnpm dev\" \"pnpm mobile\"",
     "build": "pnpm -r build",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md}\""
@@ -24,6 +25,7 @@
     "@types/node": "^22.10.5",
     "@typescript-eslint/eslint-plugin": "^8.19.1",
     "@typescript-eslint/parser": "^8.19.1",
+    "concurrently": "^9.1.2",
     "eslint": "^9.18.0",
     "prettier": "^3.4.2",
     "typescript": "^5.7.3"
