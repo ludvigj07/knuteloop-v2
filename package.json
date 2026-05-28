@@ -13,6 +13,9 @@
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "dev": "pnpm --filter @knuteloop/api dev",
+    "mobile": "pnpm --filter @knuteloop/mobile start",
+    "dev:setup": "pnpm --filter @knuteloop/api dev:setup",
+    "dev:token": "pnpm --filter @knuteloop/api dev:token",
     "build": "pnpm -r build",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md}\""

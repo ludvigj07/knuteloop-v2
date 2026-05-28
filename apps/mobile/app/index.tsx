@@ -1,6 +1,5 @@
-import { View, Text, StyleSheet, Pressable } from 'react-native'
+import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
-import { FlashList } from '@shopify/flash-list'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { fetchKnuter, type Knute } from '../lib/api'
 import { colors, spacing, radius, fontSize, fontWeight } from '../lib/theme'
@@ -18,33 +17,41 @@ export default function KnuterScreen() {
   const knuter = data?.knuter ?? []
 
   return (
-    <FlashList
-      data={knuter}
-      estimatedItemSize={84}
+    <ScrollView
+      style={styles.scroll}
       contentContainerStyle={{ paddingBottom: insets.bottom + spacing.lg }}
-      ListHeaderComponent={
-        <View style={styles.header}>
-          <Text style={styles.heading} accessibilityRole="header">
-            {knuter.length} {knuter.length === 1 ? 'knute' : 'knuter'}
-          </Text>
-          {isRefetching && <Text style={styles.muted}>Oppdaterer…</Text>}
-        </View>
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefetching}
+          onRefresh={() => void refetch()}
+          tintColor={colors.brand.primary}
+        />
       }
-      ListEmptyComponent={
+    >
+      <View style={styles.header}>
+        <Text style={styles.heading} accessibilityRole="header">
+          {knuter.length} {knuter.length === 1 ? 'knute' : 'knuter'}
+        </Text>
+        {isRefetching && <Text style={styles.muted}>Oppdaterer…</Text>}
+      </View>
+      {knuter.length === 0 ? (
         <View style={styles.center}>
           <Text style={styles.muted}>Ingen knuter ennå. Knutesjefen lager dem fra knutesjef-panelet.</Text>
         </View>
-      }
-      renderItem={({ item }) => <KnuteCard knute={item} />}
-      onRefresh={() => void refetch()}
-      refreshing={isRefetching}
-    />
+      ) : (
+        knuter.map((k) => <KnuteCard key={k.id} knute={k} />)
+      )}
+    </ScrollView>
   )
 }
 
 function KnuteCard({ knute }: { knute: Knute }) {
   return (
-    <View style={styles.card} accessibilityRole="text" accessibilityLabel={`${knute.title}, ${knute.points} poeng, ${knute.difficulty}`}>
+    <View
+      style={styles.card}
+      accessibilityRole="text"
+      accessibilityLabel={`${knute.title}, ${knute.points} poeng, ${knute.difficulty}`}
+    >
       <Text style={styles.cardTitle}>{knute.title}</Text>
       <View style={styles.cardRow}>
         <View style={styles.pointsBadge}>
@@ -58,7 +65,7 @@ function KnuteCard({ knute }: { knute: Knute }) {
 
 function LoadingState() {
   return (
-    <View style={styles.list}>
+    <View style={styles.scroll}>
       <View style={styles.header}>
         <View style={[styles.skeleton, { width: 120, height: 24 }]} />
       </View>
@@ -90,7 +97,10 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
 }
 
 const styles = StyleSheet.create({
-  list: { padding: spacing.base, backgroundColor: colors.background, flex: 1 },
+  scroll: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   header: {
     paddingHorizontal: spacing.base,
     paddingTop: spacing.base,
