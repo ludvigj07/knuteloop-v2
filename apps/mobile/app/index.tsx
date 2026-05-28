@@ -44,6 +44,17 @@ export default function KnuterScreen() {
         {isRefetching && <Text style={styles.muted}>Oppdaterer…</Text>}
       </View>
 
+      <Link href="/leaderboard" asChild>
+        <Pressable
+          style={styles.navLink}
+          accessibilityRole="link"
+          accessibilityLabel="Se topplisten"
+        >
+          <Text style={styles.navLinkText}>Toppliste</Text>
+          <Text style={styles.navLinkArrow}>›</Text>
+        </Pressable>
+      </Link>
+
       {showReviewLink && (
         <Link href="/review" asChild>
           <Pressable
@@ -228,5 +239,27 @@ const styles = StyleSheet.create({
     color: colors.text.inverse,
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
+  },
+  navLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: spacing.base,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  navLinkText: {
+    color: colors.text.primary,
+    fontWeight: fontWeight.semibold,
+    fontSize: fontSize.base,
+  },
+  navLinkArrow: {
+    color: colors.text.muted,
+    fontSize: fontSize.xl,
   },
 })

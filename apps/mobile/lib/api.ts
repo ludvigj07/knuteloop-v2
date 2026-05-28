@@ -91,6 +91,19 @@ export function rejectSubmission(id: string): Promise<ReviewResponse> {
   return apiFetch<ReviewResponse>(`/api/submissions/${id}/reject`, { method: 'PATCH' })
 }
 
+export type LeaderboardEntry = {
+  userId: string
+  russenavn: string
+  points: number
+  rank: number
+  isCurrentUser: boolean
+}
+export type LeaderboardResponse = { leaderboard: LeaderboardEntry[] }
+
+export function fetchLeaderboard(): Promise<LeaderboardResponse> {
+  return apiFetch<LeaderboardResponse>('/api/leaderboard')
+}
+
 // Used by the home screen to detect knutesjef role without decoding the JWT:
 // hit /pending; 200 = knutesjef, 403 = not. Returns null if not authorized.
 export async function tryFetchPendingCount(): Promise<number | null> {

@@ -13,6 +13,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import postgres from 'postgres'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
+import { eq } from 'drizzle-orm'
 import * as schema from '../src/db/schema/index.js'
 import { signDevToken } from '../src/lib/auth-dev.js'
 
@@ -158,14 +159,26 @@ await supDb.insert(schema.knuter).values(
   testskolenKnuter.map((k) => ({ ...k, schoolId: testskolen.id })),
 )
 
-// A handful of submissions so the DB has something to look at when we wire
-// up the feed / review queue endpoints next. Frida submits a few, all pending.
+// A handful of submissions so the DB has something to look at across screens.
+// One already approved by Loke (so the leaderboard has real points), two
+// pending (for the review queue).
+const firstKnute = insertedStOlavKnuter[0]! // "Spis frokost under pulten" — 10p
 await supDb.insert(schema.submissions).values([
   {
     schoolId: stOlav.id,
     userId: userFrida.id,
-    knuteId: insertedStOlavKnuter[0]!.id, // "Spis frokost under pulten"
-    imageKey: 'bunny/dev-seed/frokost-pulten.webp',
+    knuteId: firstKnute.id,
+    imageKey: 'bunny/dev-seed/frokost-approved.webp',
+    caption: 'Allerede godkjent — seed-data for topplisten',
+    status: 'approved',
+    reviewedBy: userLoke.id,
+    reviewedAt: new Date(),
+  },
+  {
+    schoolId: stOlav.id,
+    userId: userFrida.id,
+    knuteId: insertedStOlavKnuter[1]!.id, // "Ta klassebilde med matchende solbriller"
+    imageKey: 'bunny/dev-seed/klassebilde.webp',
     caption: 'Klarte det i 1. time uten å bli tatt',
     status: 'pending',
   },
@@ -178,6 +191,14 @@ await supDb.insert(schema.submissions).values([
     status: 'pending',
   },
 ])
+
+// Award Frida the points from the pre-approved submission so the leaderboard
+// matches the seed (otherwise points=0 because the approve flow normally
+// updates this transactionally).
+await supDb
+  .update(schema.users)
+  .set({ points: firstKnute.points })
+  .where(eq(schema.users.id, userFrida.id))
 
 process.stdout.write(`  seeded:\n`)
 process.stdout.write(`    ${stOlav.name}: ${stOlavKnuter.length} knuter, users:\n`)
