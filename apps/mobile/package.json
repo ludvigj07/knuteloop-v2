@@ -13,6 +13,7 @@
     "test": "echo \"no tests yet\" && exit 0"
   },
   "dependencies": {
+    "@babel/runtime": "^7.26.0",
     "@expo/metro-runtime": "~4.0.0",
     "@knuteloop/shared": "workspace:*",
     "@tanstack/react-query": "^5.62.10",
