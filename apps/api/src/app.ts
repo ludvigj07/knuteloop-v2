@@ -10,6 +10,7 @@ import { healthRoutes } from './routes/health.js'
 import { knuterRoutes } from './routes/knuter.js'
 import { submissionRoutes } from './routes/submissions.js'
 import { leaderboardRoutes } from './routes/leaderboard.js'
+import { meRoutes } from './routes/me.js'
 
 export function buildApp() {
   const app = new Hono()
@@ -34,6 +35,7 @@ export function buildApp() {
   app.route('/api/knuter', knuterRoutes)
   app.route('/api/submissions', submissionRoutes)
   app.route('/api/leaderboard', leaderboardRoutes)
+  app.route('/api/me', meRoutes)
 
   app.onError(errorHandler)
 

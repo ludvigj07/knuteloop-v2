@@ -44,6 +44,17 @@ export default function KnuterScreen() {
         {isRefetching && <Text style={styles.muted}>Oppdaterer…</Text>}
       </View>
 
+      <Link href="/profile" asChild>
+        <Pressable
+          style={styles.navLink}
+          accessibilityRole="link"
+          accessibilityLabel="Min profil"
+        >
+          <Text style={styles.navLinkText}>Min profil</Text>
+          <Text style={styles.navLinkArrow}>›</Text>
+        </Pressable>
+      </Link>
+
       <Link href="/leaderboard" asChild>
         <Pressable
           style={styles.navLink}

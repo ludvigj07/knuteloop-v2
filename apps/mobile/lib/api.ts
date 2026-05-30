@@ -104,6 +104,33 @@ export function fetchLeaderboard(): Promise<LeaderboardResponse> {
   return apiFetch<LeaderboardResponse>('/api/leaderboard')
 }
 
+export type MyProfile = {
+  id: string
+  russenavn: string
+  role: 'student' | 'knutesjef' | 'admin'
+  points: number
+  createdAt: string
+}
+export type MySubmission = {
+  id: string
+  status: 'pending' | 'approved' | 'rejected'
+  imageKey: string
+  caption: string | null
+  createdAt: string
+  reviewedAt: string | null
+  knuteTitle: string
+  knutePoints: number
+}
+export type MeResponse = {
+  user: MyProfile
+  submissions: MySubmission[]
+  counts: { approved: number; pending: number; rejected: number }
+}
+
+export function fetchMe(): Promise<MeResponse> {
+  return apiFetch<MeResponse>('/api/me')
+}
+
 // Used by the home screen to detect knutesjef role without decoding the JWT:
 // hit /pending; 200 = knutesjef, 403 = not. Returns null if not authorized.
 export async function tryFetchPendingCount(): Promise<number | null> {
