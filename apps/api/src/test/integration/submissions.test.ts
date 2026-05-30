@@ -18,6 +18,21 @@ let knutesjefTokenB: string
 let knuteAId: string // a knute belonging to school A (10 points)
 let knuteBId: string // a knute belonging to school B
 
+// Insert a fresh school-A knute on demand. Each test that submits should use
+// its own to avoid colliding with the (user, knute) pending/approved dedupe.
+async function freshKnuteA(label: string) {
+  const [row] = await h.superDb
+    .insert(knuter)
+    .values({
+      schoolId: schoolAId,
+      title: `A: ${label}`,
+      points: 10,
+      difficulty: 'Lett',
+    })
+    .returning()
+  return row!.id
+}
+
 type SubmissionRow = {
   id: string
   schoolId: string
@@ -150,6 +165,7 @@ describe('POST /api/submissions', () => {
   })
 
   it('happy path — student creates a submission, status defaults to pending', async () => {
+    const knuteId = await freshKnuteA('happy path')
     const res = await app.request('/api/submissions', {
       method: 'POST',
       headers: {
@@ -157,14 +173,14 @@ describe('POST /api/submissions', () => {
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        knuteId: knuteAId,
+        knuteId,
         imageKey: 'bunny/school-a/abc123.webp',
         caption: 'Klarte det med solbriller på',
       }),
     })
     expect(res.status).toBe(201)
     const body = (await res.json()) as CreateResponse
-    expect(body.submission.knuteId).toBe(knuteAId)
+    expect(body.submission.knuteId).toBe(knuteId)
     expect(body.submission.schoolId).toBe(schoolAId)
     expect(body.submission.status).toBe('pending')
     expect(body.submission.caption).toBe('Klarte det med solbriller på')
@@ -172,17 +188,79 @@ describe('POST /api/submissions', () => {
   })
 
   it('caption is optional (201 without it)', async () => {
+    const knuteId = await freshKnuteA('caption optional')
     const res = await app.request('/api/submissions', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${studentTokenA}`,
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ knuteId: knuteAId, imageKey: 'bunny/no-caption.webp' }),
+      body: JSON.stringify({ knuteId, imageKey: 'bunny/no-caption.webp' }),
     })
     expect(res.status).toBe(201)
     const body = (await res.json()) as CreateResponse
     expect(body.submission.caption).toBeNull()
+  })
+
+  it('blocks re-submission when a pending submission already exists (409)', async () => {
+    const knuteId = await freshKnuteA('pending dup')
+    const first = await app.request('/api/submissions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${studentTokenA}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ knuteId, imageKey: 'bunny/dup-pending-1.webp' }),
+    })
+    expect(first.status).toBe(201)
+
+    const second = await app.request('/api/submissions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${studentTokenA}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ knuteId, imageKey: 'bunny/dup-pending-2.webp' }),
+    })
+    expect(second.status).toBe(409)
+    const body = (await second.json()) as ErrorResponse
+    expect(body.error.message).toMatch(/venter på godkjenning/i)
+  })
+
+  it('blocks re-submission when an approved submission already exists (409)', async () => {
+    const knuteId = await freshKnuteA('approved dup')
+    // Seed an approved submission directly so we don't need to drive the
+    // approval endpoint through HTTP.
+    await h.superDb.insert(submissions).values({
+      schoolId: schoolAId,
+      userId: studentAId,
+      knuteId,
+      imageKey: 'bunny/dup-approved-seed.webp',
+      status: 'approved',
+      reviewedAt: new Date(),
+    })
+
+    const res = await app.request('/api/submissions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${studentTokenA}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ knuteId, imageKey: 'bunny/dup-approved-retry.webp' }),
+    })
+    expect(res.status).toBe(409)
+    const body = (await res.json()) as ErrorResponse
+    expect(body.error.message).toMatch(/godkjent/i)
+  })
+
+  it('ALLOWS re-submission when only a rejected submission exists', async () => {
+    const knuteId = await freshKnuteA('rejected retry')
+    await h.superDb.insert(submissions).values({
+      schoolId: schoolAId,
+      userId: studentAId,
+      knuteId,
+      imageKey: 'bunny/dup-rejected-first.webp',
+      status: 'rejected',
+      reviewedAt: new Date(),
+    })
+
+    const res = await app.request('/api/submissions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${studentTokenA}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ knuteId, imageKey: 'bunny/dup-rejected-retry.webp' }),
+    })
+    expect(res.status).toBe(201)
   })
 })
 
@@ -200,7 +278,7 @@ describe('GET /api/submissions/pending', () => {
   })
 
   it('happy path — knutesjef sees their school pending queue with russenavn + knute', async () => {
-    // Seed one pending submission for school A via the public POST.
+    const knuteId = await freshKnuteA('pending queue')
     const post = await app.request('/api/submissions', {
       method: 'POST',
       headers: {
@@ -208,7 +286,7 @@ describe('GET /api/submissions/pending', () => {
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        knuteId: knuteAId,
+        knuteId,
         imageKey: 'bunny/q/pending-1.webp',
         caption: 'For knutesjef',
       }),
@@ -233,7 +311,7 @@ describe('GET /api/submissions/pending', () => {
     const matching = body.submissions.find((s) => s.caption === 'For knutesjef')
     expect(matching).toBeDefined()
     expect(matching?.russenavn).toBe('StudentA')
-    expect(matching?.knuteTitle).toBe('A: Spis frokost under pulten')
+    expect(matching?.knuteTitle).toBe('A: pending queue')
     expect(matching?.knutePoints).toBe(10)
   })
 
@@ -265,14 +343,14 @@ describe('PATCH /api/submissions/:id/approve', () => {
   })
 
   it('happy path — approving sets status, records reviewer, awards points', async () => {
-    // Seed a pending submission via POST endpoint
+    const knuteId = await freshKnuteA('approve happy')
     const post = await app.request('/api/submissions', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${studentTokenA}`,
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ knuteId: knuteAId, imageKey: 'bunny/approve-test.webp' }),
+      body: JSON.stringify({ knuteId, imageKey: 'bunny/approve-test.webp' }),
     })
     const submission = ((await post.json()) as CreateResponse).submission
 
@@ -294,13 +372,14 @@ describe('PATCH /api/submissions/:id/approve', () => {
   })
 
   it('cross-tenant: school B knutesjef cannot approve school A submission (404)', async () => {
+    const knuteId = await freshKnuteA('approve cross-tenant')
     const post = await app.request('/api/submissions', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${studentTokenA}`,
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ knuteId: knuteAId, imageKey: 'bunny/cross-tenant.webp' }),
+      body: JSON.stringify({ knuteId, imageKey: 'bunny/cross-tenant.webp' }),
     })
     const submission = ((await post.json()) as CreateResponse).submission
 
@@ -312,14 +391,14 @@ describe('PATCH /api/submissions/:id/approve', () => {
   })
 
   it('returns 404 when approving an already-approved submission', async () => {
-    // Create + approve once
+    const knuteId = await freshKnuteA('double-approve')
     const post = await app.request('/api/submissions', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${studentTokenA}`,
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ knuteId: knuteAId, imageKey: 'bunny/double-approve.webp' }),
+      body: JSON.stringify({ knuteId, imageKey: 'bunny/double-approve.webp' }),
     })
     const submission = ((await post.json()) as CreateResponse).submission
 
@@ -339,13 +418,14 @@ describe('PATCH /api/submissions/:id/approve', () => {
 
 describe('PATCH /api/submissions/:id/reject', () => {
   it('happy path — rejecting sets status, no points awarded', async () => {
+    const knuteId = await freshKnuteA('reject happy')
     const post = await app.request('/api/submissions', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${studentTokenA}`,
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ knuteId: knuteAId, imageKey: 'bunny/reject-test.webp' }),
+      body: JSON.stringify({ knuteId, imageKey: 'bunny/reject-test.webp' }),
     })
     const submission = ((await post.json()) as CreateResponse).submission
 

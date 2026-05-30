@@ -12,7 +12,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { fetchKnuter, createSubmission } from '../../lib/api'
+import { fetchKnuter, fetchMe, createSubmission } from '../../lib/api'
 import { colors, spacing, radius, fontSize, fontWeight } from '../../lib/theme'
 
 export default function KnuteDetailScreen() {
@@ -24,6 +24,21 @@ export default function KnuteDetailScreen() {
 
   const { data, isLoading } = useQuery({ queryKey: ['knuter'], queryFn: fetchKnuter })
   const knute = data?.knuter.find((k) => k.id === id)
+
+  // Look up the user's prior submission for THIS knute to lock the form
+  // proactively. The backend also enforces this (returns 409), but UX is
+  // better if Send-inn just isn't tappable when it can't succeed.
+  const me = useQuery({ queryKey: ['me'], queryFn: fetchMe })
+  const prior = me.data?.submissions.find(
+    (s) => s.knuteTitle && knute && s.knuteTitle === knute.title && (s.status === 'pending' || s.status === 'approved'),
+  )
+  // Note: matching by title is correct here because /api/me already filters
+  // by user — and submissions only join in titles for the current user's school.
+  const lockReason: string | null = prior
+    ? prior.status === 'pending'
+      ? 'Du har allerede sendt inn denne — venter på godkjenning.'
+      : 'Du har allerede fått godkjent denne knuten.'
+    : null
 
   const submit = useMutation({
     mutationFn: () => {
@@ -105,6 +120,12 @@ export default function KnuteDetailScreen() {
           </View>
         </View>
 
+        {lockReason && (
+          <View style={styles.lockBanner} accessibilityRole="alert">
+            <Text style={styles.lockBannerText}>{lockReason}</Text>
+          </View>
+        )}
+
         <View style={styles.imagePlaceholder}>
           <Text style={styles.cameraIcon}>📷</Text>
           <Text style={styles.muted}>Bilde-opplasting kommer snart</Text>
@@ -112,26 +133,34 @@ export default function KnuteDetailScreen() {
 
         <Text style={styles.label}>Beskrivelse (valgfritt)</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, lockReason && styles.inputDisabled]}
           value={caption}
           onChangeText={setCaption}
           placeholder="Hva gjorde du? Hvem var med?"
           placeholderTextColor={colors.text.muted}
           multiline
           maxLength={500}
+          editable={!lockReason}
           accessibilityLabel="Skriv en beskrivelse"
         />
         <Text style={styles.charCount}>{caption.length}/500</Text>
 
         <Pressable
-          style={[styles.submitButton, submit.isPending && styles.buttonDisabled]}
+          style={[
+            styles.submitButton,
+            (submit.isPending || lockReason !== null) && styles.buttonDisabled,
+          ]}
           onPress={() => submit.mutate()}
-          disabled={submit.isPending}
+          disabled={submit.isPending || lockReason !== null}
           accessibilityRole="button"
-          accessibilityLabel="Send inn knute"
+          accessibilityLabel={lockReason ? 'Send inn (låst)' : 'Send inn knute'}
         >
           <Text style={styles.submitText}>
-            {submit.isPending ? 'Sender inn…' : 'Send inn'}
+            {lockReason
+              ? 'Allerede sendt inn'
+              : submit.isPending
+                ? 'Sender inn…'
+                : 'Send inn'}
           </Text>
         </Pressable>
 
@@ -278,5 +307,22 @@ const styles = StyleSheet.create({
   backText: {
     color: colors.text.primary,
     fontWeight: fontWeight.semibold,
+  },
+  lockBanner: {
+    backgroundColor: '#FFF7E6',
+    borderLeftWidth: 4,
+    borderLeftColor: colors.warning,
+    padding: spacing.base,
+    borderRadius: radius.md,
+    marginBottom: spacing.base,
+  },
+  lockBannerText: {
+    color: colors.text.primary,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+  },
+  inputDisabled: {
+    backgroundColor: colors.background,
+    color: colors.text.muted,
   },
 })

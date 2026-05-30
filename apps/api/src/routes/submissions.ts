@@ -1,12 +1,12 @@
 import { Hono } from 'hono'
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 import { auth, type AuthVariables } from '../middleware/auth.js'
 import { tenantContext } from '../middleware/tenant-context.js'
 import { requireRole } from '../middleware/require-role.js'
 import { knuter, submissions, users } from '../db/schema/index.js'
-import { NotFoundError } from '../lib/errors.js'
+import { ConflictError, NotFoundError } from '../lib/errors.js'
 import type { db } from '../db/client.js'
 
 type Variables = AuthVariables & {
@@ -57,6 +57,29 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
         .limit(1)
       if (existing.length === 0) {
         throw new NotFoundError('Knute')
+      }
+
+      // Block re-submission if there's already an active pending or approved
+      // submission for this (user, knute). Rejected submissions are allowed
+      // to re-submit (lets students fix bad evidence). The 24h cooldown
+      // pattern from v1 spec §8 / scoring rules is a future iteration.
+      const prior = await tx
+        .select({ status: submissions.status })
+        .from(submissions)
+        .where(
+          and(
+            eq(submissions.userId, userId),
+            eq(submissions.knuteId, input.knuteId),
+            inArray(submissions.status, ['pending', 'approved']),
+          ),
+        )
+        .limit(1)
+      if (prior.length > 0) {
+        throw new ConflictError(
+          prior[0]!.status === 'pending'
+            ? 'Du har allerede sendt inn denne — venter på godkjenning'
+            : 'Du har allerede fått godkjent denne knuten',
+        )
       }
 
       const inserted = await tx
