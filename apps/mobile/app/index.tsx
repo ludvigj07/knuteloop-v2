@@ -1,12 +1,13 @@
 import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Link } from 'expo-router'
+import { Link, useRouter } from 'expo-router'
 import { fetchKnuter, tryFetchPendingCount, type Knute } from '../lib/api'
 import { colors, spacing, radius, fontSize, fontWeight } from '../lib/theme'
 
 export default function KnuterScreen() {
   const insets = useSafeAreaInsets()
+  const router = useRouter()
   const { data, error, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['knuter'],
     queryFn: fetchKnuter,
@@ -87,18 +88,25 @@ export default function KnuterScreen() {
           <Text style={styles.muted}>Ingen knuter ennå. Knutesjefen lager dem fra knutesjef-panelet.</Text>
         </View>
       ) : (
-        knuter.map((k) => <KnuteCard key={k.id} knute={k} />)
+        knuter.map((k) => (
+          <KnuteCard
+            key={k.id}
+            knute={k}
+            onPress={() => router.push(`/knute/${k.id}`)}
+          />
+        ))
       )}
     </ScrollView>
   )
 }
 
-function KnuteCard({ knute }: { knute: Knute }) {
+function KnuteCard({ knute, onPress }: { knute: Knute; onPress: () => void }) {
   return (
-    <View
+    <Pressable
       style={styles.card}
-      accessibilityRole="text"
-      accessibilityLabel={`${knute.title}, ${knute.points} poeng, ${knute.difficulty}`}
+      onPress={onPress}
+      accessibilityRole="link"
+      accessibilityLabel={`Send inn for ${knute.title}, ${knute.points} poeng, ${knute.difficulty}`}
     >
       <Text style={styles.cardTitle}>{knute.title}</Text>
       <View style={styles.cardRow}>
@@ -107,7 +115,7 @@ function KnuteCard({ knute }: { knute: Knute }) {
         </View>
         <Text style={styles.difficulty}>{knute.difficulty}</Text>
       </View>
-    </View>
+    </Pressable>
   )
 }
 

@@ -79,6 +79,27 @@ export function fetchKnuter(): Promise<KnuterResponse> {
   return apiFetch<KnuterResponse>('/api/knuter')
 }
 
+export type CreateSubmissionInput = {
+  knuteId: string
+  imageKey: string
+  caption?: string
+}
+
+export type CreatedSubmission = {
+  submission: {
+    id: string
+    status: 'pending'
+    knuteId: string
+  }
+}
+
+export function createSubmission(input: CreateSubmissionInput): Promise<CreatedSubmission> {
+  return apiFetch<CreatedSubmission>('/api/submissions', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
 export function fetchPendingSubmissions(): Promise<PendingResponse> {
   return apiFetch<PendingResponse>('/api/submissions/pending')
 }
