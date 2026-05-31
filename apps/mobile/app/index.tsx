@@ -68,20 +68,32 @@ export default function KnuterScreen() {
       </Link>
 
       {showReviewLink && (
-        <Link href="/review" asChild>
-          <Pressable
-            style={styles.reviewLink}
-            accessibilityRole="link"
-            accessibilityLabel={`${pendingCount.data} venter på godkjenning`}
-          >
-            <Text style={styles.reviewLinkText}>
-              {pendingCount.data === 0
-                ? 'Ingen innsendinger venter'
-                : `${pendingCount.data} innsendinger venter på godkjenning`}
-            </Text>
-            <Text style={styles.reviewLinkArrow}>›</Text>
-          </Pressable>
-        </Link>
+        <>
+          <Link href="/admin" asChild>
+            <Pressable
+              style={styles.navLink}
+              accessibilityRole="link"
+              accessibilityLabel="Knutesjef-panel"
+            >
+              <Text style={styles.navLinkText}>Knutesjef-panel</Text>
+              <Text style={styles.navLinkArrow}>›</Text>
+            </Pressable>
+          </Link>
+          <Link href="/review" asChild>
+            <Pressable
+              style={styles.reviewLink}
+              accessibilityRole="link"
+              accessibilityLabel={`${pendingCount.data} venter på godkjenning`}
+            >
+              <Text style={styles.reviewLinkText}>
+                {pendingCount.data === 0
+                  ? 'Ingen innsendinger venter'
+                  : `${pendingCount.data} innsendinger venter på godkjenning`}
+              </Text>
+              <Text style={styles.reviewLinkArrow}>›</Text>
+            </Pressable>
+          </Link>
+        </>
       )}
       {knuter.length === 0 ? (
         <View style={styles.center}>
