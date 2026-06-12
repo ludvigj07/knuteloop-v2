@@ -20,6 +20,12 @@ export const colors = {
   success: '#16A34A',
   warning: '#F59E0B',
   error: '#DC2626',
+  // Fullscreen feed (TikTok-style) runs on a dark backdrop regardless of theme.
+  feed: {
+    backdrop: '#0A0A0F',
+    overlay: 'rgba(0, 0, 0, 0.55)',
+    textShadow: 'rgba(0, 0, 0, 0.8)',
+  },
 } as const
 
 export const spacing = {
