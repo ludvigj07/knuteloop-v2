@@ -21,7 +21,7 @@
       "Bash(git push -f:*)",
       "Bash(drizzle-kit push:*)",
       "Bash(pnpm drizzle-kit push:*)",
-      "Bash(psql:*production*)",
+      "Bash(psql *production*)",
       "Bash(npm publish:*)",
       "Bash(eas submit --profile production:*)"
     ],
