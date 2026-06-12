@@ -61,7 +61,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
         ...(init?.headers ?? {}),
       },
     })
-  } catch (err) {
+  } catch {
     throw new ApiError(0, `Kunne ikke nå ${API_URL}. Sjekk at backend kjører og at URL-en stemmer.`)
   }
 
