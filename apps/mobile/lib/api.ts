@@ -145,6 +145,23 @@ export function rejectSubmission(id: string): Promise<ReviewResponse> {
   return apiFetch<ReviewResponse>(`/api/submissions/${id}/reject`, { method: 'PATCH' })
 }
 
+export type FeedItem = {
+  id: string
+  userId: string
+  imageKey: string
+  caption: string | null
+  createdAt: string
+  russenavn: string
+  knuteTitle: string
+  knutePoints: number
+}
+export type FeedResponse = { feed: FeedItem[]; nextCursor: string | null }
+
+export function fetchFeed(cursor?: string | null): Promise<FeedResponse> {
+  const params = cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''
+  return apiFetch<FeedResponse>(`/api/feed${params}`)
+}
+
 export type LeaderboardEntry = {
   userId: string
   russenavn: string
