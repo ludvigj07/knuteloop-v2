@@ -112,6 +112,20 @@ describe('GET /api/knuter', () => {
     expect(body.knuter).toHaveLength(1)
     expect(body.knuter[0]?.title).toBe('B: Helt annerledes')
   })
+
+  it('?all=1 includes inactive knuter (for knutesjef-panel)', async () => {
+    const res = await app.request('/api/knuter?all=1', {
+      headers: { Authorization: `Bearer ${knutesjefTokenA}` },
+    })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as ListResponse
+
+    // Default returns 2 (active only); ?all=1 returns 3 (incl. "A: Retired")
+    expect(body.knuter).toHaveLength(3)
+    const retired = body.knuter.find((k) => k.title === 'A: Retired')
+    expect(retired).toBeDefined()
+    expect(retired?.isActive).toBe(false)
+  })
 })
 
 describe('POST /api/knuter', () => {
@@ -222,6 +236,122 @@ describe('POST /api/knuter', () => {
     expect(res.status).toBe(201)
     const body = (await res.json()) as CreateResponse
     expect(body.knute.difficulty).toBe('Medium')
+  })
+})
+
+describe('PATCH /api/knuter/:id', () => {
+  // Helper: insert a fresh knute we can mutate without disturbing other tests.
+  async function freshKnute(title: string, overrides: Partial<typeof knuter.$inferInsert> = {}) {
+    const [row] = await h.superDb
+      .insert(knuter)
+      .values({
+        schoolId: schoolAId,
+        title,
+        points: 10,
+        difficulty: 'Lett',
+        ...overrides,
+      })
+      .returning()
+    return row!
+  }
+
+  it('returns 401 without auth', async () => {
+    const k = await freshKnute('A: PATCH 401')
+    const res = await app.request(`/api/knuter/${k.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'changed' }),
+    })
+    expect(res.status).toBe(401)
+  })
+
+  it('returns 403 when caller is a student', async () => {
+    const k = await freshKnute('A: PATCH 403')
+    const res = await app.request(`/api/knuter/${k.id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${studentTokenA}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'student-edit' }),
+    })
+    expect(res.status).toBe(403)
+  })
+
+  it('returns 400 with an empty body (no fields)', async () => {
+    const k = await freshKnute('A: PATCH 400 empty')
+    const res = await app.request(`/api/knuter/${k.id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${knutesjefTokenA}`, 'content-type': 'application/json' },
+      body: JSON.stringify({}),
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 400 with points out of range', async () => {
+    const k = await freshKnute('A: PATCH 400 bad points')
+    const res = await app.request(`/api/knuter/${k.id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${knutesjefTokenA}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ points: 99999 }),
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('happy path — knutesjef updates title, points, difficulty', async () => {
+    const k = await freshKnute('A: PATCH happy')
+    const res = await app.request(`/api/knuter/${k.id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${knutesjefTokenA}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'Endret tittel', points: 42, difficulty: 'Hard' }),
+    })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as CreateResponse
+    expect(body.knute.title).toBe('Endret tittel')
+    expect(body.knute.points).toBe(42)
+    expect(body.knute.difficulty).toBe('Hard')
+  })
+
+  it('soft-retire via isActive=false hides it from default GET', async () => {
+    const k = await freshKnute('A: To be retired')
+
+    const patch = await app.request(`/api/knuter/${k.id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${knutesjefTokenA}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ isActive: false }),
+    })
+    expect(patch.status).toBe(200)
+    expect(((await patch.json()) as CreateResponse).knute.isActive).toBe(false)
+
+    // Default GET no longer includes it
+    const list = await app.request('/api/knuter', {
+      headers: { Authorization: `Bearer ${knutesjefTokenA}` },
+    })
+    const body = (await list.json()) as ListResponse
+    expect(body.knuter.some((row) => row.id === k.id)).toBe(false)
+
+    // But ?all=1 does
+    const all = await app.request('/api/knuter?all=1', {
+      headers: { Authorization: `Bearer ${knutesjefTokenA}` },
+    })
+    const allBody = (await all.json()) as ListResponse
+    expect(allBody.knuter.some((row) => row.id === k.id)).toBe(true)
+  })
+
+  it('cross-tenant: school B knutesjef cannot edit school A knute (404)', async () => {
+    const k = await freshKnute('A: cross-tenant')
+    const res = await app.request(`/api/knuter/${k.id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${knutesjefTokenB}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'evil' }),
+    })
+    expect(res.status).toBe(404)
+  })
+
+  it('returns 404 for a uuid that does not exist anywhere', async () => {
+    const res = await app.request('/api/knuter/00000000-0000-0000-0000-000000000000', {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${knutesjefTokenA}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'phantom' }),
+    })
+    expect(res.status).toBe(404)
   })
 })
 

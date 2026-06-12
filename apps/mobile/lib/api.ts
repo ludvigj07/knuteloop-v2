@@ -61,7 +61,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
         ...(init?.headers ?? {}),
       },
     })
-  } catch (err) {
+  } catch {
     throw new ApiError(0, `Kunne ikke nå ${API_URL}. Sjekk at backend kjører og at URL-en stemmer.`)
   }
 
@@ -77,6 +77,39 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function fetchKnuter(): Promise<KnuterResponse> {
   return apiFetch<KnuterResponse>('/api/knuter')
+}
+
+// Knutesjef-panel uses ?all=1 to include inactive knuter so they can be re-activated.
+export function fetchAllKnuter(): Promise<KnuterResponse> {
+  return apiFetch<KnuterResponse>('/api/knuter?all=1')
+}
+
+export type CreateKnuteInput = {
+  title: string
+  description?: string
+  points: number
+  difficulty: 'Lett' | 'Medium' | 'Hard' | 'Valgfri'
+}
+
+export type UpdateKnuteInput = Omit<Partial<CreateKnuteInput>, 'description'> & {
+  isActive?: boolean
+  description?: string | null
+}
+
+export type CreatedKnute = { knute: Knute & { schoolId: string } }
+
+export function createKnute(input: CreateKnuteInput): Promise<CreatedKnute> {
+  return apiFetch<CreatedKnute>('/api/knuter', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export function updateKnute(id: string, input: UpdateKnuteInput): Promise<CreatedKnute> {
+  return apiFetch<CreatedKnute>(`/api/knuter/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  })
 }
 
 export type CreateSubmissionInput = {
