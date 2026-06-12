@@ -4,12 +4,12 @@
 //   pnpm --filter @knuteloop/api dev:seed-feed
 //
 // Unlike dev-setup.ts this does NOT drop the database and does NOT touch the
-// mobile token — safe to run while dev:all is up. Re-running adds another
-// batch (dev data, duplicates don't matter).
+// mobile token — safe to run while dev:all is up. Re-running replaces the
+// previous seed batch (idempotent), pending review-queue rows are untouched.
 
 import postgres from 'postgres'
 import { drizzle } from 'drizzle-orm/postgres-js'
-import { and, asc, eq, like, sql } from 'drizzle-orm'
+import { and, asc, eq, like } from 'drizzle-orm'
 import * as schema from '../src/db/schema/index.js'
 
 const SUPERUSER_URL =
