@@ -9,6 +9,7 @@ import { errorHandler } from './middleware/error.js'
 import { healthRoutes } from './routes/health.js'
 import { knuterRoutes } from './routes/knuter.js'
 import { submissionRoutes } from './routes/submissions.js'
+import { feedRoutes } from './routes/feed.js'
 import { leaderboardRoutes } from './routes/leaderboard.js'
 import { meRoutes } from './routes/me.js'
 
@@ -34,6 +35,7 @@ export function buildApp() {
   app.route('/healthz', healthRoutes)
   app.route('/api/knuter', knuterRoutes)
   app.route('/api/submissions', submissionRoutes)
+  app.route('/api/feed', feedRoutes)
   app.route('/api/leaderboard', leaderboardRoutes)
   app.route('/api/me', meRoutes)
 
