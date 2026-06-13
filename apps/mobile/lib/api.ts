@@ -1,8 +1,10 @@
-// Typed fetch client. API URL and dev token come from EXPO_PUBLIC_* env vars
-// (baked into the JS bundle at build time — never put production secrets here).
+// Typed fetch client. API URL comes from EXPO_PUBLIC_API_URL; the auth token is
+// the active dev identity (lib/auth) — EXPO_PUBLIC_DEV_TOKEN by default, or
+// whatever the dev-login screen switched to.
+
+import { getActiveToken } from './auth'
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
-const DEV_TOKEN = process.env.EXPO_PUBLIC_DEV_TOKEN ?? ''
 
 export type Knute = {
   id: string
@@ -47,8 +49,9 @@ class ApiError extends Error {
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  if (!DEV_TOKEN) {
-    throw new ApiError(0, 'EXPO_PUBLIC_DEV_TOKEN er ikke satt. Hent en token med "pnpm dev:token" og lim inn i apps/mobile/.env.')
+  const token = getActiveToken()
+  if (!token) {
+    throw new ApiError(0, 'Ingen token. Sett EXPO_PUBLIC_DEV_TOKEN i apps/mobile/.env, eller velg en bruker via «Bytt bruker (dev)».')
   }
 
   let res: Response
@@ -56,7 +59,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     res = await fetch(`${API_URL}${path}`, {
       ...init,
       headers: {
-        Authorization: `Bearer ${DEV_TOKEN}`,
+        Authorization: `Bearer ${token}`,
         ...(init?.body ? { 'content-type': 'application/json' } : {}),
         ...(init?.headers ?? {}),
       },
@@ -212,6 +215,27 @@ export async function tryFetchPendingCount(): Promise<number | null> {
     if (err instanceof ApiError && err.status === 403) return null
     throw err
   }
+}
+
+export type DevUser = {
+  userId: string
+  russenavn: string
+  role: 'student' | 'knutesjef' | 'admin'
+  schoolId: string
+  schoolName: string
+  token: string
+}
+export type DevUsersResponse = { users: DevUser[] }
+
+// Dev-only: list seeded users for the identity switcher. Unauthenticated — the
+// endpoint is gated to non-production server-side, and this is how you OBTAIN a
+// token, so it sits outside apiFetch.
+export async function fetchDevUsers(): Promise<DevUsersResponse> {
+  const res = await fetch(`${API_URL}/api/dev/users`)
+  if (!res.ok) {
+    throw new ApiError(res.status, `Dev-login utilgjengelig (${res.status}). Kjører API-en i dev-modus?`)
+  }
+  return res.json() as Promise<DevUsersResponse>
 }
 
 export { ApiError }
