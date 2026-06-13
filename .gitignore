@@ -57,6 +57,7 @@ web-build/
 # Local Claude state
 .claude/worktrees/
 .claude/local/
+.claude/settings.local.json
 
 # Aiven CA cert (must be added manually per environment)
 apps/api/src/lib/aiven-ca.pem

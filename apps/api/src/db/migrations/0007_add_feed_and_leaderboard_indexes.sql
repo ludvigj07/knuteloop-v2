@@ -1,0 +1,2 @@
+CREATE INDEX "users_school_points_idx" ON "users" USING btree ("school_id","points" DESC NULLS LAST,"russenavn") WHERE deleted_at IS NULL;--> statement-breakpoint
+CREATE INDEX "submissions_feed_approved_idx" ON "submissions" USING btree ("school_id","created_at" DESC NULLS LAST) WHERE status = 'approved';

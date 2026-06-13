@@ -41,5 +41,12 @@ export const users = pgTable(
     }),
     index('users_school_created_idx').on(table.schoolId, table.createdAt.desc()),
     unique('users_school_russenavn_unique').on(table.schoolId, table.russenavn),
+    // Leaderboard: ranked by points desc, russenavn as a stable tiebreak,
+    // within a school. Partial (active users only) matches the leaderboard
+    // query's deleted_at IS NULL filter, so the whole filter+sort is served
+    // from the index — no per-request sort of the school's users.
+    index('users_school_points_idx')
+      .on(table.schoolId, table.points.desc(), table.russenavn)
+      .where(sql`deleted_at IS NULL`),
   ],
 ).enableRLS()
