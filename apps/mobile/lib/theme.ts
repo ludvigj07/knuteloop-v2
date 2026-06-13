@@ -55,6 +55,12 @@ export const colors = {
     overlay: 'rgba(0, 0, 0, 0.55)',
     textShadow: 'rgba(0, 0, 0, 0.8)',
   },
+  // Soft backgrounds for submission-status badges (text uses success/warning/error).
+  status: {
+    approvedBg: '#E8F7EE',
+    pendingBg: '#FFF7E6',
+    rejectedBg: '#FDECEC',
+  },
 } as const
 
 export const spacing = {
