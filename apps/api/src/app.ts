@@ -12,6 +12,7 @@ import { submissionRoutes } from './routes/submissions.js'
 import { feedRoutes } from './routes/feed.js'
 import { leaderboardRoutes } from './routes/leaderboard.js'
 import { meRoutes } from './routes/me.js'
+import { devRoutes } from './routes/dev.js'
 
 export function buildApp() {
   const app = new Hono()
@@ -38,6 +39,11 @@ export function buildApp() {
   app.route('/api/feed', feedRoutes)
   app.route('/api/leaderboard', leaderboardRoutes)
   app.route('/api/me', meRoutes)
+
+  // Dev-only identity switcher for local testing — NEVER mounted in production.
+  if (config.NODE_ENV !== 'production') {
+    app.route('/api/dev', devRoutes)
+  }
 
   app.onError(errorHandler)
 

@@ -68,24 +68,31 @@ process.stdout.write(`  grants applied\n`)
 // 3. Seed: two schools, one user each.
 const insertedSchools = await supDb
   .insert(schema.schools)
-  .values([{ name: 'St. Olav vgs' }, { name: 'Testskolen' }])
+  .values([{ name: 'St. Olav vgs' }, { name: 'Hetland vgs' }])
   .returning()
 const stOlav = insertedSchools[0]!
-const testskolen = insertedSchools[1]!
+const hetland = insertedSchools[1]!
 
 const insertedUsers = await supDb
   .insert(schema.users)
   .values([
-    // Loke is St. Olav's knutesjef so dev:token gives you a token that
-    // can both READ via GET /api/knuter and WRITE via POST /api/knuter.
+    // Each school gets its OWN knutesjef (so you can test the approve flow on
+    // both tenants) plus students. Loke's token is written to mobile/.env as
+    // the default; the dev-login screen switches between all of these.
     { schoolId: stOlav.id, russenavn: 'Loke', role: 'knutesjef' },
     { schoolId: stOlav.id, russenavn: 'Frida', role: 'student' },
-    { schoolId: testskolen.id, russenavn: 'Tor', role: 'student' },
+    { schoolId: stOlav.id, russenavn: 'Odin', role: 'student' },
+    { schoolId: hetland.id, russenavn: 'Brage', role: 'knutesjef' },
+    { schoolId: hetland.id, russenavn: 'Tor', role: 'student' },
+    { schoolId: hetland.id, russenavn: 'Saga', role: 'student' },
   ])
   .returning()
 const userLoke = insertedUsers[0]!
 const userFrida = insertedUsers[1]!
-const userTor = insertedUsers[2]!
+const userOdin = insertedUsers[2]!
+const userBrage = insertedUsers[3]!
+const userTor = insertedUsers[4]!
+const userSaga = insertedUsers[5]!
 
 // 4. Seed knuter. St. Olav gets the 43 v1-spec knuter (treated as dev test
 // data here — NOT a production seed, never auto-applied to other envs).
@@ -145,31 +152,47 @@ const stOlavKnuter: SeedKnute[] = [
   { title: 'Ring 1881 og be dem velge 3 tall', description: 'Fra St. Olav-listen.', points: 20, difficulty: 'Medium' },
 ]
 
-const testskolenKnuter: SeedKnute[] = [
-  { title: 'Testskolen: Lag papirfly i timen', description: null, points: 10, difficulty: 'Lett' },
-  { title: 'Testskolen: Snurr rundt 5 ganger før du svarer på spørsmål', description: null, points: 15, difficulty: 'Lett' },
-  { title: 'Testskolen: Bær lærerens sekk en hel dag', description: null, points: 20, difficulty: 'Medium' },
+const hetlandKnuter: SeedKnute[] = [
+  { title: 'Hetland: Lag papirfly i timen', description: null, points: 10, difficulty: 'Lett' },
+  { title: 'Hetland: Snurr rundt 5 ganger før du svarer på spørsmål', description: null, points: 15, difficulty: 'Lett' },
+  { title: 'Hetland: Bær lærerens sekk en hel dag', description: null, points: 20, difficulty: 'Medium' },
 ]
 
 const insertedStOlavKnuter = await supDb
   .insert(schema.knuter)
   .values(stOlavKnuter.map((k) => ({ ...k, schoolId: stOlav.id })))
   .returning()
-await supDb.insert(schema.knuter).values(
-  testskolenKnuter.map((k) => ({ ...k, schoolId: testskolen.id })),
-)
+const insertedHetlandKnuter = await supDb
+  .insert(schema.knuter)
+  .values(hetlandKnuter.map((k) => ({ ...k, schoolId: hetland.id })))
+  .returning()
 
 // A handful of submissions so the DB has something to look at across screens.
 // One already approved by Loke (so the leaderboard has real points), two
 // pending (for the review queue).
 const firstKnute = insertedStOlavKnuter[0]! // "Spis frokost under pulten" — 10p
+const odinKnute = insertedStOlavKnuter[3]! // "Lag en heiarop-video for klassen" — 35p
+const hetlandFirst = insertedHetlandKnuter[0]! // "Hetland: Lag papirfly i timen" — 10p
+const hetlandSecond = insertedHetlandKnuter[1]!
+
 await supDb.insert(schema.submissions).values([
+  // St. Olav — two approved (leaderboard), two pending (review queue).
   {
     schoolId: stOlav.id,
     userId: userFrida.id,
     knuteId: firstKnute.id,
     imageKey: 'bunny/dev-seed/frokost-approved.webp',
     caption: 'Allerede godkjent — seed-data for topplisten',
+    status: 'approved',
+    reviewedBy: userLoke.id,
+    reviewedAt: new Date(),
+  },
+  {
+    schoolId: stOlav.id,
+    userId: userOdin.id,
+    knuteId: odinKnute.id,
+    imageKey: 'bunny/dev-seed/heiarop-approved.webp',
+    caption: 'Heiarop-video godkjent',
     status: 'approved',
     reviewedBy: userLoke.id,
     reviewedAt: new Date(),
@@ -190,22 +213,42 @@ await supDb.insert(schema.submissions).values([
     caption: null,
     status: 'pending',
   },
+  // Hetland — one approved (leaderboard), one pending (review queue).
+  {
+    schoolId: hetland.id,
+    userId: userTor.id,
+    knuteId: hetlandFirst.id,
+    imageKey: 'bunny/dev-seed/hetland-papirfly.webp',
+    caption: 'Papirfly tvers over klasserommet',
+    status: 'approved',
+    reviewedBy: userBrage.id,
+    reviewedAt: new Date(),
+  },
+  {
+    schoolId: hetland.id,
+    userId: userSaga.id,
+    knuteId: hetlandSecond.id,
+    imageKey: 'bunny/dev-seed/hetland-snurr.webp',
+    caption: null,
+    status: 'pending',
+  },
 ])
 
-// Award Frida the points from the pre-approved submission so the leaderboard
-// matches the seed (otherwise points=0 because the approve flow normally
-// updates this transactionally).
-await supDb
-  .update(schema.users)
-  .set({ points: firstKnute.points })
-  .where(eq(schema.users.id, userFrida.id))
+// Match each leaderboard to its pre-approved seed submissions (the approve flow
+// normally awards points transactionally; here we set them directly).
+await supDb.update(schema.users).set({ points: firstKnute.points }).where(eq(schema.users.id, userFrida.id))
+await supDb.update(schema.users).set({ points: odinKnute.points }).where(eq(schema.users.id, userOdin.id))
+await supDb.update(schema.users).set({ points: hetlandFirst.points }).where(eq(schema.users.id, userTor.id))
 
 process.stdout.write(`  seeded:\n`)
-process.stdout.write(`    ${stOlav.name}: ${stOlavKnuter.length} knuter, users:\n`)
-process.stdout.write(`      ${userLoke.russenavn} (${userLoke.role}, ${userLoke.id.slice(0, 8)}…)\n`)
-process.stdout.write(`      ${userFrida.russenavn} (${userFrida.role}, ${userFrida.id.slice(0, 8)}…)\n`)
-process.stdout.write(`    ${testskolen.name}: ${testskolenKnuter.length} knuter, users:\n`)
-process.stdout.write(`      ${userTor.russenavn} (${userTor.role}, ${userTor.id.slice(0, 8)}…)\n`)
+process.stdout.write(`    ${stOlav.name}: ${stOlavKnuter.length} knuter\n`)
+process.stdout.write(`      ${userLoke.russenavn} (${userLoke.role})\n`)
+process.stdout.write(`      ${userFrida.russenavn} (${userFrida.role})\n`)
+process.stdout.write(`      ${userOdin.russenavn} (${userOdin.role})\n`)
+process.stdout.write(`    ${hetland.name}: ${hetlandKnuter.length} knuter\n`)
+process.stdout.write(`      ${userBrage.russenavn} (${userBrage.role})\n`)
+process.stdout.write(`      ${userTor.russenavn} (${userTor.role})\n`)
+process.stdout.write(`      ${userSaga.russenavn} (${userSaga.role})\n`)
 
 // 5. Inject a fresh Loke token into apps/mobile/.env so the mobile app's
 // bundled EXPO_PUBLIC_DEV_TOKEN matches the just-seeded user ids. Without
