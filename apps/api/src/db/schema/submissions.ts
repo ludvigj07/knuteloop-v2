@@ -54,5 +54,11 @@ export const submissions = pgTable(
     index('submissions_pending_idx')
       .on(table.schoolId, table.createdAt.desc())
       .where(sql`status = 'pending'`),
+    // Social feed: approved submissions newest-first within a school. Partial
+    // index matches the feed query's WHERE status = 'approved' filter exactly,
+    // so the feed never has to scan/sort pending+rejected rows.
+    index('submissions_feed_approved_idx')
+      .on(table.schoolId, table.createdAt.desc())
+      .where(sql`status = 'approved'`),
   ],
 ).enableRLS()
