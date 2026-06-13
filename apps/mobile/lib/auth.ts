@@ -6,7 +6,9 @@ import { type DevUser } from './api'
 // only — a full app reload falls back to the env token. This whole module is
 // replaced by real token storage (expo-secure-store) when Vipps auth lands.
 
-const ENV_TOKEN = process.env.EXPO_PUBLIC_DEV_TOKEN ?? ''
+// EXPO_PUBLIC_* vars are inlined into the JS bundle at build time, so guard the
+// fallback behind __DEV__ — a release build must never carry a live dev token.
+const ENV_TOKEN = __DEV__ ? (process.env.EXPO_PUBLIC_DEV_TOKEN ?? '') : ''
 
 let activeToken = ENV_TOKEN
 let activeUser: DevUser | null = null

@@ -25,7 +25,8 @@ export default function DevLoginScreen() {
     queryKey: ['dev', 'users'],
     queryFn: fetchDevUsers,
   })
-  const activeId = getActiveUser()?.userId
+  const activeUser = getActiveUser()
+  const activeId = activeUser?.userId
 
   const pick = (user: DevUser) => {
     setActiveIdentity(user.token, user)
@@ -47,6 +48,17 @@ export default function DevLoginScreen() {
         <Text size="sm" color="muted">
           Kun for lokal testing. Velg hvem du vil opptre som — appen byttes umiddelbart.
         </Text>
+
+        {!activeUser ? (
+          // No identity has been picked this session, so requests use the
+          // EXPO_PUBLIC_DEV_TOKEN from .env (vanligvis Loke). A full reload always
+          // resets to this — surface it so a tester never silently acts as the
+          // wrong user/school mid-test.
+          <Text size="xs" color="muted">
+            Ingen bruker valgt manuelt — appen bruker standard-token fra .env
+            (vanligvis Loke / St. Olav). Et app-reload nullstiller alltid til denne.
+          </Text>
+        ) : null}
 
         {isLoading ? (
           <Text color="muted">Laster brukere…</Text>
@@ -73,7 +85,8 @@ export default function DevLoginScreen() {
                     key={u.userId}
                     onPress={() => pick(u)}
                     haptic="medium"
-                    accessibilityLabel={`Logg inn som ${u.russenavn}, ${ROLE_LABEL[u.role]}, ${school}`}
+                    accessibilityLabel={`Logg inn som ${u.russenavn}, ${ROLE_LABEL[u.role]}, ${school}${isActive ? ', aktiv nå' : ''}`}
+                    accessibilityState={{ selected: isActive }}
                     style={[styles.card, isActive && styles.cardActive]}
                   >
                     <Stack gap="2xs">

@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { HTTPException } from 'hono/http-exception'
 import postgres from 'postgres'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { eq } from 'drizzle-orm'
@@ -6,23 +7,31 @@ import { schools, users } from '../db/schema/index.js'
 import { signDevToken } from '../lib/auth-dev.js'
 import { config } from '../config.js'
 
-// ⚠️ DEV-ONLY ROUTES — mounted ONLY when NODE_ENV !== 'production' (see app.ts).
+// ⚠️ DEV-ONLY ROUTES — mounted ONLY in dev/test (see isDevEnv in app.ts).
 // GET /api/dev/users lists every seeded user with a signed dev token so the
 // mobile dev-login screen can switch identity without editing .env + restarting.
 // This MUST NEVER be reachable in production: it mints auth tokens for arbitrary
 // users with no credentials. The gating lives at the mount site, not here.
 
-// A superuser connection (postgres/postgres — the local dev convention used by
-// dev-setup / dev-token) so we can list users across ALL schools regardless of
-// the RLS-bound role the app itself connects as.
+// A superuser connection so we can list users across ALL schools regardless of
+// the RLS-bound app_role. Prefer an explicit SUPERUSER_DATABASE_URL (the same
+// convention as scripts/dev-setup + dev-token); otherwise derive one from
+// DATABASE_URL by swapping in the local postgres/postgres superuser credentials.
 function superuserUrl(): string {
   if (!config.DATABASE_URL) {
-    throw new Error('DATABASE_URL is required for /api/dev routes')
+    throw new HTTPException(500, { message: 'DATABASE_URL is required for /api/dev routes' })
   }
-  const url = new URL(config.DATABASE_URL)
-  url.username = 'postgres'
-  url.password = 'postgres'
-  return url.toString()
+  const target = new URL(config.DATABASE_URL)
+  const explicit = process.env.SUPERUSER_DATABASE_URL
+  if (explicit) {
+    // Keep the explicit superuser creds/host but point at the same dev database.
+    const sup = new URL(explicit)
+    sup.pathname = target.pathname
+    return sup.toString()
+  }
+  target.username = 'postgres'
+  target.password = 'postgres'
+  return target.toString()
 }
 
 export const devRoutes = new Hono().get('/users', async (c) => {

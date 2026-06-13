@@ -14,6 +14,16 @@ import { leaderboardRoutes } from './routes/leaderboard.js'
 import { meRoutes } from './routes/me.js'
 import { devRoutes } from './routes/dev.js'
 
+// Dev-only surfaces (the /api/dev identity switcher + relaxed CORS) mount ONLY in
+// explicitly-known dev/test environments. Fail-CLOSED: an unexpected NODE_ENV is
+// treated as production. The one residual fail-open is NODE_ENV being UNSET —
+// config.ts defaults it to 'development'. SECURITY: any non-local deploy MUST set
+// NODE_ENV=production AND a real JWT_DEV_SECRET (config.ts refuses the committed
+// default in prod). The durable fix is the real-auth epic (RS256/JWKS, Vipps).
+export function isDevEnv(nodeEnv: string): boolean {
+  return nodeEnv === 'development' || nodeEnv === 'test'
+}
+
 export function buildApp() {
   const app = new Hono()
 
@@ -24,7 +34,7 @@ export function buildApp() {
     cors({
       origin: (origin) => {
         const allowed = ['https://knuteloop.no', 'https://app.knuteloop.no']
-        if (config.NODE_ENV !== 'production') return origin ?? '*'
+        if (isDevEnv(config.NODE_ENV)) return origin ?? '*'
         return allowed.includes(origin) ? origin : null
       },
       credentials: true,
@@ -40,8 +50,8 @@ export function buildApp() {
   app.route('/api/leaderboard', leaderboardRoutes)
   app.route('/api/me', meRoutes)
 
-  // Dev-only identity switcher for local testing — NEVER mounted in production.
-  if (config.NODE_ENV !== 'production') {
+  // Dev-only identity switcher for local testing — NEVER mounted outside dev/test.
+  if (isDevEnv(config.NODE_ENV)) {
     app.route('/api/dev', devRoutes)
   }
 
