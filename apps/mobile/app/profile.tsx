@@ -2,8 +2,9 @@ import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl } from 'r
 import { useQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack } from 'expo-router'
+import { AppTabBar } from '../components/AppTabBar'
 import { fetchMe, type MySubmission } from '../lib/api'
-import { colors, spacing, radius, fontSize, fontWeight } from '../lib/theme'
+import { colors, spacing, radius, fontSize, fontWeight, size } from '../lib/theme'
 
 const formatPoints = (n: number) => new Intl.NumberFormat('nb-NO').format(n)
 const formatDate = (iso: string) =>
@@ -64,17 +65,18 @@ export default function ProfileScreen() {
   return (
     <>
       <Stack.Screen options={{ title: 'Min profil' }} />
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={{ paddingBottom: insets.bottom + spacing.lg }}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={() => void refetch()}
-            tintColor={colors.brand.primary}
-          />
-        }
-      >
+      <View style={styles.root}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={{ paddingBottom: insets.bottom + size.bottomNavMinHeight + spacing.xl }}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={() => void refetch()}
+              tintColor={colors.brand.primary}
+            />
+          }
+        >
         <View style={styles.heroCard}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{user.russenavn.slice(0, 1).toUpperCase()}</Text>
@@ -104,7 +106,9 @@ export default function ProfileScreen() {
         ) : (
           submissions.map((s) => <SubmissionRow key={s.id} submission={s} />)
         )}
-      </ScrollView>
+        </ScrollView>
+        <AppTabBar active="profil" />
+      </View>
     </>
   )
 }
@@ -138,6 +142,7 @@ function SubmissionRow({ submission }: { submission: MySubmission }) {
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   scroll: { flex: 1, backgroundColor: colors.background },
   heroCard: {
     alignItems: 'center',

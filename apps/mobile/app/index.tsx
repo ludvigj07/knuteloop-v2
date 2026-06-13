@@ -1,142 +1,189 @@
-import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl } from 'react-native'
+import { useMemo, useState } from 'react'
+import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, TextInput } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Link, useRouter } from 'expo-router'
-import { fetchKnuter, tryFetchPendingCount, type Knute } from '../lib/api'
-import { colors, spacing, radius, fontSize, fontWeight } from '../lib/theme'
+import { Stack, useRouter } from 'expo-router'
+import { AppTabBar } from '../components/AppTabBar'
+import { fetchKnuter, type Knute } from '../lib/api'
+import {
+  borderWidth,
+  colors,
+  fontSize,
+  fontWeight,
+  opacity,
+  radius,
+  size,
+  spacing,
+} from '../lib/theme'
+
+const formatNumber = (n: number) => new Intl.NumberFormat('nb-NO').format(n)
+
+const DIFFICULTY_LABEL: Record<Knute['difficulty'], string> = {
+  Lett: 'Lett',
+  Medium: 'Middels',
+  Hard: 'Vanskelig',
+  Valgfri: 'Valgfri',
+}
 
 export default function KnuterScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
+  const [search, setSearch] = useState('')
+
   const { data, error, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['knuter'],
     queryFn: fetchKnuter,
   })
 
-  // null → not knutesjef (or 403); number → pending count to display.
-  const pendingCount = useQuery({
-    queryKey: ['submissions', 'pending', 'count'],
-    queryFn: tryFetchPendingCount,
-    staleTime: 10_000,
-  })
+  const knuter = data?.knuter ?? []
+  const searchTerm = search.trim().toLocaleLowerCase('nb-NO')
+  const visibleKnuter = useMemo(() => {
+    if (!searchTerm) return knuter
+
+    return knuter.filter((knute) => {
+      const haystack = [
+        knute.title,
+        knute.description ?? '',
+        DIFFICULTY_LABEL[knute.difficulty],
+        formatNumber(knute.points),
+      ]
+        .join(' ')
+        .toLocaleLowerCase('nb-NO')
+
+      return haystack.includes(searchTerm)
+    })
+  }, [knuter, searchTerm])
 
   if (isLoading) return <LoadingState />
   if (error) return <ErrorState message={(error as Error).message} onRetry={() => void refetch()} />
 
-  const knuter = data?.knuter ?? []
-  const showReviewLink = typeof pendingCount.data === 'number'
+  const bottomPadding = insets.bottom + size.bottomNavMinHeight + spacing.xl
+
+  const openRandomKnute = () => {
+    const randomKnute = visibleKnuter[Math.floor(Math.random() * visibleKnuter.length)]
+    if (randomKnute) router.push(`/knute/${randomKnute.id}`)
+  }
 
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={{ paddingBottom: insets.bottom + spacing.lg }}
-      refreshControl={
-        <RefreshControl
-          refreshing={isRefetching}
-          onRefresh={() => void refetch()}
-          tintColor={colors.brand.primary}
-        />
-      }
-    >
-      <View style={styles.header}>
-        <Text style={styles.heading} accessibilityRole="header">
-          {knuter.length} {knuter.length === 1 ? 'knute' : 'knuter'}
-        </Text>
-        {isRefetching && <Text style={styles.muted}>Oppdaterer…</Text>}
-      </View>
-
-      <Link href="/feed" asChild>
-        <Pressable
-          style={styles.navLink}
-          accessibilityRole="link"
-          accessibilityLabel="Åpne feeden"
-        >
-          <Text style={styles.navLinkText}>Feed</Text>
-          <Text style={styles.navLinkArrow}>›</Text>
-        </Pressable>
-      </Link>
-
-      <Link href="/profile" asChild>
-        <Pressable
-          style={styles.navLink}
-          accessibilityRole="link"
-          accessibilityLabel="Min profil"
-        >
-          <Text style={styles.navLinkText}>Min profil</Text>
-          <Text style={styles.navLinkArrow}>›</Text>
-        </Pressable>
-      </Link>
-
-      <Link href="/leaderboard" asChild>
-        <Pressable
-          style={styles.navLink}
-          accessibilityRole="link"
-          accessibilityLabel="Se topplisten"
-        >
-          <Text style={styles.navLinkText}>Toppliste</Text>
-          <Text style={styles.navLinkArrow}>›</Text>
-        </Pressable>
-      </Link>
-
-      {showReviewLink && (
-        <>
-          <Link href="/admin" asChild>
-            <Pressable
-              style={styles.navLink}
-              accessibilityRole="link"
-              accessibilityLabel="Knutesjef-panel"
-            >
-              <Text style={styles.navLinkText}>Knutesjef-panel</Text>
-              <Text style={styles.navLinkArrow}>›</Text>
-            </Pressable>
-          </Link>
-          <Link href="/review" asChild>
-            <Pressable
-              style={styles.reviewLink}
-              accessibilityRole="link"
-              accessibilityLabel={`${pendingCount.data} venter på godkjenning`}
-            >
-              <Text style={styles.reviewLinkText}>
-                {pendingCount.data === 0
-                  ? 'Ingen innsendinger venter'
-                  : `${pendingCount.data} innsendinger venter på godkjenning`}
-              </Text>
-              <Text style={styles.reviewLinkArrow}>›</Text>
-            </Pressable>
-          </Link>
-        </>
-      )}
-      {knuter.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.muted}>Ingen knuter ennå. Knutesjefen lager dem fra knutesjef-panelet.</Text>
-        </View>
-      ) : (
-        knuter.map((k) => (
-          <KnuteCard
-            key={k.id}
-            knute={k}
-            onPress={() => router.push(`/knute/${k.id}`)}
+    <View style={styles.root}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + spacing.lg, paddingBottom: bottomPadding },
+        ]}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={() => void refetch()}
+            tintColor={colors.ink}
           />
-        ))
-      )}
-    </ScrollView>
+        }
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.hero}>
+          <Text style={styles.heading} accessibilityRole="header" accessibilityLabel="Hva tar du i dag?">
+            Hva tar du <Text style={styles.headingHighlight}>i dag?</Text>
+          </Text>
+          <View style={styles.countChip}>
+            <Text style={styles.countChipText}>{formatNumber(knuter.length)} knuter</Text>
+          </View>
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Alle knuter</Text>
+          <Text style={styles.sectionMeta}>
+            {formatNumber(visibleKnuter.length)}/{formatNumber(knuter.length)} synlig
+          </Text>
+        </View>
+
+        <TextInput
+          style={styles.searchInput}
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Søk etter knute..."
+          placeholderTextColor={colors.knuter.muted}
+          selectionColor={colors.accent.yellow}
+          autoCorrect={false}
+          returnKeyType="search"
+          accessibilityRole="search"
+          accessibilityLabel="Søk etter knute"
+        />
+
+        <View style={styles.toolbar}>
+          <Pressable
+            style={[styles.randomButton, visibleKnuter.length === spacing.none && styles.buttonDisabled]}
+            onPress={openRandomKnute}
+            disabled={visibleKnuter.length === spacing.none}
+            accessibilityRole="button"
+            accessibilityLabel="Velg en tilfeldig knute"
+            accessibilityHint="Åpner en tilfeldig knute fra listen som vises."
+            accessibilityState={{ disabled: visibleKnuter.length === spacing.none }}
+          >
+            <Text style={styles.randomIcon}>↝</Text>
+            <Text style={styles.randomText}>Tilfeldig</Text>
+          </Pressable>
+          <View style={styles.sortPill} accessibilityLabel="Standard sortering">
+            <Text style={styles.sortText}>Standard</Text>
+          </View>
+        </View>
+
+        <View style={styles.listPanel}>
+          {visibleKnuter.length === spacing.none ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>Ingen treff</Text>
+              <Text style={styles.emptyText}>
+                Prøv et annet søk, eller trykk Tilfeldig når listen har knuter igjen.
+              </Text>
+            </View>
+          ) : (
+            visibleKnuter.map((knute, index) => (
+              <KnuteRow
+                key={knute.id}
+                knute={knute}
+                isLast={index === visibleKnuter.length - 1}
+                onPress={() => router.push(`/knute/${knute.id}`)}
+              />
+            ))
+          )}
+        </View>
+      </ScrollView>
+      <AppTabBar active="knuter" />
+    </View>
   )
 }
 
-function KnuteCard({ knute, onPress }: { knute: Knute; onPress: () => void }) {
+function KnuteRow({
+  knute,
+  isLast,
+  onPress,
+}: {
+  knute: Knute
+  isLast: boolean
+  onPress: () => void
+}) {
+  const difficulty = DIFFICULTY_LABEL[knute.difficulty]
+
   return (
     <Pressable
-      style={styles.card}
+      style={[styles.knuteRow, isLast && styles.knuteRowLast]}
       onPress={onPress}
       accessibilityRole="link"
-      accessibilityLabel={`Send inn for ${knute.title}, ${knute.points} poeng, ${knute.difficulty}`}
+      accessibilityLabel={`Ta knute: ${knute.title}, ${formatNumber(knute.points)} poeng, ${difficulty}`}
+      accessibilityHint="Åpner innsending for denne knuten."
     >
-      <Text style={styles.cardTitle}>{knute.title}</Text>
-      <View style={styles.cardRow}>
-        <View style={styles.pointsBadge}>
-          <Text style={styles.pointsText}>{knute.points} p</Text>
-        </View>
-        <Text style={styles.difficulty}>{knute.difficulty}</Text>
+      <View style={styles.knuteTextBlock}>
+        <Text style={styles.knuteTitle} numberOfLines={1}>
+          {knute.title}
+        </Text>
+        <Text style={styles.knuteDifficulty}>{difficulty}</Text>
+      </View>
+      <View style={styles.pointsBadge}>
+        <Text style={styles.pointsText}>{formatNumber(knute.points)} p</Text>
+      </View>
+      <View style={styles.takeButton}>
+        <Text style={styles.takeButtonText}>Ta knute</Text>
       </View>
     </Pressable>
   )
@@ -144,16 +191,18 @@ function KnuteCard({ knute, onPress }: { knute: Knute; onPress: () => void }) {
 
 function LoadingState() {
   return (
-    <View style={styles.scroll}>
-      <View style={styles.header}>
-        <View style={[styles.skeleton, { width: 120, height: 24 }]} />
+    <View style={styles.root}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={styles.loadingContent}>
+        <View style={[styles.skeleton, styles.skeletonHeading]} />
+        <View style={[styles.skeleton, styles.skeletonSearch]} />
+        {[0, 1, 2, 3].map((i) => (
+          <View key={i} style={styles.skeletonRow}>
+            <View style={[styles.skeleton, styles.skeletonRowTitle]} />
+            <View style={[styles.skeleton, styles.skeletonRowMeta]} />
+          </View>
+        ))}
       </View>
-      {[0, 1, 2, 3, 4].map((i) => (
-        <View key={i} style={styles.card}>
-          <View style={[styles.skeleton, { width: '70%', height: 16, marginBottom: spacing.sm }]} />
-          <View style={[styles.skeleton, { width: '40%', height: 12 }]} />
-        </View>
-      ))}
     </View>
   )
 }
@@ -161,6 +210,7 @@ function LoadingState() {
 function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <View style={styles.center}>
+      <Stack.Screen options={{ headerShown: false }} />
       <Text style={styles.errorTitle}>Kunne ikke laste knutene</Text>
       <Text style={styles.muted}>{message}</Text>
       <Pressable
@@ -176,132 +226,253 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.knuter.canvas,
+  },
   scroll: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.knuter.canvas,
   },
-  header: {
+  content: {
     paddingHorizontal: spacing.base,
-    paddingTop: spacing.base,
-    paddingBottom: spacing.sm,
+    gap: spacing.base,
+  },
+  hero: {
+    gap: spacing.sm,
   },
   heading: {
-    fontSize: fontSize.xl,
+    fontSize: fontSize['2xl'],
     fontWeight: fontWeight.bold,
-    color: colors.text.primary,
+    color: colors.ink,
   },
-  card: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    marginHorizontal: spacing.base,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
+  headingHighlight: {
+    backgroundColor: colors.accent.yellow,
+    color: colors.ink,
   },
-  cardTitle: {
+  countChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.ink,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
+  },
+  countChipText: {
+    color: colors.text.inverse,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  sectionTitle: {
+    color: colors.ink,
     fontSize: fontSize.base,
-    color: colors.text.primary,
-    marginBottom: spacing.xs,
+    fontWeight: fontWeight.bold,
+  },
+  sectionMeta: {
+    color: colors.knuter.muted,
+    fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
   },
-  cardRow: {
+  searchInput: {
+    minHeight: size.searchMinHeight,
+    borderWidth: borderWidth.thick,
+    borderColor: colors.borderInk,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.sm,
+    color: colors.ink,
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.medium,
+  },
+  toolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  randomButton: {
+    minHeight: size.actionMinHeight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.accent.yellow,
+    borderWidth: borderWidth.thin,
+    borderColor: colors.borderInk,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  randomIcon: {
+    color: colors.ink,
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.bold,
+  },
+  randomText: {
+    color: colors.ink,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+  },
+  sortPill: {
+    minHeight: size.actionMinHeight,
+    justifyContent: 'center',
+    borderWidth: borderWidth.thin,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  sortText: {
+    color: colors.ink,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+  },
+  listPanel: {
+    overflow: 'hidden',
+    backgroundColor: colors.knuter.panel,
+    borderWidth: borderWidth.medium,
+    borderColor: colors.borderInk,
+    borderRadius: radius.lg,
+  },
+  knuteRow: {
+    minHeight: size.bottomNavMinHeight,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: borderWidth.thin,
+    borderBottomColor: colors.knuter.divider,
+  },
+  knuteRowLast: {
+    borderBottomWidth: borderWidth.none,
+  },
+  knuteTextBlock: {
+    flex: 1,
+    minWidth: spacing.none,
+    gap: spacing['2xs'],
+  },
+  knuteTitle: {
+    color: colors.ink,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+  },
+  knuteDifficulty: {
+    color: colors.knuter.muted,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
   },
   pointsBadge: {
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.accent.yellow,
+    borderRadius: radius.full,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.sm,
+    paddingVertical: spacing.xs,
   },
   pointsText: {
+    color: colors.ink,
     fontSize: fontSize.xs,
-    color: colors.text.inverse,
-    fontWeight: fontWeight.semibold,
+    fontWeight: fontWeight.bold,
   },
-  difficulty: {
+  takeButton: {
+    minWidth: size.knuteActionMinWidth,
+    minHeight: size.actionMinHeight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.ink,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm,
+  },
+  takeButtonText: {
+    color: colors.text.inverse,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.xl,
+    gap: spacing.xs,
+  },
+  emptyTitle: {
+    color: colors.ink,
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.bold,
+  },
+  emptyText: {
+    color: colors.knuter.muted,
     fontSize: fontSize.sm,
-    color: colors.text.secondary,
+    textAlign: 'center',
+  },
+  buttonDisabled: {
+    opacity: opacity.disabled,
+  },
+  loadingContent: {
+    flex: 1,
+    paddingHorizontal: spacing.base,
+    paddingTop: spacing.xl,
+    gap: spacing.base,
+  },
+  skeleton: {
+    backgroundColor: colors.knuter.divider,
+    borderRadius: radius.md,
+  },
+  skeletonHeading: {
+    width: size.skeletonTitleWidth,
+    height: size.skeletonTitleHeight,
+  },
+  skeletonSearch: {
+    minHeight: size.searchMinHeight,
+    borderRadius: radius.full,
+  },
+  skeletonRow: {
+    backgroundColor: colors.knuter.panel,
+    borderWidth: borderWidth.medium,
+    borderColor: colors.borderInk,
+    borderRadius: radius.lg,
+    padding: spacing.base,
+    gap: spacing.sm,
+  },
+  skeletonRowTitle: {
+    height: size.skeletonRowTitleHeight,
+  },
+  skeletonRowMeta: {
+    width: size.skeletonTitleWidth,
+    height: size.skeletonRowMetaHeight,
   },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.lg,
-    backgroundColor: colors.background,
+    backgroundColor: colors.knuter.canvas,
   },
   errorTitle: {
-    fontSize: fontSize.lg,
     color: colors.error,
+    fontSize: fontSize.lg,
     fontWeight: fontWeight.semibold,
     marginBottom: spacing.sm,
   },
   muted: {
+    color: colors.knuter.muted,
     fontSize: fontSize.sm,
-    color: colors.text.muted,
-    marginTop: spacing.sm,
     textAlign: 'center',
   },
   retryButton: {
     marginTop: spacing.base,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.ink,
     borderRadius: radius.md,
   },
   retryText: {
     color: colors.text.inverse,
-    fontWeight: fontWeight.semibold,
     fontSize: fontSize.base,
-  },
-  skeleton: {
-    backgroundColor: colors.border,
-    borderRadius: radius.sm,
-  },
-  reviewLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginHorizontal: spacing.base,
-    marginBottom: spacing.base,
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.brand.primary,
-    borderRadius: radius.md,
-  },
-  reviewLinkText: {
-    color: colors.text.inverse,
     fontWeight: fontWeight.semibold,
-    fontSize: fontSize.base,
-  },
-  reviewLinkArrow: {
-    color: colors.text.inverse,
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-  },
-  navLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginHorizontal: spacing.base,
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  navLinkText: {
-    color: colors.text.primary,
-    fontWeight: fontWeight.semibold,
-    fontSize: fontSize.base,
-  },
-  navLinkArrow: {
-    color: colors.text.muted,
-    fontSize: fontSize.xl,
   },
 })
