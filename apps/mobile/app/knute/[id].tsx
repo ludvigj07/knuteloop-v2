@@ -1,17 +1,16 @@
 import { useState } from 'react'
 import {
   View,
-  Text,
   TextInput,
   ScrollView,
   StyleSheet,
-  Pressable,
   Alert,
   ActivityIndicator,
 } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Pressable, Text } from '../../components/primitives'
 import { fetchKnuter, fetchMe, createSubmission } from '../../lib/api'
 import { colors, spacing, radius, fontSize, fontWeight } from '../../lib/theme'
 

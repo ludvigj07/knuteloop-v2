@@ -1,9 +1,7 @@
 import { useCallback } from 'react'
 import {
   View,
-  Text,
   StyleSheet,
-  Pressable,
   FlatList,
   Image,
   ActivityIndicator,
@@ -13,6 +11,7 @@ import {
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useRouter } from 'expo-router'
+import { Pressable, Text } from '../components/primitives'
 import { fetchFeed, type FeedItem } from '../lib/api'
 import { colors, spacing, radius, fontSize, fontWeight } from '../lib/theme'
 

@@ -1,7 +1,8 @@
-import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, ActivityIndicator } from 'react-native'
+import { View, ScrollView, StyleSheet, RefreshControl, ActivityIndicator } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack } from 'expo-router'
+import { Pressable, Text } from '../components/primitives'
 import {
   fetchPendingSubmissions,
   approveSubmission,
