@@ -15,11 +15,40 @@ export const colors = {
     primary: '#C8102E', // russ-red
     primaryDark: '#8B0918',
   },
+  accent: {
+    yellow: '#FFD530',
+  },
+  ink: '#111A32',
   border: '#E5E5E5',
   borderStrong: '#D4D4D4',
+  borderInk: '#111A32',
+  transparent: 'transparent',
   success: '#16A34A',
   warning: '#F59E0B',
   error: '#DC2626',
+  knuter: {
+    canvas: '#F6EFDF',
+    panel: '#FFFEFA',
+    divider: '#D7D2C7',
+    muted: '#667085',
+  },
+  leaderboard: {
+    canvas: '#F6EFDF',
+    panel: '#FFFEFA',
+    row: '#FFFFFF',
+    first: '#FFE58A',
+    second: '#E8EEF6',
+    third: '#F3C7A6',
+    points: '#4C6FEF',
+    pointsShadow: 'rgba(76, 111, 239, 0.28)',
+    chip: '#EEF1F5',
+  },
+  tabBar: {
+    surface: '#FFFEFA',
+    active: '#111A32',
+    icon: '#111A32',
+    shadow: 'rgba(17, 26, 50, 0.18)',
+  },
   // Fullscreen feed (TikTok-style) runs on a dark backdrop regardless of theme.
   feed: {
     backdrop: '#0A0A0F',
@@ -29,6 +58,8 @@ export const colors = {
 } as const
 
 export const spacing = {
+  none: 0,
+  '2xs': 2,
   xs: 4,
   sm: 8,
   md: 12,
@@ -36,6 +67,18 @@ export const spacing = {
   lg: 24,
   xl: 32,
   '2xl': 48,
+} as const
+
+export const borderWidth = {
+  none: 0,
+  thin: 1,
+  medium: 2,
+  thick: 3,
+} as const
+
+export const opacity = {
+  disabled: 0.5,
+  shadow: 0.18,
 } as const
 
 export const radius = {
@@ -53,6 +96,48 @@ export const fontSize = {
   xl: 22,
   '2xl': 28,
   '3xl': 36,
+} as const
+
+export const size = {
+  bottomNavButton: 44,
+  bottomNavActiveWidth: 104,
+  bottomNavMinHeight: 60,
+  bottomNavIcon: 24,
+  bottomNavBottomOffset: 8,
+  bottomNavContentGap: 6,
+  bottomNavShadowRadius: 14,
+  bottomNavShadowOffsetY: 6,
+  bottomNavElevation: 8,
+  iconLineLong: 20,
+  iconLineShort: 14,
+  iconLineHeight: 4,
+  iconTrophyCupWidth: 18,
+  iconTrophyCupHeight: 12,
+  iconTrophyStemWidth: 4,
+  iconTrophyStemHeight: 6,
+  iconTrophyBaseWidth: 16,
+  iconTrophyBaseHeight: 3,
+  iconPlayTop: 7,
+  iconPlayLeft: 11,
+  iconPersonHead: 8,
+  iconPersonShouldersWidth: 18,
+  iconPersonShouldersHeight: 9,
+  iconShieldWidth: 18,
+  iconShieldHeight: 20,
+  iconShieldMark: 6,
+  leaderboardRank: 36,
+  leaderboardAvatar: 36,
+  leaderboardRowMinHeight: 56,
+  leaderboardSelectWidth: 188,
+  leaderboardPanelActionMinWidth: 132,
+  searchMinHeight: 48,
+  actionMinHeight: 40,
+  knuteActionMinWidth: 88,
+  emptyMinHeight: 200,
+  skeletonTitleWidth: 120,
+  skeletonTitleHeight: 24,
+  skeletonRowTitleHeight: 16,
+  skeletonRowMetaHeight: 12,
 } as const
 
 export const fontWeight = {
