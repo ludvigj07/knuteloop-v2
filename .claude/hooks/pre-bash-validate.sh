@@ -34,10 +34,14 @@ if echo "$COMMAND" | grep -qE '^psql .*aivencloud'; then
   fi
 fi
 
-# 3. git operations on main
-if echo "$COMMAND" | grep -qE 'git push.*origin.*main|git push.*-f|git push.*--force'; then
-  echo "🚫 BLOCKED: Pushing to main or force-pushing is not allowed via Claude."
-  echo "   PRs only. Ludvig merges via GitHub UI."
+# 3. git operations on main / force pushes.
+# NOTE: -f and main must be matched as real tokens, not as substrings — an
+# earlier version's `git push.*-f` false-matched any branch name containing
+# "-f" (e.g. "feat/frontend-foundation"). Require a space-delimited flag and a
+# space-delimited "main".
+if echo "$COMMAND" | grep -qE 'git push.*origin.* main([[:space:]]|$)|git push.* -f([[:space:]]|$)|git push.*--force'; then
+  echo "🚫 BLOCKED: Pushing to main or force-pushing is not allowed via Claude." >&2
+  echo "   PRs only. Ludvig merges via GitHub UI." >&2
   exit 2
 fi
 

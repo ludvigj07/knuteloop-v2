@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
-import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, TextInput } from 'react-native'
+import { View, ScrollView, StyleSheet, RefreshControl, TextInput } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useRouter } from 'expo-router'
 import { AppTabBar } from '../components/AppTabBar'
+import { Pressable, Text } from '../components/primitives'
 import { fetchKnuter, type Knute } from '../lib/api'
+import { formatNumber } from '../lib/format'
 import {
   borderWidth,
   colors,
@@ -15,8 +17,6 @@ import {
   size,
   spacing,
 } from '../lib/theme'
-
-const formatNumber = (n: number) => new Intl.NumberFormat('nb-NO').format(n)
 
 const DIFFICULTY_LABEL: Record<Knute['difficulty'], string> = {
   Lett: 'Lett',

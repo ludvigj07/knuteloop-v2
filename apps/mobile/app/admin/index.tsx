@@ -1,12 +1,12 @@
-import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, ActivityIndicator } from 'react-native'
+import { View, ScrollView, StyleSheet, RefreshControl, ActivityIndicator } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useRouter } from 'expo-router'
 import { AppTabBar } from '../../components/AppTabBar'
+import { Pressable, Text } from '../../components/primitives'
 import { ApiError, fetchAllKnuter, tryFetchPendingCount, type Knute } from '../../lib/api'
+import { formatNumber } from '../../lib/format'
 import { borderWidth, colors, fontSize, fontWeight, radius, size, spacing } from '../../lib/theme'
-
-const formatNumber = (n: number) => new Intl.NumberFormat('nb-NO').format(n)
 
 export default function KnutesjefPanel() {
   const insets = useSafeAreaInsets()

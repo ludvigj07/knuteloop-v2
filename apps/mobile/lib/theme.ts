@@ -55,6 +55,12 @@ export const colors = {
     overlay: 'rgba(0, 0, 0, 0.55)',
     textShadow: 'rgba(0, 0, 0, 0.8)',
   },
+  // Soft backgrounds for submission-status badges (text uses success/warning/error).
+  status: {
+    approvedBg: '#E8F7EE',
+    pendingBg: '#FFF7E6',
+    rejectedBg: '#FDECEC',
+  },
 } as const
 
 export const spacing = {
@@ -138,6 +144,9 @@ export const size = {
   skeletonTitleHeight: 24,
   skeletonRowTitleHeight: 16,
   skeletonRowMetaHeight: 12,
+  controlHeightSm: 40,
+  controlHeightBase: 48,
+  controlHeightLg: 56,
 } as const
 
 export const fontWeight = {
@@ -145,4 +154,20 @@ export const fontWeight = {
   medium: '500',
   semibold: '600',
   bold: '700',
+} as const
+
+// Motion tokens. Durations in ms; springs are Reanimated withSpring configs.
+// pressScale is the brand "tap" feel — every Pressable primitive scales to this.
+export const animation = {
+  duration: {
+    fast: 150,
+    base: 250,
+    slow: 400,
+  },
+  spring: {
+    gentle: { damping: 25, stiffness: 150 },
+    base: { damping: 18, stiffness: 200 },
+    bouncy: { damping: 12, stiffness: 200 },
+  },
+  pressScale: 0.96,
 } as const

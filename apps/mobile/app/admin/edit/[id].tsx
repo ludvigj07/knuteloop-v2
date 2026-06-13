@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react'
 import {
   View,
-  Text,
   TextInput,
   ScrollView,
   StyleSheet,
-  Pressable,
   Alert,
   Switch,
   ActivityIndicator,
@@ -13,6 +11,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Pressable, Text } from '../../../components/primitives'
 import {
   fetchAllKnuter,
   createKnute,

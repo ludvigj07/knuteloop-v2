@@ -1,10 +1,8 @@
 import { useRef, useState } from 'react'
 import {
   View,
-  Text,
   ScrollView,
   StyleSheet,
-  Pressable,
   RefreshControl,
   type LayoutChangeEvent,
 } from 'react-native'
@@ -12,6 +10,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack } from 'expo-router'
 import { AppTabBar } from '../components/AppTabBar'
+import { Pressable, Text } from '../components/primitives'
 import { fetchLeaderboard, type LeaderboardEntry } from '../lib/api'
 import { borderWidth, colors, fontSize, fontWeight, opacity, radius, size, spacing } from '../lib/theme'
 
