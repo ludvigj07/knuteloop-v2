@@ -87,3 +87,4 @@ What we are choosing. Be specific — name versions, libraries, vendors.
 | [0012](./0012-video-submissions-with-bandwidth-cap.md) | Video in v2 (supersedes 0009), with bandwidth cap | Proposed | 2026-06-13 |
 | [0013](./0013-knute-category-and-profile-status.md) | Knute category enum + reconstructed profile/status rules | Proposed | 2026-06-14 |
 | [0014](./0014-knute-library-and-folders.md) | Knute library + per-school folders + evidence type | Accepted | 2026-06-14 |
+| [0015](./0015-age-verification-and-content-gating.md) | Age verification (Vipps) + per-knute age gating | Accepted | 2026-06-14 |
