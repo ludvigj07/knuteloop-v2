@@ -1,4 +1,5 @@
 import { View, ScrollView, StyleSheet, RefreshControl, ActivityIndicator } from 'react-native'
+import { Image } from 'expo-image'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack } from 'expo-router'
@@ -24,7 +25,12 @@ export default function ReviewScreen() {
   const approve = useMutation({
     mutationFn: approveSubmission,
     onSuccess: () => {
+      // Approval moves the submission into the feed and awards points, so refresh
+      // the queue, its count, the feed and the leaderboard — not just the queue.
       void qc.invalidateQueries({ queryKey: ['submissions', 'pending'] })
+      void qc.invalidateQueries({ queryKey: ['submissions', 'pending', 'count'] })
+      void qc.invalidateQueries({ queryKey: ['feed'] })
+      void qc.invalidateQueries({ queryKey: ['leaderboard'] })
     },
   })
 
@@ -32,6 +38,7 @@ export default function ReviewScreen() {
     mutationFn: rejectSubmission,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['submissions', 'pending'] })
+      void qc.invalidateQueries({ queryKey: ['submissions', 'pending', 'count'] })
     },
   })
 
@@ -123,6 +130,16 @@ function PendingCard({
       style={styles.card}
       accessibilityLabel={`Innsending fra ${submission.russenavn} for ${submission.knuteTitle}, ${submission.knutePoints} poeng`}
     >
+      {submission.imageUrl ? (
+        <Image
+          source={{ uri: submission.imageUrl }}
+          style={styles.image}
+          contentFit="cover"
+          transition={150}
+          accessibilityRole="image"
+          accessibilityLabel={`Bevis for ${submission.knuteTitle}`}
+        />
+      ) : null}
       <Text style={styles.cardTitle}>{submission.knuteTitle}</Text>
       <View style={styles.metaRow}>
         <Text style={styles.muted}>Fra </Text>
@@ -196,6 +213,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  image: {
+    width: '100%',
+    height: 220,
+    borderRadius: radius.sm,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.knuter.divider,
   },
   cardTitle: {
     fontSize: fontSize.base,

@@ -7,12 +7,21 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native'
+import { Image } from 'expo-image'
+import * as ImagePicker from 'expo-image-picker'
+import * as ImageManipulator from 'expo-image-manipulator'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Pressable, Text } from '../../components/primitives'
-import { fetchKnuter, fetchMe, createSubmission } from '../../lib/api'
-import { colors, spacing, radius, fontSize, fontWeight } from '../../lib/theme'
+import { createSubmission, fetchKnuter, fetchMe, fetchUploadUrl, uploadImageBinary } from '../../lib/api'
+import { haptics } from '../../lib/haptics'
+import { colors, spacing, radius, fontSize, fontWeight, size } from '../../lib/theme'
+
+// Photos are compressed to ~1MB before upload: resize to max 1280px wide, JPEG
+// at 0.6 quality. Keeps uploads fast on school WiFi and CDN bandwidth low.
+const MAX_WIDTH = 1280
+const JPEG_QUALITY = 0.6
 
 export default function KnuteDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -20,6 +29,8 @@ export default function KnuteDetailScreen() {
   const qc = useQueryClient()
   const insets = useSafeAreaInsets()
   const [caption, setCaption] = useState('')
+  const [imageUri, setImageUri] = useState<string | null>(null)
+  const [picking, setPicking] = useState(false)
 
   const { data, isLoading } = useQuery({ queryKey: ['knuter'], queryFn: fetchKnuter })
   const knute = data?.knuter.find((k) => k.id === id)
@@ -31,28 +42,60 @@ export default function KnuteDetailScreen() {
   const prior = me.data?.submissions.find(
     (s) => s.knuteTitle && knute && s.knuteTitle === knute.title && (s.status === 'pending' || s.status === 'approved'),
   )
-  // Note: matching by title is correct here because /api/me already filters
-  // by user — and submissions only join in titles for the current user's school.
   const lockReason: string | null = prior
     ? prior.status === 'pending'
       ? 'Du har allerede sendt inn denne — venter på godkjenning.'
       : 'Du har allerede fått godkjent denne knuten.'
     : null
 
+  async function pickImage(source: 'camera' | 'library') {
+    try {
+      setPicking(true)
+      const perm =
+        source === 'camera'
+          ? await ImagePicker.requestCameraPermissionsAsync()
+          : await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (!perm.granted) {
+        Alert.alert(
+          'Mangler tilgang',
+          source === 'camera'
+            ? 'Gi Knuteloop tilgang til kameraet i Innstillinger for å ta bilde.'
+            : 'Gi Knuteloop tilgang til bildene i Innstillinger for å velge et bilde.',
+        )
+        return
+      }
+      const result =
+        source === 'camera'
+          ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1 })
+          : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 })
+      const asset = result.canceled ? null : result.assets[0]
+      if (!asset) return
+
+      const compressed = await ImageManipulator.manipulateAsync(
+        asset.uri,
+        [{ resize: { width: MAX_WIDTH } }],
+        { compress: JPEG_QUALITY, format: ImageManipulator.SaveFormat.JPEG },
+      )
+      setImageUri(compressed.uri)
+      void haptics.selection()
+    } catch (err) {
+      Alert.alert('Noe gikk galt', (err as Error).message)
+    } finally {
+      setPicking(false)
+    }
+  }
+
   const submit = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!id) throw new Error('Mangler knute-id')
-      // Placeholder imageKey until Bunny upload is wired up. The backend
-      // currently accepts any non-empty string — that gets swapped for a
-      // real signed-URL flow when storage is ready.
-      const placeholderKey = `placeholder/${id}-${Date.now()}.webp`
-      return createSubmission({
-        knuteId: id,
-        imageKey: placeholderKey,
-        caption: caption.trim() || undefined,
-      })
+      if (!imageUri) throw new Error('Velg eller ta et bilde først')
+      // upload-url → PUT the compressed photo → create the submission with the key.
+      const { uploadUrl, imageKey } = await fetchUploadUrl()
+      await uploadImageBinary(uploadUrl, imageUri)
+      return createSubmission({ knuteId: id, imageKey, caption: caption.trim() || undefined })
     },
     onSuccess: () => {
+      void haptics.success()
       void qc.invalidateQueries({ queryKey: ['me'] })
       void qc.invalidateQueries({ queryKey: ['submissions', 'pending'] })
       void qc.invalidateQueries({ queryKey: ['submissions', 'pending', 'count'] })
@@ -95,6 +138,9 @@ export default function KnuteDetailScreen() {
     )
   }
 
+  const busy = submit.isPending
+  const canSubmit = imageUri !== null && lockReason === null && !busy
+
   return (
     <>
       <Stack.Screen options={{ title: 'Send inn' }} />
@@ -130,10 +176,57 @@ export default function KnuteDetailScreen() {
           </View>
         )}
 
-        <View style={styles.imagePlaceholder}>
-          <Text style={styles.cameraIcon}>📷</Text>
-          <Text style={styles.muted}>Bilde-opplasting kommer snart</Text>
-        </View>
+        {imageUri ? (
+          <View style={styles.previewWrap}>
+            <Image
+              source={{ uri: imageUri }}
+              style={styles.preview}
+              contentFit="cover"
+              transition={150}
+              accessibilityRole="image"
+              accessibilityLabel="Valgt bilde"
+            />
+            {!lockReason ? (
+              <Pressable
+                style={styles.changeButton}
+                onPress={() => void pickImage('library')}
+                disabled={picking}
+                accessibilityRole="button"
+                accessibilityLabel="Bytt bilde"
+              >
+                <Text style={styles.changeText}>Bytt bilde</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : (
+          <View style={styles.pickRow}>
+            <Pressable
+              style={[styles.pickButton, (picking || lockReason !== null) && styles.buttonDisabled]}
+              onPress={() => void pickImage('camera')}
+              disabled={picking || lockReason !== null}
+              accessibilityRole="button"
+              accessibilityLabel="Ta bilde med kamera"
+              accessibilityHint="Åpner kameraet for å ta bilde av knuten."
+            >
+              <Text style={styles.pickIcon}>📷</Text>
+              <Text style={styles.pickText}>Ta bilde</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.pickButton, (picking || lockReason !== null) && styles.buttonDisabled]}
+              onPress={() => void pickImage('library')}
+              disabled={picking || lockReason !== null}
+              accessibilityRole="button"
+              accessibilityLabel="Velg bilde fra galleri"
+              accessibilityHint="Åpner bildegalleriet."
+            >
+              <Text style={styles.pickIcon}>🖼️</Text>
+              <Text style={styles.pickText}>Velg fra galleri</Text>
+            </Pressable>
+          </View>
+        )}
+        {picking ? (
+          <Text style={styles.pickingHint}>Behandler bilde…</Text>
+        ) : null}
 
         <Text style={styles.label}>Beskrivelse (valgfritt)</Text>
         <TextInput
@@ -150,21 +243,20 @@ export default function KnuteDetailScreen() {
         <Text style={styles.charCount}>{caption.length}/500</Text>
 
         <Pressable
-          style={[
-            styles.submitButton,
-            (submit.isPending || lockReason !== null) && styles.buttonDisabled,
-          ]}
+          style={[styles.submitButton, !canSubmit && styles.buttonDisabled]}
           onPress={() => submit.mutate()}
-          disabled={submit.isPending || lockReason !== null}
+          disabled={!canSubmit}
           accessibilityRole="button"
           accessibilityLabel={lockReason ? 'Send inn (låst)' : 'Send inn knute'}
         >
           <Text style={styles.submitText}>
             {lockReason
               ? 'Allerede sendt inn'
-              : submit.isPending
+              : busy
                 ? 'Sender inn…'
-                : 'Send inn'}
+                : !imageUri
+                  ? 'Legg til et bilde'
+                  : 'Send inn'}
           </Text>
         </Pressable>
 
@@ -173,7 +265,7 @@ export default function KnuteDetailScreen() {
           onPress={() => router.back()}
           accessibilityRole="button"
           accessibilityLabel="Avbryt"
-          disabled={submit.isPending}
+          disabled={busy}
         >
           <Text style={styles.cancelText}>Avbryt</Text>
         </Pressable>
@@ -241,8 +333,14 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.text.secondary,
   },
-  imagePlaceholder: {
-    height: 140,
+  pickRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.base,
+  },
+  pickButton: {
+    flex: 1,
+    height: size.emptyMinHeight / 1.6,
     backgroundColor: colors.surface,
     borderRadius: radius.md,
     borderWidth: 2,
@@ -250,11 +348,45 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  pickIcon: {
+    fontSize: fontSize['2xl'],
+  },
+  pickText: {
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+    fontWeight: fontWeight.medium,
+  },
+  pickingHint: {
+    fontSize: fontSize.sm,
+    color: colors.text.muted,
+    textAlign: 'center',
     marginBottom: spacing.base,
   },
-  cameraIcon: {
-    fontSize: 36,
-    marginBottom: spacing.xs,
+  previewWrap: {
+    marginBottom: spacing.base,
+  },
+  preview: {
+    width: '100%',
+    height: size.emptyMinHeight,
+    borderRadius: radius.md,
+    backgroundColor: colors.knuter.divider,
+  },
+  changeButton: {
+    alignSelf: 'center',
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
+  },
+  changeText: {
+    fontSize: fontSize.sm,
+    color: colors.ink,
+    fontWeight: fontWeight.semibold,
   },
   label: {
     fontSize: fontSize.sm,
@@ -313,10 +445,6 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semibold,
     marginBottom: spacing.sm,
   },
-  muted: {
-    fontSize: fontSize.sm,
-    color: colors.text.muted,
-  },
   backButton: {
     marginTop: spacing.base,
     paddingHorizontal: spacing.lg,
@@ -331,7 +459,7 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semibold,
   },
   lockBanner: {
-    backgroundColor: '#FFF7E6',
+    backgroundColor: colors.status.pendingBg,
     borderLeftWidth: 4,
     borderLeftColor: colors.warning,
     padding: spacing.base,
