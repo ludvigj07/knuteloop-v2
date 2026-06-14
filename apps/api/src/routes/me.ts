@@ -42,6 +42,7 @@ export const meRoutes = new Hono<{ Variables: Variables }>()
         role: users.role,
         russType: users.russType,
         quote: users.quote,
+        isAdult: users.isAdult,
         points: users.points,
         createdAt: users.createdAt,
       })

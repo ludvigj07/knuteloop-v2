@@ -68,13 +68,24 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
       // SELECT to current school automatically, so a cross-tenant knute_id
       // yields zero rows → 404. The same constraint is enforced again by
       // the FK + RLS on insert (defense in depth).
-      const existing = await tx
-        .select({ id: knuter.id })
+      const [existing] = await tx
+        .select({ minAge: knuter.minAge })
         .from(knuter)
         .where(and(eq(knuter.id, input.knuteId), eq(knuter.schoolId, schoolId)))
         .limit(1)
-      if (existing.length === 0) {
+      if (!existing) {
         throw new NotFoundError('Knute')
+      }
+
+      // Age gate (ADR-0015): a minor may not submit an 18+ knute even with the id.
+      // 404 (not 403) so we don't reveal that an adult-only knute exists.
+      if (existing.minAge >= 18) {
+        const [me] = await tx
+          .select({ isAdult: users.isAdult })
+          .from(users)
+          .where(and(eq(users.id, userId), eq(users.schoolId, schoolId)))
+          .limit(1)
+        if (!me?.isAdult) throw new NotFoundError('Knute')
       }
 
       // Block re-submission if there's already an active pending or approved

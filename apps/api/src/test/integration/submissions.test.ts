@@ -486,3 +486,39 @@ describe('RLS on submissions table', () => {
     expect(rows[0]?.relforcerowsecurity).toBe(true)
   })
 })
+
+describe('POST /api/submissions — age gate (ADR-0015)', () => {
+  let adultTokenA: string
+  let age18KnuteId: string
+
+  beforeAll(async () => {
+    const [adult] = await h.superDb
+      .insert(users)
+      .values({ schoolId: schoolAId, russenavn: 'VoksenSub', role: 'student', isAdult: true })
+      .returning()
+    adultTokenA = await signDevToken({ sub: adult!.id, school_id: schoolAId, role: 'student' })
+    const [k] = await h.superDb
+      .insert(knuter)
+      .values({ schoolId: schoolAId, title: 'A: 18+ submit', points: 40, difficulty: 'Hard', minAge: 18 })
+      .returning()
+    age18KnuteId = k!.id
+  })
+
+  it('a minor cannot submit an 18+ knute (404, not 403 — no info leak)', async () => {
+    const res = await app.request('/api/submissions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${studentTokenA}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ knuteId: age18KnuteId, imageKey: 'bunny/age/x.webp' }),
+    })
+    expect(res.status).toBe(404)
+  })
+
+  it('a verified adult can submit an 18+ knute', async () => {
+    const res = await app.request('/api/submissions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adultTokenA}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ knuteId: age18KnuteId, imageKey: 'bunny/age/ok.webp' }),
+    })
+    expect(res.status).toBe(201)
+  })
+})

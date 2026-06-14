@@ -4,6 +4,7 @@ import {
   uuid,
   text,
   integer,
+  boolean,
   timestamp,
   index,
   unique,
@@ -34,6 +35,9 @@ export const users = pgTable(
     // sets one. A future profile-edit endpoint MUST clamp its length (~700 chars).
     quote: text('quote'),
     points: integer('points').notNull().default(0),
+    // Verified-adult flag from Vipps-verified age (BankID-level). Default false =
+    // treated as a minor (safe default) until verified. Gates 18+ content. ADR-0015.
+    isAdult: boolean('is_adult').notNull().default(false),
     tokenVersion: integer('token_version').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
