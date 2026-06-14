@@ -86,4 +86,4 @@ What we are choosing. Be specific — name versions, libraries, vendors.
 | [0011](./0011-scale-target-100-schools-2027.md) | Scale target revised to 100+ schools for 2027 | Proposed | 2026-06-13 |
 | [0012](./0012-video-submissions-with-bandwidth-cap.md) | Video in v2 (supersedes 0009), with bandwidth cap | Proposed | 2026-06-13 |
 | [0013](./0013-knute-category-and-profile-status.md) | Knute category enum + reconstructed profile/status rules | Proposed | 2026-06-14 |
-| [0014](./0014-knute-library-and-folders.md) | Knute library + per-school folders + evidence type | Proposed | 2026-06-14 |
+| [0014](./0014-knute-library-and-folders.md) | Knute library + per-school folders + evidence type | Accepted | 2026-06-14 |

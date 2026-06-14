@@ -1,6 +1,6 @@
 # ADR-0014: Knute library + per-school folders + evidence type
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-06-14
 **Deciders:** Ludvig (+ Claude as advisor)
 
