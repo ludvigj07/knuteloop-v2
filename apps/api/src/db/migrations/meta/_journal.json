@@ -57,6 +57,20 @@
       "when": 1781369941417,
       "tag": "0007_add_feed_and_leaderboard_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1781400606486,
+      "tag": "0008_profile_and_category_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1781402857349,
+      "tag": "0009_add_is_gold_to_knuter",
+      "breakpoints": true
     }
   ]
 }

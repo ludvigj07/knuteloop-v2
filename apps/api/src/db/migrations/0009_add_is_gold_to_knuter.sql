@@ -1,0 +1,1 @@
+ALTER TABLE "knuter" ADD COLUMN "is_gold" boolean DEFAULT false NOT NULL;
