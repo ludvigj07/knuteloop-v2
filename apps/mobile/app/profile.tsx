@@ -2,7 +2,7 @@ import { type ReactNode } from 'react'
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Stack as RouterStack } from 'expo-router'
+import { Stack as RouterStack, useRouter } from 'expo-router'
 import { AppTabBar } from '../components/AppTabBar'
 import { Button, Stack, Text } from '../components/primitives'
 import { useCountUp } from '../hooks/useCountUp'
@@ -24,6 +24,7 @@ const STATUS_META: Record<MySubmission['status'], { label: string; color: string
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets()
+  const router = useRouter()
   const meQuery = useQuery({ queryKey: ['me'], queryFn: fetchMe })
   // Rank isn't on /api/me — derive it from the (school-scoped, cached) leaderboard.
   const leaderboardQuery = useQuery({ queryKey: ['leaderboard'], queryFn: fetchLeaderboard })
@@ -115,6 +116,17 @@ export default function ProfileScreen() {
         ) : (
           submissions.map((s) => <SubmissionRow key={s.id} submission={s} />)
         )}
+
+        {__DEV__ ? (
+          <Stack paddingX="base" paddingY="base">
+            <Button
+              label="🔧 Bytt bruker (dev)"
+              variant="ghost"
+              fullWidth
+              onPress={() => router.push('/dev-login')}
+            />
+          </Stack>
+        ) : null}
       </ScrollView>
       <AppTabBar active="profil" />
     </Screen>

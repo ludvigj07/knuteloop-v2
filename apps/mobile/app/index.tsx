@@ -1,22 +1,31 @@
 import { useMemo, useState } from 'react'
 import { View, ScrollView, StyleSheet, RefreshControl, TextInput } from 'react-native'
+import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated'
 import { useQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useRouter } from 'expo-router'
 import { AppTabBar } from '../components/AppTabBar'
-import { Pressable, Text } from '../components/primitives'
+import { CountUp, Pressable, Skeleton, Text } from '../components/primitives'
 import { fetchKnuter, type Knute } from '../lib/api'
 import { formatNumber } from '../lib/format'
 import {
+  animation,
   borderWidth,
   colors,
   fontSize,
   fontWeight,
   opacity,
   radius,
+  shadows,
   size,
   spacing,
 } from '../lib/theme'
+
+// Each list row fades + slides in just after the one above it, so the list
+// assembles itself rather than snapping in. Capped so a long list doesn't keep
+// delaying — rows past the cap all share the last delay.
+const STAGGER_STEP_MS = 40
+const STAGGER_MAX_STEPS = 8
 
 const DIFFICULTY_LABEL: Record<Knute['difficulty'], string> = {
   Lett: 'Lett',
@@ -28,6 +37,7 @@ const DIFFICULTY_LABEL: Record<Knute['difficulty'], string> = {
 export default function KnuterScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
+  const reduceMotion = useReducedMotion()
   const [search, setSearch] = useState('')
 
   const { data, error, isLoading, refetch, isRefetching } = useQuery({
@@ -87,7 +97,7 @@ export default function KnuterScreen() {
             Hva tar du <Text style={styles.headingHighlight}>i dag?</Text>
           </Text>
           <View style={styles.countChip}>
-            <Text style={styles.countChipText}>{formatNumber(knuter.length)} knuter</Text>
+            <CountUp value={knuter.length} suffix=" knuter" style={styles.countChipText} />
           </View>
         </View>
 
@@ -129,24 +139,36 @@ export default function KnuterScreen() {
           </View>
         </View>
 
-        <View style={styles.listPanel}>
-          {visibleKnuter.length === spacing.none ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>Ingen treff</Text>
-              <Text style={styles.emptyText}>
-                Prøv et annet søk, eller trykk Tilfeldig når listen har knuter igjen.
-              </Text>
-            </View>
-          ) : (
-            visibleKnuter.map((knute, index) => (
-              <KnuteRow
-                key={knute.id}
-                knute={knute}
-                isLast={index === visibleKnuter.length - 1}
-                onPress={() => router.push(`/knute/${knute.id}`)}
-              />
-            ))
-          )}
+        <View style={styles.listPanelShadow}>
+          <View style={styles.listPanel}>
+            {visibleKnuter.length === spacing.none ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyTitle}>Ingen treff</Text>
+                <Text style={styles.emptyText}>
+                  Prøv et annet søk, eller trykk Tilfeldig når listen har knuter igjen.
+                </Text>
+              </View>
+            ) : (
+              visibleKnuter.map((knute, index) => (
+                <Animated.View
+                  key={knute.id}
+                  entering={
+                    reduceMotion
+                      ? undefined
+                      : FadeInDown.duration(animation.duration.base).delay(
+                          Math.min(index, STAGGER_MAX_STEPS) * STAGGER_STEP_MS,
+                        )
+                  }
+                >
+                  <KnuteRow
+                    knute={knute}
+                    isLast={index === visibleKnuter.length - 1}
+                    onPress={() => router.push(`/knute/${knute.id}`)}
+                  />
+                </Animated.View>
+              ))
+            )}
+          </View>
         </View>
       </ScrollView>
       <AppTabBar active="knuter" />
@@ -194,12 +216,12 @@ function LoadingState() {
     <View style={styles.root}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.loadingContent}>
-        <View style={[styles.skeleton, styles.skeletonHeading]} />
-        <View style={[styles.skeleton, styles.skeletonSearch]} />
+        <Skeleton style={styles.skeletonHeading} />
+        <Skeleton style={styles.skeletonSearch} />
         {[0, 1, 2, 3].map((i) => (
           <View key={i} style={styles.skeletonRow}>
-            <View style={[styles.skeleton, styles.skeletonRowTitle]} />
-            <View style={[styles.skeleton, styles.skeletonRowMeta]} />
+            <Skeleton style={styles.skeletonRowTitle} />
+            <Skeleton style={styles.skeletonRowMeta} />
           </View>
         ))}
       </View>
@@ -333,6 +355,14 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
   },
+  // Outer view casts the shadow (no overflow clip); inner view clips the rows
+  // to the rounded corners. Splitting them keeps the drop shadow from being
+  // chopped off by `overflow: 'hidden'` — a cross-platform RN gotcha.
+  listPanelShadow: {
+    borderRadius: radius.lg,
+    backgroundColor: colors.knuter.panel,
+    ...shadows.md,
+  },
   listPanel: {
     overflow: 'hidden',
     backgroundColor: colors.knuter.panel,
@@ -417,10 +447,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.base,
     paddingTop: spacing.xl,
     gap: spacing.base,
-  },
-  skeleton: {
-    backgroundColor: colors.knuter.divider,
-    borderRadius: radius.md,
   },
   skeletonHeading: {
     width: size.skeletonTitleWidth,

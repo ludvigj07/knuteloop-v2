@@ -85,6 +85,36 @@ export const borderWidth = {
 export const opacity = {
   disabled: 0.5,
   shadow: 0.18,
+  // Skeleton shimmer pulses between these two opacities.
+  shimmerLow: 0.45,
+  shimmerHigh: 1,
+} as const
+
+// Soft drop shadows for cards. iOS reads shadow*, Android reads elevation —
+// both are set so depth looks right on each platform. Tinted with ink (navy)
+// rather than pure black so it matches the warm v1 palette.
+export const shadows = {
+  sm: {
+    shadowColor: '#111A32',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  md: {
+    shadowColor: '#111A32',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  lg: {
+    shadowColor: '#111A32',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    elevation: 9,
+  },
 } as const
 
 export const radius = {
@@ -163,6 +193,8 @@ export const animation = {
     fast: 150,
     base: 250,
     slow: 400,
+    // One half-cycle of the skeleton shimmer pulse.
+    shimmer: 900,
   },
   spring: {
     gentle: { damping: 25, stiffness: 150 },

@@ -62,6 +62,10 @@ web-build/
 # Aiven CA cert (must be added manually per environment)
 apps/api/src/lib/aiven-ca.pem
 
+# v1 reference screenshots — contain real user PII (names, russenavn, emails).
+# Kept locally as a design reference only. NEVER commit.
+docs/v1-screenshots/
+
 # Misc
 *.tgz
 .eslintcache
