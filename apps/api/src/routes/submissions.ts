@@ -71,7 +71,7 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
       const existing = await tx
         .select({ id: knuter.id })
         .from(knuter)
-        .where(eq(knuter.id, input.knuteId))
+        .where(and(eq(knuter.id, input.knuteId), eq(knuter.schoolId, schoolId)))
         .limit(1)
       if (existing.length === 0) {
         throw new NotFoundError('Knute')

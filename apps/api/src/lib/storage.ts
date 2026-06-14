@@ -24,7 +24,8 @@ const LOCAL_ROOT = resolve(
 
 // Keys we generate: submissions/<uuid>.jpg. The pattern is also the allowlist for
 // the dev upload/serve routes (defense against path traversal — see localPath()).
-const KEY_PATTERN = /^submissions\/[0-9a-f-]{36}\.jpg$/
+// Strict UUID v4 shape (8-4-4-4-12), so only keys we actually mint are accepted.
+const KEY_PATTERN = /^submissions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jpg$/
 
 export function isValidImageKey(key: string): boolean {
   return KEY_PATTERN.test(key)
