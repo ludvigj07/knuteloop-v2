@@ -12,6 +12,8 @@ export type Knute = {
   description: string | null
   points: number
   difficulty: 'Lett' | 'Medium' | 'Hard' | 'Valgfri'
+  /** Knutesjef-flagged gullknute (special/traditional). Drives gold styling. */
+  isGold: boolean
   isActive: boolean
   createdAt: string
 }
@@ -23,6 +25,8 @@ export type PendingSubmission = {
   userId: string
   knuteId: string
   imageKey: string
+  /** Loadable image URL (null for legacy placeholder keys). */
+  imageUrl: string | null
   caption: string | null
   createdAt: string
   russenavn: string
@@ -92,6 +96,7 @@ export type CreateKnuteInput = {
   description?: string
   points: number
   difficulty: 'Lett' | 'Medium' | 'Hard' | 'Valgfri'
+  isGold?: boolean
 }
 
 export type UpdateKnuteInput = Omit<Partial<CreateKnuteInput>, 'description'> & {
@@ -136,6 +141,31 @@ export function createSubmission(input: CreateSubmissionInput): Promise<CreatedS
   })
 }
 
+export type UploadUrlResponse = { uploadUrl: string; imageKey: string }
+
+// Step 1 of the submit flow: ask the API for a one-time image key + the URL to
+// PUT the photo to (dev: this API's /uploads route; prod: a Bunny presigned URL).
+export function fetchUploadUrl(): Promise<UploadUrlResponse> {
+  return apiFetch<UploadUrlResponse>('/api/submissions/upload-url', { method: 'POST' })
+}
+
+// Step 2: PUT the (already compressed) image bytes to the upload URL. The upload
+// URL is a one-time target / presigned URL, so it carries NO Authorization header.
+export async function uploadImageBinary(uploadUrl: string, fileUri: string): Promise<void> {
+  const blob = await (await fetch(fileUri)).blob()
+  let res: Response
+  try {
+    res = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'content-type': 'image/jpeg' },
+      body: blob,
+    })
+  } catch {
+    throw new ApiError(0, 'Kunne ikke laste opp bildet. Sjekk nettet og prøv igjen.')
+  }
+  if (!res.ok) throw new ApiError(res.status, `Opplasting feilet (${res.status}).`)
+}
+
 export function fetchPendingSubmissions(): Promise<PendingResponse> {
   return apiFetch<PendingResponse>('/api/submissions/pending')
 }
@@ -152,6 +182,8 @@ export type FeedItem = {
   id: string
   userId: string
   imageKey: string
+  /** Loadable image URL (null for legacy placeholder keys). */
+  imageUrl: string | null
   caption: string | null
   createdAt: string
   russenavn: string
@@ -178,10 +210,22 @@ export function fetchLeaderboard(): Promise<LeaderboardResponse> {
   return apiFetch<LeaderboardResponse>('/api/leaderboard')
 }
 
+export type RussType = 'blue' | 'red'
+export type KnuteCategory =
+  | 'Generelle'
+  | 'Dobbelknuter'
+  | 'Alkoholknuter'
+  | 'Sexknuter'
+  | 'Fordervett-knuter'
+/** Per-folder progress for the profile category rings. */
+export type CategoryRingData = { category: KnuteCategory; total: number; completed: number }
+
 export type MyProfile = {
   id: string
   russenavn: string
   role: 'student' | 'knutesjef' | 'admin'
+  russType: RussType
+  quote: string | null
   points: number
   createdAt: string
 }
@@ -199,6 +243,14 @@ export type MeResponse = {
   user: MyProfile
   submissions: MySubmission[]
   counts: { approved: number; pending: number; rejected: number }
+  /** Distinct knuter completed (all-time). */
+  completedCount: number
+  /** Distinct completed knuter worth >= 30 points. */
+  goldCount: number
+  /** Consecutive Europe/Oslo days with an approved submission (ending today/yesterday). */
+  streak: number
+  /** Always the five folders, in display order. */
+  categories: CategoryRingData[]
 }
 
 export function fetchMe(): Promise<MeResponse> {

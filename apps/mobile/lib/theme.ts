@@ -18,6 +18,10 @@ export const colors = {
   accent: {
     yellow: '#FFD530',
   },
+  // Gullknute styling — a deeper, metallic gold than the brand yellow, with a
+  // soft tint for backgrounds/badges. Used wherever a gold knute is shown.
+  gold: '#B8860B',
+  goldSoft: '#FBF1D6',
   ink: '#111A32',
   border: '#E5E5E5',
   borderStrong: '#D4D4D4',
@@ -177,6 +181,11 @@ export const size = {
   controlHeightSm: 40,
   controlHeightBase: 48,
   controlHeightLg: 56,
+  // Profile + status screen
+  profileAvatar: 72,
+  otherAvatar: 44,
+  categoryRing: 60,
+  progressBarHeight: 6,
 } as const
 
 export const fontWeight = {

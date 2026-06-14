@@ -79,11 +79,18 @@ const insertedUsers = await supDb
     // Each school gets its OWN knutesjef (so you can test the approve flow on
     // both tenants) plus students. Loke's token is written to mobile/.env as
     // the default; the dev-login screen switches between all of these.
-    { schoolId: stOlav.id, russenavn: 'Loke', role: 'knutesjef' },
-    { schoolId: stOlav.id, russenavn: 'Frida', role: 'student' },
-    { schoolId: stOlav.id, russenavn: 'Odin', role: 'student' },
-    { schoolId: hetland.id, russenavn: 'Brage', role: 'knutesjef' },
-    { schoolId: hetland.id, russenavn: 'Tor', role: 'student' },
+    // russType + quote are seeded on a few users so the profile card has content.
+    {
+      schoolId: stOlav.id,
+      russenavn: 'Loke',
+      role: 'knutesjef',
+      russType: 'red',
+      quote: 'E det bedre å pilsa i heisen eller heisa pilsen?',
+    },
+    { schoolId: stOlav.id, russenavn: 'Frida', role: 'student', russType: 'blue', quote: 'Tar livet med ein klype Maarud.' },
+    { schoolId: stOlav.id, russenavn: 'Odin', role: 'student', russType: 'red' },
+    { schoolId: hetland.id, russenavn: 'Brage', role: 'knutesjef', russType: 'red' },
+    { schoolId: hetland.id, russenavn: 'Tor', role: 'student', russType: 'blue' },
     { schoolId: hetland.id, russenavn: 'Saga', role: 'student' },
   ])
   .returning()
@@ -104,6 +111,22 @@ type SeedKnute = {
   description: string | null
   points: number
   difficulty: 'Lett' | 'Medium' | 'Hard' | 'Valgfri'
+}
+
+type KnuteCategory = 'Generelle' | 'Dobbelknuter' | 'Alkoholknuter' | 'Sexknuter' | 'Fordervett-knuter'
+
+// Assign a knutemappe (folder) to each seed knute by keyword. TEST DATA ONLY —
+// the real v1 category mapping is unknown (docs/v1-spec.md is an empty stub).
+// This just spreads the dev knuter across all five folders so the profile
+// category rings populate with believable progress. Order matters: first match
+// wins, most-specific themes checked before the catch-all.
+function devCategory(title: string): KnuteCategory {
+  const t = title.toLocaleLowerCase('nb-NO')
+  if (/snus|sneip|edru|pils|øl|drikk|shot|club sandwich/.test(t)) return 'Alkoholknuter'
+  if (/kiss|klint|tinder|jenteknute|undertøy|komando|superman|paparazzi/.test(t)) return 'Sexknuter'
+  if (/handcuff|dans|medruss|klan|vinn mot|hold pusten|2 min/.test(t)) return 'Dobbelknuter'
+  if (/surr|frys|ring men|bjeff|drite|dorull|bikkja|1881|baka|popp/.test(t)) return 'Fordervett-knuter'
+  return 'Generelle'
 }
 
 const stOlavKnuter: SeedKnute[] = [
@@ -158,13 +181,25 @@ const hetlandKnuter: SeedKnute[] = [
   { title: 'Hetland: Bær lærerens sekk en hel dag', description: null, points: 20, difficulty: 'Medium' },
 ]
 
+// A few traditional St. Olav knuter are gullknuter (test data). Indices into
+// stOlavKnuter: 31 = russedåp, 35 = autograf (the one Loke completes → 1 gull),
+// 40 = gå edru hele rt. The knutesjef flag drives this in real life.
+const GOLD_INDICES = new Set([31, 35, 40])
+
 const insertedStOlavKnuter = await supDb
   .insert(schema.knuter)
-  .values(stOlavKnuter.map((k) => ({ ...k, schoolId: stOlav.id })))
+  .values(
+    stOlavKnuter.map((k, i) => ({
+      ...k,
+      schoolId: stOlav.id,
+      category: devCategory(k.title),
+      isGold: GOLD_INDICES.has(i),
+    })),
+  )
   .returning()
 const insertedHetlandKnuter = await supDb
   .insert(schema.knuter)
-  .values(hetlandKnuter.map((k) => ({ ...k, schoolId: hetland.id })))
+  .values(hetlandKnuter.map((k) => ({ ...k, schoolId: hetland.id, category: devCategory(k.title) })))
   .returning()
 
 // A handful of submissions so the DB has something to look at across screens.
@@ -234,8 +269,41 @@ await supDb.insert(schema.submissions).values([
   },
 ])
 
+// Loke is the default mobile identity, so give Loke a rich profile: a 3-day
+// streak across several folders plus one gold knute (>= 30p). createdAt is set
+// explicitly to past Oslo days — the streak is computed from the approved
+// submission's day, so these consecutive days produce a streak of 3, and the
+// spread across folders lights up multiple category rings.
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+const now = new Date()
+const daysAgo = (n: number) => new Date(now.getTime() - n * MS_PER_DAY)
+
+const lokeCompletions = [
+  { knute: insertedStOlavKnuter[0]!, day: daysAgo(2) }, // frokost — Generelle, 10p
+  { knute: insertedStOlavKnuter[10]!, day: daysAgo(2) }, // popp en snus — Alkoholknuter, 5p
+  { knute: insertedStOlavKnuter[7]!, day: daysAgo(1) }, // bjeff — Fordervett-knuter, 10p
+  { knute: insertedStOlavKnuter[34]!, day: daysAgo(1) }, // paparazzi — Sexknuter, 25p
+  { knute: insertedStOlavKnuter[35]!, day: daysAgo(0) }, // autograf — Generelle, 30p (gold)
+]
+
+await supDb.insert(schema.submissions).values(
+  lokeCompletions.map((c, i) => ({
+    schoolId: stOlav.id,
+    userId: userLoke.id,
+    knuteId: c.knute.id,
+    imageKey: `bunny/dev-seed/loke-${i}.webp`,
+    caption: null,
+    status: 'approved' as const,
+    reviewedBy: userLoke.id,
+    reviewedAt: c.day,
+    createdAt: c.day,
+  })),
+)
+const lokePoints = lokeCompletions.reduce((sum, c) => sum + c.knute.points, 0)
+
 // Match each leaderboard to its pre-approved seed submissions (the approve flow
 // normally awards points transactionally; here we set them directly).
+await supDb.update(schema.users).set({ points: lokePoints }).where(eq(schema.users.id, userLoke.id))
 await supDb.update(schema.users).set({ points: firstKnute.points }).where(eq(schema.users.id, userFrida.id))
 await supDb.update(schema.users).set({ points: odinKnute.points }).where(eq(schema.users.id, userOdin.id))
 await supDb.update(schema.users).set({ points: hetlandFirst.points }).where(eq(schema.users.id, userTor.id))

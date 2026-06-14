@@ -20,6 +20,15 @@ const envSchema = z.object({
     .string()
     .min(32, 'JWT_DEV_SECRET must be at least 32 chars')
     .default(DEFAULT_DEV_SECRET),
+
+  // Image storage. 'local' (default) stores uploads on disk under apps/api/var/
+  // and serves them from the API itself — for local development only. 'bunny' is
+  // the production driver (Bunny Storage + CDN, EU; ADR-0008). The BUNNY_* vars
+  // are only required when STORAGE_DRIVER=bunny (validated at use, not boot).
+  STORAGE_DRIVER: z.enum(['local', 'bunny']).default('local'),
+  BUNNY_STORAGE_ZONE: z.string().optional(),
+  BUNNY_STORAGE_KEY: z.string().optional(),
+  BUNNY_CDN_HOSTNAME: z.string().optional(),
 })
 
 type Env = z.infer<typeof envSchema>

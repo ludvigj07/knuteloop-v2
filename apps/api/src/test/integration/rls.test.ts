@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { sql } from 'drizzle-orm'
-import { schools, users } from '../../db/schema/index.js'
+import { schools, users, knuter, submissions } from '../../db/schema/index.js'
 import { setupTestDb, type TestHandles } from '../helpers/test-db.js'
 
 let h: TestHandles
@@ -20,9 +20,28 @@ beforeAll(async () => {
   schoolAId = a.id
   schoolBId = b.id
 
-  await h.superDb.insert(users).values([
-    { schoolId: schoolAId, russenavn: 'LokeA', role: 'student' },
-    { schoolId: schoolBId, russenavn: 'TorB', role: 'student' },
+  const insertedUsers = await h.superDb
+    .insert(users)
+    .values([
+      { schoolId: schoolAId, russenavn: 'LokeA', role: 'student' },
+      { schoolId: schoolBId, russenavn: 'TorB', role: 'student' },
+    ])
+    .returning()
+  const lokeA = insertedUsers[0]!
+  const torB = insertedUsers[1]!
+
+  // One knute + one approved submission per school, so the submissions⋈knuter
+  // JOIN that the /api/me aggregates rely on can be checked for cross-tenant leak.
+  const insertedKnuter = await h.superDb
+    .insert(knuter)
+    .values([
+      { schoolId: schoolAId, title: 'A-knute', points: 30, difficulty: 'Hard', category: 'Generelle' },
+      { schoolId: schoolBId, title: 'B-knute', points: 30, difficulty: 'Hard', category: 'Generelle' },
+    ])
+    .returning()
+  await h.superDb.insert(submissions).values([
+    { schoolId: schoolAId, userId: lokeA.id, knuteId: insertedKnuter[0]!.id, imageKey: 'a.webp', status: 'approved', reviewedAt: new Date() },
+    { schoolId: schoolBId, userId: torB.id, knuteId: insertedKnuter[1]!.id, imageKey: 'b.webp', status: 'approved', reviewedAt: new Date() },
   ])
 })
 
@@ -84,6 +103,26 @@ describe('RLS cross-tenant isolation — users table', () => {
         })
       }),
     ).rejects.toThrow(/row-level security|new row violates row-level security/i)
+  })
+
+  it('submissions⋈knuter aggregate is tenant-isolated even with no explicit WHERE', async () => {
+    // The /api/me category + gold aggregates JOIN submissions to knuter. Prove
+    // that join sees only the current tenant under RLS, even if app code forgot
+    // a school_id filter. Under school A context the count must be 1 (only A's).
+    await h.appDb.transaction(async (tx) => {
+      await tx.execute(sql`SELECT set_config('app.school_id', ${schoolAId}, true)`)
+      const result = await tx.execute(
+        sql`SELECT count(*)::int AS n FROM submissions s JOIN knuter k ON k.id = s.knute_id WHERE s.status = 'approved'`,
+      )
+      expect((result[0] as { n: number }).n).toBe(1)
+    })
+    await h.appDb.transaction(async (tx) => {
+      await tx.execute(sql`SELECT set_config('app.school_id', ${schoolBId}, true)`)
+      const result = await tx.execute(
+        sql`SELECT count(*)::int AS n FROM submissions s JOIN knuter k ON k.id = s.knute_id WHERE s.status = 'approved'`,
+      )
+      expect((result[0] as { n: number }).n).toBe(1)
+    })
   })
 
   it('FORCE RLS is verified live (relforcerowsecurity = true)', async () => {

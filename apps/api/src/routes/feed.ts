@@ -5,6 +5,7 @@ import { zValidator } from '@hono/zod-validator'
 import { auth, type AuthVariables } from '../middleware/auth.js'
 import { tenantContext } from '../middleware/tenant-context.js'
 import { knuter, submissions, users } from '../db/schema/index.js'
+import { isValidImageKey, publicUrlForKey, requestOrigin } from '../lib/storage.js'
 import type { db } from '../db/client.js'
 
 type Variables = AuthVariables & {
@@ -78,6 +79,14 @@ export const feedRoutes = new Hono<{ Variables: Variables }>()
       const page = hasMore ? rows.slice(0, limit) : rows
       const nextCursor = hasMore ? page[page.length - 1]!.createdAt.toISOString() : null
 
-      return c.json({ feed: page, nextCursor })
+      // Resolve each stored key to a loadable URL (null for legacy placeholder
+      // keys — the client shows a placeholder for those).
+      const origin = requestOrigin(c.req.url)
+      const feed = page.map((r) => ({
+        ...r,
+        imageUrl: isValidImageKey(r.imageKey) ? publicUrlForKey(r.imageKey, origin) : null,
+      }))
+
+      return c.json({ feed, nextCursor })
     },
   )

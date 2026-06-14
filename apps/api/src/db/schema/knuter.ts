@@ -30,6 +30,18 @@ export const knuter = pgTable(
     difficulty: text('difficulty', { enum: ['Lett', 'Medium', 'Hard', 'Valgfri'] })
       .notNull()
       .default('Medium'),
+    // Knutemappe (folder). App-level enum (text column, no DB CHECK) — same pattern
+    // as `difficulty`. The five v1 folders; UI maps these to short display labels.
+    // A richer per-school folders table is deferred to the library feature (ADR-0013).
+    category: text('category', {
+      enum: ['Generelle', 'Dobbelknuter', 'Alkoholknuter', 'Sexknuter', 'Fordervett-knuter'],
+    })
+      .notNull()
+      .default('Generelle'),
+    // "Gullknute" — a special, usually traditional knute the knutesjef marks as
+    // gold. It is an EXPLICIT choice, NOT a points threshold (v1 mis-modelled it
+    // as points >= N). Drives the gold count + gold styling. See ADR-0013.
+    isGold: boolean('is_gold').notNull().default(false),
     isActive: boolean('is_active').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

@@ -25,6 +25,14 @@ export const users = pgTable(
     role: text('role', { enum: ['student', 'knutesjef', 'admin'] })
       .notNull()
       .default('student'),
+    // rødruss / blåruss. App-level enum (text column, no DB CHECK) — same pattern
+    // as `role`/`difficulty`. Glossary: anything other than 'red' coerces to 'blue'.
+    russType: text('russ_type', { enum: ['blue', 'red'] })
+      .notNull()
+      .default('blue'),
+    // Free-text profile quote shown on the profile card. Nullable until the user
+    // sets one. A future profile-edit endpoint MUST clamp its length (~700 chars).
+    quote: text('quote'),
     points: integer('points').notNull().default(0),
     tokenVersion: integer('token_version').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

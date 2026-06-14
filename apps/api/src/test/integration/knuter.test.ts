@@ -18,6 +18,7 @@ type KnuteRow = {
   description: string | null
   points: number
   difficulty: 'Lett' | 'Medium' | 'Hard' | 'Valgfri'
+  isGold: boolean
   isActive: boolean
   createdAt: string
 }
@@ -237,6 +238,23 @@ describe('POST /api/knuter', () => {
     const body = (await res.json()) as CreateResponse
     expect(body.knute.difficulty).toBe('Medium')
   })
+
+  it('defaults isGold to false, and accepts isGold: true', async () => {
+    const plain = await app.request('/api/knuter', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${knutesjefTokenA}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'A: Vanlig knute', points: 5 }),
+    })
+    expect(((await plain.json()) as CreateResponse).knute.isGold).toBe(false)
+
+    const gold = await app.request('/api/knuter', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${knutesjefTokenA}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'A: Gullkongla', points: 5, isGold: true }),
+    })
+    expect(gold.status).toBe(201)
+    expect(((await gold.json()) as CreateResponse).knute.isGold).toBe(true)
+  })
 })
 
 describe('PATCH /api/knuter/:id', () => {
@@ -333,6 +351,17 @@ describe('PATCH /api/knuter/:id', () => {
     })
     const allBody = (await all.json()) as ListResponse
     expect(allBody.knuter.some((row) => row.id === k.id)).toBe(true)
+  })
+
+  it('can toggle isGold on an existing knute', async () => {
+    const k = await freshKnute('A: PATCH gold toggle')
+    const res = await app.request(`/api/knuter/${k.id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${knutesjefTokenA}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ isGold: true }),
+    })
+    expect(res.status).toBe(200)
+    expect(((await res.json()) as CreateResponse).knute.isGold).toBe(true)
   })
 
   it('cross-tenant: school B knutesjef cannot edit school A knute (404)', async () => {

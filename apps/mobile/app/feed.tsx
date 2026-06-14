@@ -118,20 +118,20 @@ function FeedCard({
   width: number
   bottomInset: number
 }) {
-  // Until Bunny storage ships, imageKey is a placeholder string — only render
-  // real <Image> when it's an actual URL.
-  const isUrl = item.imageKey.startsWith('http://') || item.imageKey.startsWith('https://')
+  // imageUrl is null for legacy placeholder keys (no real upload) — show a
+  // placeholder for those; render the photo when there's a real URL.
+  const url = item.imageUrl
 
   return (
     <View
       style={[styles.card, { height, width }]}
       accessibilityLabel={`${item.russenavn} fullførte ${item.knuteTitle}, ${item.knutePoints} poeng`}
     >
-      {isUrl ? (
+      {url ? (
         <>
           {/* Blurred fill behind — zoomed to cover, so no black bars */}
           <Image
-            source={{ uri: item.imageKey }}
+            source={{ uri: url }}
             style={StyleSheet.absoluteFill}
             resizeMode="cover"
             blurRadius={24}
@@ -140,7 +140,7 @@ function FeedCard({
           <View style={styles.dim} />
           {/* The actual photo — whole, never cropped */}
           <Image
-            source={{ uri: item.imageKey }}
+            source={{ uri: url }}
             style={styles.photo}
             resizeMode="contain"
             accessibilityRole="image"

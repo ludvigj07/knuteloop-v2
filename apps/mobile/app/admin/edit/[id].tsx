@@ -36,6 +36,7 @@ export default function EditKnuteScreen() {
   const [description, setDescription] = useState('')
   const [pointsText, setPointsText] = useState('10')
   const [difficulty, setDifficulty] = useState<Difficulty>('Medium')
+  const [isGold, setIsGold] = useState(false)
   const [isActive, setIsActive] = useState(true)
   const [loaded, setLoaded] = useState(false)
 
@@ -54,6 +55,7 @@ export default function EditKnuteScreen() {
     setDescription(k.description ?? '')
     setPointsText(String(k.points))
     setDifficulty(k.difficulty)
+    setIsGold(k.isGold)
     setIsActive(k.isActive)
     setLoaded(true)
   }, [id, isNew, list.data, loaded])
@@ -114,6 +116,7 @@ export default function EditKnuteScreen() {
         description: descTrim || undefined,
         points,
         difficulty,
+        isGold,
       })
     } else {
       update.mutate({
@@ -121,6 +124,7 @@ export default function EditKnuteScreen() {
         description: descTrim || null,
         points,
         difficulty,
+        isGold,
         isActive,
       })
     }
@@ -189,6 +193,21 @@ export default function EditKnuteScreen() {
               </Text>
             </Pressable>
           ))}
+        </View>
+
+        <View style={styles.toggleRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.toggleLabel}>Gullknute ★</Text>
+            <Text style={styles.muted}>
+              Marker spesielle, tradisjonelle knuter som gull. Vises med gullfarge i appen.
+            </Text>
+          </View>
+          <Switch
+            value={isGold}
+            onValueChange={setIsGold}
+            trackColor={{ true: colors.gold, false: colors.borderStrong }}
+            accessibilityLabel="Gullknute"
+          />
         </View>
 
         {!isNew && (

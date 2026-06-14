@@ -17,7 +17,17 @@
       "bundler": "metro"
     },
     "newArchEnabled": true,
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Knuteloop trenger tilgang til bildene dine for å sende inn bevis på en fullført knute.",
+          "cameraPermission": "Knuteloop trenger tilgang til kameraet for å ta bilde av en fullført knute.",
+          "microphonePermission": false
+        }
+      ]
+    ],
     "experiments": {
       "typedRoutes": true
     }

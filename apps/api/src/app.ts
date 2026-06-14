@@ -13,6 +13,7 @@ import { feedRoutes } from './routes/feed.js'
 import { leaderboardRoutes } from './routes/leaderboard.js'
 import { meRoutes } from './routes/me.js'
 import { devRoutes } from './routes/dev.js'
+import { uploadRoutes } from './routes/uploads.js'
 
 // Dev-only surfaces (the /api/dev identity switcher + relaxed CORS) mount ONLY in
 // explicitly-known dev/test environments. Fail-CLOSED: an unexpected NODE_ENV is
@@ -28,7 +29,11 @@ export function buildApp() {
   const app = new Hono()
 
   app.use('*', requestId())
-  app.use('*', secureHeaders())
+  // secureHeaders sets X-Content-Type-Options: nosniff and CORP: same-origin, which
+  // block the dev image route (mismatched type / cross-origin load from the web
+  // client). The /uploads route sets its own headers, so skip security headers there.
+  const secure = secureHeaders()
+  app.use('*', (c, next) => (c.req.path.startsWith('/uploads/') ? next() : secure(c, next)))
   app.use(
     '*',
     cors({
@@ -49,6 +54,12 @@ export function buildApp() {
   app.route('/api/feed', feedRoutes)
   app.route('/api/leaderboard', leaderboardRoutes)
   app.route('/api/me', meRoutes)
+
+  // Local image store (PUT/GET) — only when STORAGE_DRIVER=local (dev). In prod,
+  // STORAGE_DRIVER=bunny and images are served by Bunny CDN, so this never mounts.
+  if (config.STORAGE_DRIVER === 'local') {
+    app.route('/uploads', uploadRoutes)
+  }
 
   // Dev-only identity switcher for local testing — NEVER mounted outside dev/test.
   if (isDevEnv(config.NODE_ENV)) {
