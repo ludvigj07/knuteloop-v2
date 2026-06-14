@@ -1,11 +1,11 @@
 import { Hono } from 'hono'
-import { and, eq, lte } from 'drizzle-orm'
+import { and, eq, inArray, lte } from 'drizzle-orm'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 import { auth, type AuthVariables } from '../middleware/auth.js'
 import { tenantContext } from '../middleware/tenant-context.js'
 import { requireRole } from '../middleware/require-role.js'
-import { knuter, users } from '../db/schema/index.js'
+import { knuter, knuteFolderMemberships, users } from '../db/schema/index.js'
 import { NotFoundError, ValidationError } from '../lib/errors.js'
 import type { db } from '../db/client.js'
 
@@ -44,13 +44,13 @@ export const knuterRoutes = new Hono<{ Variables: Variables }>()
   // ?all=1: include inactive too — used by knutesjef-panel to manage retired knuter.
   .get(
     '/',
-    zValidator('query', z.object({ all: z.string().optional() })),
+    zValidator('query', z.object({ all: z.string().optional(), folderId: z.string().uuid().optional() })),
     async (c) => {
       const tx = c.get('tx')
       const schoolId = c.get('schoolId')
       const userId = c.get('userId')
       const role = c.get('role')
-      const { all } = c.req.valid('query')
+      const { all, folderId } = c.req.valid('query')
       // The ?all=1 management view (inactive included, no age filter) is for
       // knutesjef/admin only — a student passing all=1 still gets the gated catalog.
       const isManager = role === 'knutesjef' || role === 'admin'
@@ -58,6 +58,23 @@ export const knuterRoutes = new Hono<{ Variables: Variables }>()
 
       const conditions = [eq(knuter.schoolId, schoolId)]
       if (!includeInactive) conditions.push(eq(knuter.isActive, true))
+
+      // ?folderId — narrow to the knuter in that folder (ADR-0014). "Alle knuter"
+      // is just the absence of this filter.
+      if (folderId) {
+        const members = await tx
+          .select({ knuteId: knuteFolderMemberships.knuteId })
+          .from(knuteFolderMemberships)
+          .where(
+            and(
+              eq(knuteFolderMemberships.schoolId, schoolId),
+              eq(knuteFolderMemberships.folderId, folderId),
+            ),
+          )
+        const ids = members.map((m) => m.knuteId)
+        if (ids.length === 0) return c.json({ knuter: [] })
+        conditions.push(inArray(knuter.id, ids))
+      }
 
       // Age gate (ADR-0015): in the student catalog, non-adults see only all-ages
       // knuter (min_age <= 17). The manager view is unfiltered (they curate 18+).

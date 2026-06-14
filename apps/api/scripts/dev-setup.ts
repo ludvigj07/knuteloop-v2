@@ -211,6 +211,24 @@ const insertedHetlandKnuter = await supDb
   .values(hetlandKnuter.map((k) => ({ ...k, schoolId: hetland.id, category: devCategory(k.title) })))
   .returning()
 
+// School-side library: a couple of St. Olav folders + memberships (ADR-0014).
+// "Alle knuter" is implicit (the unfiltered catalog), so it's not seeded here.
+const insertedFolders = await supDb
+  .insert(schema.knuteFolders)
+  .values([
+    { schoolId: stOlav.id, name: 'Mat-knuter', sortOrder: 0 },
+    { schoolId: stOlav.id, name: 'Rampestreker', sortOrder: 1 },
+    { schoolId: stOlav.id, name: 'Klassikere', sortOrder: 2 },
+  ])
+  .returning()
+await supDb.insert(schema.knuteFolderMemberships).values([
+  { schoolId: stOlav.id, folderId: insertedFolders[0]!.id, knuteId: insertedStOlavKnuter[0]!.id }, // frokost
+  { schoolId: stOlav.id, folderId: insertedFolders[0]!.id, knuteId: insertedStOlavKnuter[9]!.id }, // nuggets
+  { schoolId: stOlav.id, folderId: insertedFolders[1]!.id, knuteId: insertedStOlavKnuter[7]!.id }, // bjeff
+  { schoolId: stOlav.id, folderId: insertedFolders[1]!.id, knuteId: insertedStOlavKnuter[28]!.id }, // surr bil
+  { schoolId: stOlav.id, folderId: insertedFolders[2]!.id, knuteId: insertedStOlavKnuter[31]!.id }, // russedåp
+])
+
 // A handful of submissions so the DB has something to look at across screens.
 // One already approved by Loke (so the leaderboard has real points), two
 // pending (for the review queue).
