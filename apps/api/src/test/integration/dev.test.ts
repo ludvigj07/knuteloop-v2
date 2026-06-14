@@ -26,6 +26,7 @@ describe('dev-route + secret gates (fail-closed)', () => {
       JWT_DEV_SECRET: DEFAULT_DEV_SECRET,
       PORT: 3000,
       LOG_LEVEL: 'info',
+      STORAGE_DRIVER: 'local',
     })
     expect(err).toMatch(/refusing to boot/i)
   })
@@ -37,6 +38,7 @@ describe('dev-route + secret gates (fail-closed)', () => {
         JWT_DEV_SECRET: 'a-real-production-secret-at-least-32-chars!!',
         PORT: 3000,
         LOG_LEVEL: 'info',
+        STORAGE_DRIVER: 'local',
       }),
     ).toBeNull()
     expect(
@@ -45,6 +47,7 @@ describe('dev-route + secret gates (fail-closed)', () => {
         JWT_DEV_SECRET: DEFAULT_DEV_SECRET,
         PORT: 3000,
         LOG_LEVEL: 'info',
+        STORAGE_DRIVER: 'local',
       }),
     ).toBeNull()
   })

@@ -7,6 +7,9 @@ dist/
 build/
 *.tsbuildinfo
 
+# Local dev image storage (STORAGE_DRIVER=local) — never commit uploaded files
+apps/api/var/
+
 # Environment files — NEVER commit
 .env
 .env.local

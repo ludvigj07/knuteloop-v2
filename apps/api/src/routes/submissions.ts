@@ -7,6 +7,13 @@ import { tenantContext } from '../middleware/tenant-context.js'
 import { requireRole } from '../middleware/require-role.js'
 import { knuter, submissions, users } from '../db/schema/index.js'
 import { ConflictError, NotFoundError } from '../lib/errors.js'
+import {
+  isValidImageKey,
+  newSubmissionImageKey,
+  publicUrlForKey,
+  requestOrigin,
+  uploadUrlForKey,
+} from '../lib/storage.js'
 import type { db } from '../db/client.js'
 
 type Variables = AuthVariables & {
@@ -24,6 +31,17 @@ const createSubmissionSchema = z.object({
 export const submissionRoutes = new Hono<{ Variables: Variables }>()
   .use('*', auth())
   .use('*', tenantContext())
+
+  // POST /api/submissions/upload-url — issue a one-time image key + the URL the
+  // client PUTs the (compressed) photo to, BEFORE creating the submission. The
+  // mobile flow is: upload-url → PUT bytes → POST /submissions { imageKey }.
+  // The key is a random UUID; in dev the upload URL points back at this API
+  // (routes/uploads.ts), in prod it's a Bunny presigned URL.
+  .post('/upload-url', (c) => {
+    const imageKey = newSubmissionImageKey()
+    const uploadUrl = uploadUrlForKey(imageKey, requestOrigin(c.req.url))
+    return c.json({ uploadUrl, imageKey })
+  })
 
   // POST /api/submissions — student submits proof that a knute is complete.
   // Any authenticated user can submit; userId + schoolId come from the JWT.
@@ -127,7 +145,15 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
       )
       .orderBy(desc(submissions.createdAt))
 
-    return c.json({ submissions: rows })
+    // Resolve each stored key to a loadable URL (null for legacy placeholder keys
+    // that aren't real uploads — the client shows a placeholder for those).
+    const origin = requestOrigin(c.req.url)
+    const withUrls = rows.map((r) => ({
+      ...r,
+      imageUrl: isValidImageKey(r.imageKey) ? publicUrlForKey(r.imageKey, origin) : null,
+    }))
+
+    return c.json({ submissions: withUrls })
   })
 
   // PATCH /api/submissions/:id/approve — knutesjef approves a pending submission.
