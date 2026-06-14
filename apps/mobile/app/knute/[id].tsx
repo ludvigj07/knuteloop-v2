@@ -106,16 +106,21 @@ export default function KnuteDetailScreen() {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.knuteCard}>
+        <View style={[styles.knuteCard, knute.isGold && styles.knuteCardGold]}>
           <Text style={styles.knuteTitle} accessibilityRole="header">
             {knute.title}
           </Text>
           {knute.description ? <Text style={styles.knuteDesc}>{knute.description}</Text> : null}
           <View style={styles.knuteMetaRow}>
-            <View style={styles.pointsBadge}>
+            <View style={[styles.pointsBadge, knute.isGold && styles.pointsBadgeGold]}>
               <Text style={styles.pointsText}>{knute.points} p</Text>
             </View>
             <Text style={styles.difficulty}>{knute.difficulty}</Text>
+            {knute.isGold ? (
+              <View style={styles.goldPill} accessibilityLabel="Gullknute">
+                <Text style={styles.goldPillText}>★ Gull</Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
@@ -186,6 +191,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: spacing.base,
+  },
+  knuteCardGold: {
+    borderColor: colors.gold,
+    backgroundColor: colors.goldSoft,
+  },
+  pointsBadgeGold: {
+    backgroundColor: colors.gold,
+  },
+  goldPill: {
+    backgroundColor: colors.gold,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+  },
+  goldPillText: {
+    color: colors.text.inverse,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
   },
   knuteTitle: {
     fontSize: fontSize.lg,

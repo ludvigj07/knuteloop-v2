@@ -13,6 +13,8 @@ type CountUpProps = Omit<TextProps, 'children'> & {
   duration?: number
   /** Formatter for the number. Defaults to nb-NO thousands grouping. */
   format?: (n: number) => string
+  /** Static text prepended before the number (e.g. "#"). */
+  prefix?: string
   /** Static text appended after the number (e.g. " knuter", " p"). */
   suffix?: string
 }
@@ -21,9 +23,10 @@ export function CountUp({
   value,
   duration,
   format = formatNumber,
+  prefix = '',
   suffix = '',
   ...textProps
 }: CountUpProps) {
   const display = useCountUp(value, duration)
-  return <Text {...textProps}>{`${format(display)}${suffix}`}</Text>
+  return <Text {...textProps}>{`${prefix}${format(display)}${suffix}`}</Text>
 }

@@ -12,6 +12,8 @@ export type Knute = {
   description: string | null
   points: number
   difficulty: 'Lett' | 'Medium' | 'Hard' | 'Valgfri'
+  /** Knutesjef-flagged gullknute (special/traditional). Drives gold styling. */
+  isGold: boolean
   isActive: boolean
   createdAt: string
 }
@@ -92,6 +94,7 @@ export type CreateKnuteInput = {
   description?: string
   points: number
   difficulty: 'Lett' | 'Medium' | 'Hard' | 'Valgfri'
+  isGold?: boolean
 }
 
 export type UpdateKnuteInput = Omit<Partial<CreateKnuteInput>, 'description'> & {
@@ -178,10 +181,22 @@ export function fetchLeaderboard(): Promise<LeaderboardResponse> {
   return apiFetch<LeaderboardResponse>('/api/leaderboard')
 }
 
+export type RussType = 'blue' | 'red'
+export type KnuteCategory =
+  | 'Generelle'
+  | 'Dobbelknuter'
+  | 'Alkoholknuter'
+  | 'Sexknuter'
+  | 'Fordervett-knuter'
+/** Per-folder progress for the profile category rings. */
+export type CategoryRingData = { category: KnuteCategory; total: number; completed: number }
+
 export type MyProfile = {
   id: string
   russenavn: string
   role: 'student' | 'knutesjef' | 'admin'
+  russType: RussType
+  quote: string | null
   points: number
   createdAt: string
 }
@@ -199,6 +214,14 @@ export type MeResponse = {
   user: MyProfile
   submissions: MySubmission[]
   counts: { approved: number; pending: number; rejected: number }
+  /** Distinct knuter completed (all-time). */
+  completedCount: number
+  /** Distinct completed knuter worth >= 30 points. */
+  goldCount: number
+  /** Consecutive Europe/Oslo days with an approved submission (ending today/yesterday). */
+  streak: number
+  /** Always the five folders, in display order. */
+  categories: CategoryRingData[]
 }
 
 export function fetchMe(): Promise<MeResponse> {

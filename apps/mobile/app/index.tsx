@@ -189,20 +189,23 @@ function KnuteRow({
 
   return (
     <Pressable
-      style={[styles.knuteRow, isLast && styles.knuteRowLast]}
+      style={[styles.knuteRow, isLast && styles.knuteRowLast, knute.isGold && styles.knuteRowGold]}
       onPress={onPress}
       accessibilityRole="link"
-      accessibilityLabel={`Ta knute: ${knute.title}, ${formatNumber(knute.points)} poeng, ${difficulty}`}
+      accessibilityLabel={`Ta ${knute.isGold ? 'gullknute' : 'knute'}: ${knute.title}, ${formatNumber(knute.points)} poeng, ${difficulty}`}
       accessibilityHint="Åpner innsending for denne knuten."
     >
       <View style={styles.knuteTextBlock}>
         <Text style={styles.knuteTitle} numberOfLines={1}>
+          {knute.isGold ? <Text style={styles.goldStar}>★ </Text> : null}
           {knute.title}
         </Text>
         <Text style={styles.knuteDifficulty}>{difficulty}</Text>
       </View>
-      <View style={styles.pointsBadge}>
-        <Text style={styles.pointsText}>{formatNumber(knute.points)} p</Text>
+      <View style={[styles.pointsBadge, knute.isGold && styles.pointsBadgeGold]}>
+        <Text style={[styles.pointsText, knute.isGold && styles.pointsTextGold]}>
+          {formatNumber(knute.points)} p
+        </Text>
       </View>
       <View style={styles.takeButton}>
         <Text style={styles.takeButtonText}>Ta knute</Text>
@@ -383,6 +386,12 @@ const styles = StyleSheet.create({
   knuteRowLast: {
     borderBottomWidth: borderWidth.none,
   },
+  knuteRowGold: {
+    backgroundColor: colors.goldSoft,
+  },
+  goldStar: {
+    color: colors.gold,
+  },
   knuteTextBlock: {
     flex: 1,
     minWidth: spacing.none,
@@ -408,6 +417,12 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
+  },
+  pointsBadgeGold: {
+    backgroundColor: colors.gold,
+  },
+  pointsTextGold: {
+    color: colors.text.inverse,
   },
   takeButton: {
     minWidth: size.knuteActionMinWidth,

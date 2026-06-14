@@ -173,14 +173,21 @@ function KnuteRow({
       style={[styles.row, inactive && styles.rowInactive]}
       onPress={onPress}
       accessibilityRole="link"
-      accessibilityLabel={`Rediger ${knute.title}, ${formatNumber(knute.points)} poeng, ${knute.difficulty}${inactive ? ', arkivert' : ''}`}
+      accessibilityLabel={`Rediger ${knute.isGold ? 'gullknute ' : ''}${knute.title}, ${formatNumber(knute.points)} poeng, ${knute.difficulty}${inactive ? ', arkivert' : ''}`}
     >
       <View style={styles.rowTextBlock}>
         <Text style={[styles.rowTitle, inactive && styles.rowTextDim]} numberOfLines={2}>
+          {knute.isGold ? <Text style={styles.goldStar}>★ </Text> : null}
           {knute.title}
         </Text>
         <View style={styles.rowMeta}>
-          <View style={[styles.pointsBadge, inactive && styles.pointsBadgeDim]}>
+          <View
+            style={[
+              styles.pointsBadge,
+              knute.isGold && styles.pointsBadgeGold,
+              inactive && styles.pointsBadgeDim,
+            ]}
+          >
             <Text style={styles.pointsText}>{formatNumber(knute.points)} p</Text>
           </View>
           <Text style={[styles.difficulty, inactive && styles.rowTextDim]}>{knute.difficulty}</Text>
@@ -306,8 +313,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing['2xs'],
     borderRadius: radius.sm,
   },
+  pointsBadgeGold: {
+    backgroundColor: colors.gold,
+  },
   pointsBadgeDim: {
     backgroundColor: colors.text.muted,
+  },
+  goldStar: {
+    color: colors.gold,
   },
   pointsText: {
     color: colors.text.inverse,
