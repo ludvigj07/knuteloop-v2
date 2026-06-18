@@ -92,6 +92,20 @@
       "when": 1781447580918,
       "tag": "0012_force_rls_folders",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1781795748659,
+      "tag": "0013_library_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1781795749659,
+      "tag": "0014_library_force_rls_and_grants",
+      "breakpoints": true
     }
   ]
 }
