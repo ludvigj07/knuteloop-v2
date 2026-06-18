@@ -166,7 +166,11 @@ export const folderRoutes = new Hono<{ Variables: Variables }>()
         .select({ id: knuteFolderMemberships.id })
         .from(knuteFolderMemberships)
         .where(
-          and(eq(knuteFolderMemberships.folderId, folderId), eq(knuteFolderMemberships.knuteId, knuteId)),
+          and(
+            eq(knuteFolderMemberships.schoolId, schoolId),
+            eq(knuteFolderMemberships.folderId, folderId),
+            eq(knuteFolderMemberships.knuteId, knuteId),
+          ),
         )
         .limit(1)
       if (existingMember) throw new ConflictError('Knuten ligger allerede i mappa')

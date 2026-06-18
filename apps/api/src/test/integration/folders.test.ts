@@ -13,6 +13,7 @@ let studentTokenA: string
 let knutesjefTokenB: string
 let folderAId: string
 let knuteAId: string
+let knuteBId: string
 let authA: Record<string, string>
 let authB: Record<string, string>
 
@@ -47,6 +48,12 @@ beforeAll(async () => {
     ])
     .returning()
   knuteAId = kA!.id
+
+  const [kB] = await h.superDb
+    .insert(knuter)
+    .values({ schoolId: schoolBId, title: 'B: knute', points: 10, difficulty: 'Lett' })
+    .returning()
+  knuteBId = kB!.id
 
   const [folderA] = await h.superDb
     .insert(knuteFolders)
@@ -162,6 +169,11 @@ describe('folder membership', () => {
 
   it('cross-tenant: school B cannot add to school A folder (404)', async () => {
     const res = await app.request(`/api/folders/${folderAId}/knuter`, { method: 'POST', headers: authB, body: JSON.stringify({ knuteId: knuteAId }) })
+    expect(res.status).toBe(404)
+  })
+
+  it("cross-tenant: school B cannot add its OWN knute to school A's folder (404)", async () => {
+    const res = await app.request(`/api/folders/${folderAId}/knuter`, { method: 'POST', headers: authB, body: JSON.stringify({ knuteId: knuteBId }) })
     expect(res.status).toBe(404)
   })
 
