@@ -11,6 +11,7 @@ import {
   libraryPackMemberships,
   schoolLibraryImports,
 } from '../db/schema/index.js'
+import { importLibraryKnute, importLibraryPack } from '../lib/library-import.js'
 import type { db } from '../db/client.js'
 
 type Variables = AuthVariables & {
@@ -34,7 +35,8 @@ const browseQuerySchema = z.object({
 // The catalog itself is shared (no RLS); the "imported" flag is per-school, so
 // every endpoint needs the tenant context. Gated to knutesjef/admin: they curate
 // + import (and so they see 18+ entries, like the ?all=1 management catalog).
-// The import=copy mutation lands in PR-3b; this PR is read-only browse.
+// Import = copy (POST /imports + POST /packs/:id/import) snapshots library knuter into
+// the school's own `knuter`; the business logic lives in lib/library-import.ts.
 export const libraryRoutes = new Hono<{ Variables: Variables }>()
   .use('*', auth())
   .use('*', tenantContext())
@@ -134,4 +136,35 @@ export const libraryRoutes = new Hono<{ Variables: Variables }>()
       .orderBy(libraryPacks.sortOrder, libraryPacks.name)
 
     return c.json({ packs: rows })
+  })
+
+  // POST /api/library/imports — import ONE library knute into this school (copy +
+  // file in its folder + record). 404 if missing/inactive, 409 if already imported.
+  .post(
+    '/imports',
+    zValidator('json', z.object({ libraryKnuteId: z.string().uuid() }), (result, c) => {
+      if (!result.success) {
+        return c.json({ error: { message: 'Invalid input', issues: result.error.flatten() } }, 400)
+      }
+      return undefined
+    }),
+    async (c) => {
+      const tx = c.get('tx')
+      const result = await importLibraryKnute(tx, c.req.valid('json').libraryKnuteId, {
+        schoolId: c.get('schoolId'),
+        userId: c.get('userId'),
+      })
+      return c.json(result, 201)
+    },
+  )
+
+  // POST /api/library/packs/:id/import — import a whole pack (skips already-imported).
+  // The "instant onboarding" flow: import the starter pack → organized folders in one call.
+  .post('/packs/:id/import', zValidator('param', z.object({ id: z.string().uuid() })), async (c) => {
+    const tx = c.get('tx')
+    const result = await importLibraryPack(tx, c.req.valid('param').id, {
+      schoolId: c.get('schoolId'),
+      userId: c.get('userId'),
+    })
+    return c.json(result, 201)
   })
