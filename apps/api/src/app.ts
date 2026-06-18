@@ -14,6 +14,7 @@ import { leaderboardRoutes } from './routes/leaderboard.js'
 import { meRoutes } from './routes/me.js'
 import { devRoutes } from './routes/dev.js'
 import { uploadRoutes } from './routes/uploads.js'
+import { folderRoutes } from './routes/folders.js'
 
 // Dev-only surfaces (the /api/dev identity switcher + relaxed CORS) mount ONLY in
 // explicitly-known dev/test environments. Fail-CLOSED: an unexpected NODE_ENV is
@@ -54,6 +55,7 @@ export function buildApp() {
   app.route('/api/feed', feedRoutes)
   app.route('/api/leaderboard', leaderboardRoutes)
   app.route('/api/me', meRoutes)
+  app.route('/api/folders', folderRoutes)
 
   // Local image store (PUT/GET) — only when STORAGE_DRIVER=local (dev). In prod,
   // STORAGE_DRIVER=bunny and images are served by Bunny CDN, so this never mounts.
