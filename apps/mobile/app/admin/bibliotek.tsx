@@ -253,6 +253,11 @@ function LibKnuteRow({
           {knute.evidenceType === 'text' ? <Text style={styles.flagTag}>Tekst</Text> : null}
           {ageLabel ? <Text style={[styles.flagTag, styles.ageTag]}>{ageLabel}</Text> : null}
         </View>
+        {knute.description ? (
+          <Text style={styles.rowDesc} numberOfLines={2}>
+            {knute.description}
+          </Text>
+        ) : null}
       </View>
       {knute.imported ? (
         <View style={styles.addedBadge} accessibilityLabel={`${knute.title} er lagt til`}>
@@ -333,7 +338,7 @@ const styles = StyleSheet.create({
   skeletonRow: { height: size.controlHeightLg, borderRadius: radius.md },
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.sm,
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.base,
@@ -350,6 +355,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   rowMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
+  rowDesc: { color: colors.text.secondary, fontSize: fontSize.sm, marginTop: spacing.xs },
   pointsBadge: {
     backgroundColor: colors.brand.primary,
     paddingHorizontal: spacing.sm,
