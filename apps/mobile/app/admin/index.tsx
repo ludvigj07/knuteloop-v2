@@ -104,7 +104,7 @@ export default function KnutesjefPanel() {
             </Pressable>
 
             <Pressable
-              style={[styles.toolRow, styles.toolRowLast]}
+              style={styles.toolRow}
               onPress={() => router.push('/admin/edit/new')}
               accessibilityRole="link"
               accessibilityLabel="Lag ny knute"
@@ -113,6 +113,20 @@ export default function KnutesjefPanel() {
               <View style={styles.toolTextBlock}>
                 <Text style={styles.toolTitle}>Ny knute</Text>
                 <Text style={styles.toolMeta}>Legg til et nytt oppdrag for skolen.</Text>
+              </View>
+              <Text style={styles.toolArrow}>›</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.toolRow, styles.toolRowLast]}
+              onPress={() => router.push('/admin/bibliotek')}
+              accessibilityRole="link"
+              accessibilityLabel="Åpne knutebiblioteket"
+              accessibilityHint="Bla i ferdige knuter og legg dem til skolen."
+            >
+              <View style={styles.toolTextBlock}>
+                <Text style={styles.toolTitle}>Bibliotek</Text>
+                <Text style={styles.toolMeta}>Importer ferdige knuter — hele pakker i ett trykk.</Text>
               </View>
               <Text style={styles.toolArrow}>›</Text>
             </Pressable>

@@ -290,4 +290,65 @@ export async function fetchDevUsers(): Promise<DevUsersResponse> {
   return res.json() as Promise<DevUsersResponse>
 }
 
+// ── Knutebibliotek (ADR-0014) — the shared catalog a knutesjef browses + imports from.
+
+export type LibraryKnute = {
+  id: string
+  title: string
+  description: string | null
+  points: number
+  difficulty: 'Lett' | 'Medium' | 'Hard' | 'Valgfri'
+  /** 'media' (photo/video) or 'text' (no media — legally sensitive knuter). */
+  evidenceType: 'media' | 'text'
+  /** 17 (all-ages) or 18 (adult-only). */
+  minAge: number
+  /** The theme/type axis: Generelle / Dobbel / Rampestrek / Alkohol / Sex. */
+  suggestedFolder: string
+  /** Geography axis; null = Nasjonalt. */
+  region: string | null
+  /** Whether THIS school has already imported it. */
+  imported: boolean
+}
+export type LibraryKnuterResponse = { knuter: LibraryKnute[] }
+
+export type LibraryBrowseParams = { folder?: string; region?: string; q?: string; packId?: string }
+
+export function fetchLibraryKnuter(params: LibraryBrowseParams = {}): Promise<LibraryKnuterResponse> {
+  const parts: string[] = []
+  if (params.folder) parts.push(`folder=${encodeURIComponent(params.folder)}`)
+  if (params.region) parts.push(`region=${encodeURIComponent(params.region)}`)
+  if (params.q) parts.push(`q=${encodeURIComponent(params.q)}`)
+  if (params.packId) parts.push(`packId=${encodeURIComponent(params.packId)}`)
+  const suffix = parts.length > 0 ? `?${parts.join('&')}` : ''
+  return apiFetch<LibraryKnuterResponse>(`/api/library/knuter${suffix}`)
+}
+
+export type LibraryPack = {
+  id: string
+  name: string
+  description: string | null
+  sortOrder: number
+  knuteCount: number
+}
+export type LibraryPacksResponse = { packs: LibraryPack[] }
+
+export function fetchLibraryPacks(): Promise<LibraryPacksResponse> {
+  return apiFetch<LibraryPacksResponse>('/api/library/packs')
+}
+
+export type ImportKnuteResponse = { knute: Knute; folder: { id: string; name: string } }
+
+export function importLibraryKnute(libraryKnuteId: string): Promise<ImportKnuteResponse> {
+  return apiFetch<ImportKnuteResponse>('/api/library/imports', {
+    method: 'POST',
+    body: JSON.stringify({ libraryKnuteId }),
+  })
+}
+
+export type ImportPackResponse = { imported: number; skipped: number; folders: string[] }
+
+export function importLibraryPack(packId: string): Promise<ImportPackResponse> {
+  return apiFetch<ImportPackResponse>(`/api/library/packs/${packId}/import`, { method: 'POST' })
+}
+
 export { ApiError }
