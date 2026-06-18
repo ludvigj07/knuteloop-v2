@@ -19,6 +19,8 @@ type KnuteRow = {
   points: number
   difficulty: 'Lett' | 'Medium' | 'Hard' | 'Valgfri'
   isGold: boolean
+  evidenceType: 'media' | 'text'
+  minAge: number
   isActive: boolean
   createdAt: string
 }
@@ -391,5 +393,42 @@ describe('RLS: FORCE on knuter table', () => {
     >`SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = 'knuter'`
     expect(rows[0]?.relrowsecurity).toBe(true)
     expect(rows[0]?.relforcerowsecurity).toBe(true)
+  })
+})
+
+describe('GET /api/knuter — age gate (ADR-0015)', () => {
+  let adultTokenA: string
+  const age18Title = 'A: 18+ knute'
+
+  beforeAll(async () => {
+    // Added here (after the fixed-count tests above) so they aren't disturbed.
+    const [adult] = await h.superDb
+      .insert(users)
+      .values({ schoolId: schoolAId, russenavn: 'VoksenA', role: 'student', isAdult: true })
+      .returning()
+    await h.superDb
+      .insert(knuter)
+      .values({ schoolId: schoolAId, title: age18Title, points: 40, difficulty: 'Hard', minAge: 18 })
+    adultTokenA = await signDevToken({ sub: adult!.id, school_id: schoolAId, role: 'student' })
+  })
+
+  it('list returns evidenceType + minAge', async () => {
+    const res = await app.request('/api/knuter', { headers: { Authorization: `Bearer ${adultTokenA}` } })
+    const body = (await res.json()) as ListResponse
+    const k = body.knuter.find((row) => row.title === 'A: Spis frokost under pulten')
+    expect(k?.evidenceType).toBe('media')
+    expect(k?.minAge).toBe(17)
+  })
+
+  it('a minor does NOT see an 18+ knute in the catalog', async () => {
+    const res = await app.request('/api/knuter', { headers: { Authorization: `Bearer ${studentTokenA}` } })
+    const body = (await res.json()) as ListResponse
+    expect(body.knuter.some((row) => row.title === age18Title)).toBe(false)
+  })
+
+  it('a verified adult DOES see the 18+ knute', async () => {
+    const res = await app.request('/api/knuter', { headers: { Authorization: `Bearer ${adultTokenA}` } })
+    const body = (await res.json()) as ListResponse
+    expect(body.knuter.some((row) => row.title === age18Title)).toBe(true)
   })
 })

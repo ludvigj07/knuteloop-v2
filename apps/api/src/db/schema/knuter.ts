@@ -42,6 +42,12 @@ export const knuter = pgTable(
     // gold. It is an EXPLICIT choice, NOT a points threshold (v1 mis-modelled it
     // as points >= N). Drives the gold count + gold styling. See ADR-0013.
     isGold: boolean('is_gold').notNull().default(false),
+    // Evidence required to submit: 'media' (photo/video) or 'text' (no media). Text-only
+    // for sensitive knuter to mitigate legal risk; library-set + unrelaxable by schools. ADR-0014.
+    evidenceType: text('evidence_type', { enum: ['media', 'text'] }).notNull().default('media'),
+    // Minimum age to see/submit: 17 (all-ages) or 18 (adult-only). Gated against the
+    // user's Vipps-verified is_adult flag — minors never see/submit 18+ knuter. ADR-0015.
+    minAge: integer('min_age').notNull().default(17),
     isActive: boolean('is_active').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

@@ -1,11 +1,11 @@
 import { Hono } from 'hono'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, lte } from 'drizzle-orm'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 import { auth, type AuthVariables } from '../middleware/auth.js'
 import { tenantContext } from '../middleware/tenant-context.js'
 import { requireRole } from '../middleware/require-role.js'
-import { knuter } from '../db/schema/index.js'
+import { knuter, users } from '../db/schema/index.js'
 import { NotFoundError, ValidationError } from '../lib/errors.js'
 import type { db } from '../db/client.js'
 
@@ -48,12 +48,27 @@ export const knuterRoutes = new Hono<{ Variables: Variables }>()
     async (c) => {
       const tx = c.get('tx')
       const schoolId = c.get('schoolId')
+      const userId = c.get('userId')
+      const role = c.get('role')
       const { all } = c.req.valid('query')
-      const includeInactive = all === '1' || all === 'true'
+      // The ?all=1 management view (inactive included, no age filter) is for
+      // knutesjef/admin only — a student passing all=1 still gets the gated catalog.
+      const isManager = role === 'knutesjef' || role === 'admin'
+      const includeInactive = isManager && (all === '1' || all === 'true')
 
-      const conditions = includeInactive
-        ? [eq(knuter.schoolId, schoolId)]
-        : [eq(knuter.schoolId, schoolId), eq(knuter.isActive, true)]
+      const conditions = [eq(knuter.schoolId, schoolId)]
+      if (!includeInactive) conditions.push(eq(knuter.isActive, true))
+
+      // Age gate (ADR-0015): in the student catalog, non-adults see only all-ages
+      // knuter (min_age <= 17). The manager view is unfiltered (they curate 18+).
+      if (!includeInactive) {
+        const [me] = await tx
+          .select({ isAdult: users.isAdult })
+          .from(users)
+          .where(and(eq(users.id, userId), eq(users.schoolId, schoolId)))
+          .limit(1)
+        if (!me?.isAdult) conditions.push(lte(knuter.minAge, 17))
+      }
 
       const rows = await tx
         .select({
@@ -62,6 +77,8 @@ export const knuterRoutes = new Hono<{ Variables: Variables }>()
           description: knuter.description,
           points: knuter.points,
           difficulty: knuter.difficulty,
+          evidenceType: knuter.evidenceType,
+          minAge: knuter.minAge,
           isGold: knuter.isGold,
           isActive: knuter.isActive,
           createdAt: knuter.createdAt,

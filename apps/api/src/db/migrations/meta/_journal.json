@@ -71,6 +71,13 @@
       "when": 1781402857349,
       "tag": "0009_add_is_gold_to_knuter",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1781446563485,
+      "tag": "0010_age_and_evidence_fields",
+      "breakpoints": true
     }
   ]
 }

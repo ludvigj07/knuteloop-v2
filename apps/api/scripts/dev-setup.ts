@@ -86,10 +86,12 @@ const insertedUsers = await supDb
       role: 'knutesjef',
       russType: 'red',
       quote: 'E det bedre å pilsa i heisen eller heisa pilsen?',
+      isAdult: true,
     },
-    { schoolId: stOlav.id, russenavn: 'Frida', role: 'student', russType: 'blue', quote: 'Tar livet med ein klype Maarud.' },
+    { schoolId: stOlav.id, russenavn: 'Frida', role: 'student', russType: 'blue', quote: 'Tar livet med ein klype Maarud.', isAdult: true },
+    // Odin stays a minor (isAdult default false) so you can test the 18+ age gate.
     { schoolId: stOlav.id, russenavn: 'Odin', role: 'student', russType: 'red' },
-    { schoolId: hetland.id, russenavn: 'Brage', role: 'knutesjef', russType: 'red' },
+    { schoolId: hetland.id, russenavn: 'Brage', role: 'knutesjef', russType: 'red', isAdult: true },
     { schoolId: hetland.id, russenavn: 'Tor', role: 'student', russType: 'blue' },
     { schoolId: hetland.id, russenavn: 'Saga', role: 'student' },
   ])
@@ -185,6 +187,11 @@ const hetlandKnuter: SeedKnute[] = [
 // stOlavKnuter: 31 = russedåp, 35 = autograf (the one Loke completes → 1 gull),
 // 40 = gå edru hele rt. The knutesjef flag drives this in real life.
 const GOLD_INDICES = new Set([31, 35, 40])
+// 18+ + text-only test data (ADR-0015 / ADR-0014): index 19 (komando) + 34
+// (paparazzi/klint) are 18+; 34 is also text-only. Lets you verify the age gate
+// (minor Odin won't see/submit them) + the evidence flag.
+const AGE18_INDICES = new Set([19, 34])
+const TEXT_INDICES = new Set([34])
 
 const insertedStOlavKnuter = await supDb
   .insert(schema.knuter)
@@ -194,6 +201,8 @@ const insertedStOlavKnuter = await supDb
       schoolId: stOlav.id,
       category: devCategory(k.title),
       isGold: GOLD_INDICES.has(i),
+      minAge: AGE18_INDICES.has(i) ? 18 : 17,
+      evidenceType: TEXT_INDICES.has(i) ? ('text' as const) : ('media' as const),
     })),
   )
   .returning()
