@@ -6,7 +6,7 @@ import { auth, type AuthVariables } from '../middleware/auth.js'
 import { tenantContext } from '../middleware/tenant-context.js'
 import { requireRole } from '../middleware/require-role.js'
 import { knuter, submissions, users } from '../db/schema/index.js'
-import { ConflictError, NotFoundError } from '../lib/errors.js'
+import { ConflictError, NotFoundError, ValidationError } from '../lib/errors.js'
 import {
   isValidImageKey,
   newSubmissionImageKey,
@@ -24,7 +24,9 @@ type Variables = AuthVariables & {
 // when Bunny ships, the handler will additionally HEAD-check the object exists.
 const createSubmissionSchema = z.object({
   knuteId: z.string().uuid(),
-  imageKey: z.string().trim().min(1).max(500),
+  // Required for 'media' knuter, omitted for 'text' knuter. Which one applies is
+  // validated against the knute's evidence_type in the handler (a DB lookup).
+  imageKey: z.string().trim().min(1).max(500).optional(),
   caption: z.string().trim().max(500).optional(),
 })
 
@@ -69,7 +71,7 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
       // yields zero rows → 404. The same constraint is enforced again by
       // the FK + RLS on insert (defense in depth).
       const [existing] = await tx
-        .select({ minAge: knuter.minAge })
+        .select({ minAge: knuter.minAge, evidenceType: knuter.evidenceType })
         .from(knuter)
         .where(and(eq(knuter.id, input.knuteId), eq(knuter.schoolId, schoolId)))
         .limit(1)
@@ -111,13 +113,29 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
         )
       }
 
+      // Evidence rule (ADR-0014): a text-only knute takes a written caption as proof
+      // (no photo possible/allowed); a media knute requires an uploaded image. Enforced
+      // here because it depends on the knute's evidence_type, not just the request shape.
+      let imageKey: string | null
+      if (existing.evidenceType === 'text') {
+        if (!input.caption) {
+          throw new ValidationError('Denne knuten krever en beskrivelse i stedet for bilde')
+        }
+        imageKey = null
+      } else {
+        if (!input.imageKey) {
+          throw new ValidationError('Denne knuten krever et bilde')
+        }
+        imageKey = input.imageKey
+      }
+
       const inserted = await tx
         .insert(submissions)
         .values({
           schoolId,
           userId,
           knuteId: input.knuteId,
-          imageKey: input.imageKey,
+          imageKey,
           caption: input.caption ?? null,
         })
         .returning()
@@ -144,6 +162,7 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
         russenavn: users.russenavn,
         knuteTitle: knuter.title,
         knutePoints: knuter.points,
+        evidenceType: knuter.evidenceType,
       })
       .from(submissions)
       .innerJoin(users, eq(users.id, submissions.userId))
@@ -161,7 +180,7 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
     const origin = requestOrigin(c.req.url)
     const withUrls = rows.map((r) => ({
       ...r,
-      imageUrl: isValidImageKey(r.imageKey) ? publicUrlForKey(r.imageKey, origin) : null,
+      imageUrl: r.imageKey && isValidImageKey(r.imageKey) ? publicUrlForKey(r.imageKey, origin) : null,
     }))
 
     return c.json({ submissions: withUrls })

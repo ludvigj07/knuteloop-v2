@@ -28,7 +28,9 @@ export const submissions = pgTable(
     knuteId: uuid('knute_id')
       .notNull()
       .references(() => knuter.id),
-    imageKey: text('image_key').notNull(),
+    // Bunny storage key for media submissions. NULL for text-only knuter
+    // (evidence_type='text') — there the caption IS the evidence (ADR-0014).
+    imageKey: text('image_key'),
     caption: text('caption'),
     status: text('status', { enum: ['pending', 'approved', 'rejected'] })
       .notNull()

@@ -67,6 +67,7 @@ export const feedRoutes = new Hono<{ Variables: Variables }>()
           russenavn: users.russenavn,
           knuteTitle: knuter.title,
           knutePoints: knuter.points,
+          evidenceType: knuter.evidenceType,
         })
         .from(submissions)
         .innerJoin(users, eq(users.id, submissions.userId))
@@ -84,7 +85,8 @@ export const feedRoutes = new Hono<{ Variables: Variables }>()
       const origin = requestOrigin(c.req.url)
       const feed = page.map((r) => ({
         ...r,
-        imageUrl: isValidImageKey(r.imageKey) ? publicUrlForKey(r.imageKey, origin) : null,
+        imageUrl:
+          r.imageKey && isValidImageKey(r.imageKey) ? publicUrlForKey(r.imageKey, origin) : null,
       }))
 
       return c.json({ feed, nextCursor })

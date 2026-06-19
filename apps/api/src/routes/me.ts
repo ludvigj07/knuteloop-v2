@@ -63,6 +63,7 @@ export const meRoutes = new Hono<{ Variables: Variables }>()
         reviewedAt: submissions.reviewedAt,
         knuteTitle: knuter.title,
         knutePoints: knuter.points,
+        evidenceType: knuter.evidenceType,
       })
       .from(submissions)
       .innerJoin(knuter, eq(knuter.id, submissions.knuteId))
