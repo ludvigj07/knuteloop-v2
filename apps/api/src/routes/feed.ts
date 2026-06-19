@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { and, desc, eq, lt } from 'drizzle-orm'
+import { and, desc, eq, lt, lte } from 'drizzle-orm'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 import { auth, type AuthVariables } from '../middleware/auth.js'
@@ -46,6 +46,7 @@ export const feedRoutes = new Hono<{ Variables: Variables }>()
     async (c) => {
       const tx = c.get('tx')
       const schoolId = c.get('schoolId')
+      const userId = c.get('userId')
       const { cursor, limit } = c.req.valid('query')
 
       const conditions = [
@@ -55,6 +56,17 @@ export const feedRoutes = new Hono<{ Variables: Variables }>()
       if (cursor) {
         conditions.push(lt(submissions.createdAt, new Date(cursor)))
       }
+
+      // Age gate (ADR-0015, S0-3): a non-adult viewer must never be served 18+
+      // knuter in the feed, even from their own school. Mirrors the student
+      // catalog gate in routes/knuter.ts and the submit gate in submissions.ts.
+      // Fail-safe: if the viewer row is missing, treat as non-adult.
+      const [viewer] = await tx
+        .select({ isAdult: users.isAdult })
+        .from(users)
+        .where(and(eq(users.id, userId), eq(users.schoolId, schoolId)))
+        .limit(1)
+      if (!viewer?.isAdult) conditions.push(lte(knuter.minAge, 17))
 
       // Fetch one extra row to know whether another page exists.
       const rows = await tx

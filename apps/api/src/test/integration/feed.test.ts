@@ -10,6 +10,7 @@ let schoolAId: string
 let schoolBId: string
 let studentTokenA: string
 let studentTokenB: string
+let adultTokenA: string
 
 type FeedItem = {
   id: string
@@ -39,20 +40,35 @@ beforeAll(async () => {
     .values([
       { schoolId: schoolAId, russenavn: 'FridaA', role: 'student' },
       { schoolId: schoolBId, russenavn: 'TorB', role: 'student' },
+      // School A adult — used to prove the feed age gate (S0-3). FridaA is a minor
+      // (isAdult defaults to false), so she must NOT see 18+ submissions.
+      { schoolId: schoolAId, russenavn: 'VossAdult', role: 'student', isAdult: true },
     ])
     .returning()
   const frida = insertedUsers[0]!
   const tor = insertedUsers[1]!
+  const voss = insertedUsers[2]!
 
+  // One active (pending/approved) submission per (user, knute) — S0-8 unique
+  // index. So FridaA's 5 approved + 1 pending feed rows each need their OWN
+  // knute (realistic: a russ completes 5 distinct knuter, not the same one 5×).
   const insertedKnuter = await h.superDb
     .insert(knuter)
     .values([
-      { schoolId: schoolAId, title: 'A: Feed-knute', points: 10, difficulty: 'Lett' },
+      { schoolId: schoolAId, title: 'A: Feed-knute 0', points: 10, difficulty: 'Lett' },
+      { schoolId: schoolAId, title: 'A: Feed-knute 1', points: 10, difficulty: 'Lett' },
+      { schoolId: schoolAId, title: 'A: Feed-knute 2', points: 10, difficulty: 'Lett' },
+      { schoolId: schoolAId, title: 'A: Feed-knute 3', points: 10, difficulty: 'Lett' },
+      { schoolId: schoolAId, title: 'A: Feed-knute 4', points: 10, difficulty: 'Lett' },
+      { schoolId: schoolAId, title: 'A: Pending-knute', points: 10, difficulty: 'Lett' },
       { schoolId: schoolBId, title: 'B: Annen skole', points: 50, difficulty: 'Hard' },
+      { schoolId: schoolAId, title: 'A: 18+ knute', points: 20, difficulty: 'Medium', minAge: 18 },
     ])
     .returning()
-  const knuteA = insertedKnuter[0]!
-  const knuteB = insertedKnuter[1]!
+  const knuterA = insertedKnuter.slice(0, 5)
+  const knutePending = insertedKnuter[5]!
+  const knuteB = insertedKnuter[6]!
+  const knuteAdult = insertedKnuter[7]!
 
   // School A: 5 approved (staggered createdAt so ordering/cursor is deterministic),
   // 1 pending, 1 rejected. School B: 1 approved (must never leak into A's feed).
@@ -60,7 +76,7 @@ beforeAll(async () => {
   const approvedRows = [0, 1, 2, 3, 4].map((i) => ({
     schoolId: schoolAId,
     userId: frida.id,
-    knuteId: knuteA.id,
+    knuteId: knuterA[i]!.id,
     imageKey: `placeholder/approved-${i}.jpg`,
     caption: `Godkjent nr ${i}`,
     status: 'approved' as const,
@@ -71,15 +87,17 @@ beforeAll(async () => {
     {
       schoolId: schoolAId,
       userId: frida.id,
-      knuteId: knuteA.id,
+      knuteId: knutePending.id,
       imageKey: 'placeholder/pending.jpg',
       status: 'pending' as const,
       createdAt: new Date(base + 10 * 60_000),
     },
     {
+      // Rejected rows are excluded from the unique index, so this can reuse a
+      // knute FridaA already has an approved row on.
       schoolId: schoolAId,
       userId: frida.id,
-      knuteId: knuteA.id,
+      knuteId: knuterA[0]!.id,
       imageKey: 'placeholder/rejected.jpg',
       status: 'rejected' as const,
       createdAt: new Date(base + 11 * 60_000),
@@ -92,10 +110,22 @@ beforeAll(async () => {
       status: 'approved' as const,
       createdAt: new Date(base + 12 * 60_000),
     },
+    // School A, an APPROVED submission on an 18+ knute. Newest of A's approved
+    // rows, so it would be feed[0] for anyone allowed to see it — a minor must not.
+    {
+      schoolId: schoolAId,
+      userId: voss.id,
+      knuteId: knuteAdult.id,
+      imageKey: 'placeholder/adult-only.jpg',
+      caption: '18+ innhold',
+      status: 'approved' as const,
+      createdAt: new Date(base + 6 * 60_000),
+    },
   ])
 
   studentTokenA = await signDevToken({ sub: frida.id, school_id: schoolAId, role: 'student' })
   studentTokenB = await signDevToken({ sub: tor.id, school_id: schoolBId, role: 'student' })
+  adultTokenA = await signDevToken({ sub: voss.id, school_id: schoolAId, role: 'student' })
 })
 
 afterAll(async () => {
@@ -122,7 +152,7 @@ describe('GET /api/feed', () => {
 
     const first = body.feed[0]!
     expect(first.russenavn).toBe('FridaA')
-    expect(first.knuteTitle).toBe('A: Feed-knute')
+    expect(first.knuteTitle).toBe('A: Feed-knute 4')
     expect(first.knutePoints).toBe(10)
     expect(first.imageKey).toBe('placeholder/approved-4.jpg')
   })
@@ -150,6 +180,28 @@ describe('GET /api/feed', () => {
     const bodyB = (await resB.json()) as FeedResponse
     expect(bodyB.feed).toHaveLength(1)
     expect(bodyB.feed[0]!.imageKey).toBe('placeholder/school-b.jpg')
+  })
+
+  it('age gate (S0-3): a minor viewer never sees 18+ submissions in the feed', async () => {
+    const res = await app.request('/api/feed', {
+      headers: { Authorization: `Bearer ${studentTokenA}` },
+    })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as FeedResponse
+    expect(body.feed.map((f) => f.imageKey)).not.toContain('placeholder/adult-only.jpg')
+    expect(body.feed).toHaveLength(5)
+  })
+
+  it('age gate (S0-3): an adult viewer does see 18+ submissions in the feed', async () => {
+    const res = await app.request('/api/feed', {
+      headers: { Authorization: `Bearer ${adultTokenA}` },
+    })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as FeedResponse
+    const keys = body.feed.map((f) => f.imageKey)
+    expect(keys).toContain('placeholder/adult-only.jpg')
+    expect(body.feed).toHaveLength(6)
+    expect(body.feed[0]!.imageKey).toBe('placeholder/adult-only.jpg')
   })
 
   it('paginates with cursor — walks all pages without overlap or gaps', async () => {
