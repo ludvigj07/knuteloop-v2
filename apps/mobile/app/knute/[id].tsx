@@ -42,8 +42,10 @@ export default function KnuteDetailScreen() {
   // proactively. The backend also enforces this (returns 409), but UX is
   // better if Send-inn just isn't tappable when it can't succeed.
   const me = useQuery({ queryKey: ['me'], queryFn: fetchMe })
+  // Match the prior submission by knute ID, NOT title — two knuter can share a
+  // title, and a title match would wrongly lock the form for the other one (H-7).
   const prior = me.data?.submissions.find(
-    (s) => s.knuteTitle && knute && s.knuteTitle === knute.title && (s.status === 'pending' || s.status === 'approved'),
+    (s) => knute && s.knuteId === knute.id && (s.status === 'pending' || s.status === 'approved'),
   )
   const lockReason: string | null = prior
     ? prior.status === 'pending'

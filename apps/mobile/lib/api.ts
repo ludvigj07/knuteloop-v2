@@ -4,7 +4,30 @@
 
 import { getActiveToken } from './auth'
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
+// The API base URL. In PRODUCTION builds it MUST be provided explicitly via
+// EXPO_PUBLIC_API_URL (an https:// URL) — we deliberately do NOT fall back to
+// localhost there, so a misconfigured release build fails loudly at startup
+// instead of silently shipping a dead app to TestFlight / the App Store (H-8).
+// In dev (__DEV__) we keep the convenient localhost fallback.
+function resolveApiUrl(): string {
+  const fromEnv = process.env.EXPO_PUBLIC_API_URL
+  if (__DEV__) {
+    return fromEnv ?? 'http://localhost:3000'
+  }
+  if (!fromEnv) {
+    throw new Error(
+      'EXPO_PUBLIC_API_URL er ikke satt. Produksjonsbygg krever en eksplisitt https:// API-URL.',
+    )
+  }
+  if (!fromEnv.startsWith('https://')) {
+    throw new Error(
+      `EXPO_PUBLIC_API_URL må være en https:// URL i produksjon (fikk: ${fromEnv}).`,
+    )
+  }
+  return fromEnv
+}
+
+const API_URL = resolveApiUrl()
 
 export type Knute = {
   id: string
@@ -239,6 +262,7 @@ export type MyProfile = {
 export type MySubmission = {
   id: string
   status: 'pending' | 'approved' | 'rejected'
+  knuteId: string
   imageKey: string | null
   caption: string | null
   createdAt: string

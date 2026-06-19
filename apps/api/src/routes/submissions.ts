@@ -139,6 +139,21 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
           caption: input.caption ?? null,
         })
         .returning()
+        .catch((err: unknown) => {
+          // Duplicate-submission race (S0-8): a concurrent POST inserted the active
+          // submission between our read-check above and this insert. The partial
+          // unique index (submissions_one_active_per_user_knute_idx) rejects it with
+          // Postgres unique_violation (23505) → return the same clean 409.
+          if (
+            err &&
+            typeof err === 'object' &&
+            'code' in err &&
+            (err as { code?: string }).code === '23505'
+          ) {
+            throw new ConflictError('Du har allerede sendt inn denne — venter på godkjenning')
+          }
+          throw err
+        })
       const created = inserted[0]!
 
       return c.json({ submission: created }, 201)
@@ -219,7 +234,11 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
         throw new NotFoundError('Submission')
       }
 
-      const [updated] = await tx
+      // Atomic guard against a double-approval race (S0-7): two knutesjefer can
+      // both read 'pending' above, but only ONE UPDATE will match status='pending'
+      // and flip the row. The other returns zero rows → we must NOT award points
+      // again. Points are awarded only when this UPDATE actually transitioned a row.
+      const updatedRows = await tx
         .update(submissions)
         .set({
           status: 'approved',
@@ -227,8 +246,19 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
           reviewedAt: new Date(),
           updatedAt: new Date(),
         })
-        .where(and(eq(submissions.id, id), eq(submissions.schoolId, schoolId)))
+        .where(
+          and(
+            eq(submissions.id, id),
+            eq(submissions.schoolId, schoolId),
+            eq(submissions.status, 'pending'),
+          ),
+        )
         .returning()
+      if (updatedRows.length === 0) {
+        // Another reviewer approved/rejected it between our read and this write.
+        throw new NotFoundError('Submission')
+      }
+      const updated = updatedRows[0]!
 
       await tx
         .update(users)

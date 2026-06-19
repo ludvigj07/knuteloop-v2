@@ -57,6 +57,7 @@ export const meRoutes = new Hono<{ Variables: Variables }>()
       .select({
         id: submissions.id,
         status: submissions.status,
+        knuteId: submissions.knuteId,
         imageKey: submissions.imageKey,
         caption: submissions.caption,
         createdAt: submissions.createdAt,

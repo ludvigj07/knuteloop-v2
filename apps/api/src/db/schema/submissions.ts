@@ -5,6 +5,7 @@ import {
   text,
   timestamp,
   index,
+  uniqueIndex,
   pgPolicy,
 } from 'drizzle-orm/pg-core'
 import { schools } from './schools'
@@ -62,5 +63,13 @@ export const submissions = pgTable(
     index('submissions_feed_approved_idx')
       .on(table.schoolId, table.createdAt.desc())
       .where(sql`status = 'approved'`),
+    // At most ONE active (pending OR approved) submission per (school, user, knute).
+    // DB-level guard against the duplicate-submission race (S0-8): the application
+    // read-then-insert check can be passed by two concurrent POSTs, but this unique
+    // index makes the second INSERT fail → the handler catches it and returns 409.
+    // Rejected rows are excluded, so re-submitting after a rejection still works.
+    uniqueIndex('submissions_one_active_per_user_knute_idx')
+      .on(table.schoolId, table.userId, table.knuteId)
+      .where(sql`status in ('pending', 'approved')`),
   ],
 ).enableRLS()
