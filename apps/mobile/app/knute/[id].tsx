@@ -34,6 +34,9 @@ export default function KnuteDetailScreen() {
 
   const { data, isLoading } = useQuery({ queryKey: ['knuter'], queryFn: fetchKnuter })
   const knute = data?.knuter.find((k) => k.id === id)
+  // Text-only knuter (Sex folder, lapdances) are submitted with a written caption,
+  // no photo (ADR-0014). The whole image flow is hidden + the caption is required.
+  const isText = knute?.evidenceType === 'text'
 
   // Look up the user's prior submission for THIS knute to lock the form
   // proactively. The backend also enforces this (returns 409), but UX is
@@ -88,6 +91,11 @@ export default function KnuteDetailScreen() {
   const submit = useMutation({
     mutationFn: async () => {
       if (!id) throw new Error('Mangler knute-id')
+      // Text-only knute: the caption is the evidence — no upload, no imageKey.
+      if (isText) {
+        if (!caption.trim()) throw new Error('Skriv en kort beskrivelse')
+        return createSubmission({ knuteId: id, caption: caption.trim() })
+      }
       if (!imageUri) throw new Error('Velg eller ta et bilde først')
       // upload-url → PUT the compressed photo → create the submission with the key.
       const { uploadUrl, imageKey } = await fetchUploadUrl()
@@ -139,7 +147,8 @@ export default function KnuteDetailScreen() {
   }
 
   const busy = submit.isPending
-  const canSubmit = imageUri !== null && lockReason === null && !busy
+  const canSubmit =
+    (isText ? caption.trim().length > 0 : imageUri !== null) && lockReason === null && !busy
 
   return (
     <>
@@ -176,7 +185,14 @@ export default function KnuteDetailScreen() {
           </View>
         )}
 
-        {imageUri ? (
+        {isText ? (
+          <View style={styles.textNote}>
+            <Text style={styles.textNoteText}>
+              Denne knuten sendes inn med tekst — ikke bilde. Skriv kort hva du gjorde i
+              beskrivelsen under.
+            </Text>
+          </View>
+        ) : imageUri ? (
           <View style={styles.previewWrap}>
             <Image
               source={{ uri: imageUri }}
@@ -228,7 +244,9 @@ export default function KnuteDetailScreen() {
           <Text style={styles.pickingHint}>Behandler bilde…</Text>
         ) : null}
 
-        <Text style={styles.label}>Beskrivelse (valgfritt)</Text>
+        <Text style={styles.label}>
+          {isText ? 'Beskrivelse (påkrevd)' : 'Beskrivelse (valgfritt)'}
+        </Text>
         <TextInput
           style={[styles.input, lockReason && styles.inputDisabled]}
           value={caption}
@@ -254,9 +272,13 @@ export default function KnuteDetailScreen() {
               ? 'Allerede sendt inn'
               : busy
                 ? 'Sender inn…'
-                : !imageUri
-                  ? 'Legg til et bilde'
-                  : 'Send inn'}
+                : isText
+                  ? caption.trim().length === 0
+                    ? 'Skriv en beskrivelse'
+                    : 'Send inn'
+                  : !imageUri
+                    ? 'Legg til et bilde'
+                    : 'Send inn'}
           </Text>
         </Pressable>
 
@@ -363,6 +385,16 @@ const styles = StyleSheet.create({
     color: colors.text.muted,
     textAlign: 'center',
     marginBottom: spacing.base,
+  },
+  textNote: {
+    backgroundColor: colors.knuter.canvas,
+    borderRadius: radius.md,
+    padding: spacing.base,
+    marginBottom: spacing.base,
+  },
+  textNoteText: {
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
   },
   previewWrap: {
     marginBottom: spacing.base,

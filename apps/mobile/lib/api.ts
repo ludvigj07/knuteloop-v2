@@ -12,6 +12,8 @@ export type Knute = {
   description: string | null
   points: number
   difficulty: 'Lett' | 'Medium' | 'Hard' | 'Valgfri'
+  /** 'media' = photo required; 'text' = caption-only submission (no photo). */
+  evidenceType: 'media' | 'text'
   /** Knutesjef-flagged gullknute (special/traditional). Drives gold styling. */
   isGold: boolean
   isActive: boolean
@@ -24,14 +26,15 @@ export type PendingSubmission = {
   id: string
   userId: string
   knuteId: string
-  imageKey: string
-  /** Loadable image URL (null for legacy placeholder keys). */
+  imageKey: string | null
+  /** Loadable image URL (null for text submissions + legacy placeholder keys). */
   imageUrl: string | null
   caption: string | null
   createdAt: string
   russenavn: string
   knuteTitle: string
   knutePoints: number
+  evidenceType: 'media' | 'text'
 }
 export type PendingResponse = { submissions: PendingSubmission[] }
 
@@ -122,7 +125,8 @@ export function updateKnute(id: string, input: UpdateKnuteInput): Promise<Create
 
 export type CreateSubmissionInput = {
   knuteId: string
-  imageKey: string
+  /** Omitted for text-only knuter (the caption is the evidence). */
+  imageKey?: string
   caption?: string
 }
 
@@ -181,14 +185,17 @@ export function rejectSubmission(id: string): Promise<ReviewResponse> {
 export type FeedItem = {
   id: string
   userId: string
-  imageKey: string
-  /** Loadable image URL (null for legacy placeholder keys). */
+  /** Null for text-only submissions. */
+  imageKey: string | null
+  /** Loadable image URL (null for text submissions + legacy placeholder keys). */
   imageUrl: string | null
   caption: string | null
   createdAt: string
   russenavn: string
   knuteTitle: string
   knutePoints: number
+  /** 'text' → render a text card instead of a photo. */
+  evidenceType: 'media' | 'text'
 }
 export type FeedResponse = { feed: FeedItem[]; nextCursor: string | null }
 
@@ -232,12 +239,13 @@ export type MyProfile = {
 export type MySubmission = {
   id: string
   status: 'pending' | 'approved' | 'rejected'
-  imageKey: string
+  imageKey: string | null
   caption: string | null
   createdAt: string
   reviewedAt: string | null
   knuteTitle: string
   knutePoints: number
+  evidenceType: 'media' | 'text'
 }
 export type MeResponse = {
   user: MyProfile
