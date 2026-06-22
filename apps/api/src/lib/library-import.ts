@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import type { db } from '../db/client.js'
 import {
   knuter,
@@ -19,14 +19,19 @@ import { ConflictError, NotFoundError, isUniqueViolation } from './errors.js'
 // All functions take the request's `tx` (opened by tenantContext, with app.school_id
 // set) so every write goes through RLS WITH CHECK and the whole import is one transaction.
 //
-// LOAD-BEARING ORDERING: every `throw` here happens BEFORE the first write. That matters
+// CONCURRENCY: each import takes a per-school, transaction-scoped advisory lock FIRST
+// (lockSchoolForImport), so concurrent imports within a school are serialized and the
+// check-then-insert dedupe below is authoritative — a racing import sees the committed
+// row and returns a clean 409 BEFORE any write. This removes the duplicate-insert race
+// that, under CI timing, let a raw Postgres 23505 escape to the error handler as a 500.
+//
+// LOAD-BEARING ORDERING (still upheld): every `throw` happens BEFORE the first write,
 // because tenantContext currently COMMITs the transaction even when a handler throws an
-// HTTPException (it only rolls back on a raw DB error, which aborts the PG transaction).
-// So a NotFound/Conflict thrown after a write would commit a partial import. Keep throws
+// HTTPException (it only rolls back on a raw DB error that aborts the PG transaction). So
+// a NotFound/Conflict thrown after a write would commit a partial import — keep throws
 // before writes until the tenant-context rollback hardening lands (tracked follow-up).
-// The one after-write throw below (the 23505 -> ConflictError on the import row) is safe
-// precisely because the 23505 has already aborted the PG transaction, so the later COMMIT
-// degrades to ROLLBACK.
+// The post-insert 23505 catch below is now an unreachable backstop (the lock prevents the
+// race); it stays as defense in depth.
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
 type ImportCtx = { schoolId: string; userId: string }
@@ -47,9 +52,20 @@ const CATEGORY_BY_FOLDER: Record<
 }
 const categoryForFolder = (folder: string) => CATEGORY_BY_FOLDER[folder] ?? 'Generelle'
 
+// Serialize concurrent imports within one school (transaction-scoped advisory lock,
+// auto-released on commit/rollback). Two int4 keys: a fixed namespace + the school hash,
+// so it never collides with advisory locks taken elsewhere. See the CONCURRENCY note above.
+async function lockSchoolForImport(tx: Tx, schoolId: string) {
+  await tx.execute(
+    sql`SELECT pg_advisory_xact_lock(hashtext('knuteloop:library-import'), hashtext(${schoolId}))`,
+  )
+}
+
 // Import ONE library knute. Throws NotFoundError if the source is missing/inactive,
 // ConflictError if this school already imported it (fast path + race backstop).
 export async function importLibraryKnute(tx: Tx, libraryKnuteId: string, { schoolId, userId }: ImportCtx) {
+  await lockSchoolForImport(tx, schoolId)
+
   const [src] = await tx
     .select()
     .from(libraryKnuter)
@@ -116,6 +132,8 @@ export async function importLibraryKnute(tx: Tx, libraryKnuteId: string, { schoo
 // Import a whole pack: every ACTIVE member not already imported by this school. Bulk
 // inserts (no per-row round-trips). Returns a summary. The "instant onboarding" flow.
 export async function importLibraryPack(tx: Tx, packId: string, { schoolId, userId }: ImportCtx) {
+  await lockSchoolForImport(tx, schoolId)
+
   const [pack] = await tx
     .select({ id: libraryPacks.id })
     .from(libraryPacks)
