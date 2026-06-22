@@ -232,6 +232,7 @@ export type LeaderboardEntry = {
   russenavn: string
   points: number
   rank: number
+  rankTitle: string
   isCurrentUser: boolean
 }
 export type LeaderboardResponse = { leaderboard: LeaderboardEntry[] }

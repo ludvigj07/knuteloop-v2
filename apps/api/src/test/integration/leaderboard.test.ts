@@ -18,6 +18,7 @@ type LeaderboardEntry = {
   russenavn: string
   points: number
   rank: number
+  rankTitle: string
   isCurrentUser: boolean
 }
 type Response = { leaderboard: LeaderboardEntry[] }
@@ -85,6 +86,19 @@ describe('GET /api/leaderboard', () => {
     expect(body.leaderboard.some((e) => e.russenavn === 'Ghost')).toBe(false)
     // No school B users
     expect(body.leaderboard.some((e) => e.russenavn === 'SchoolBStudent')).toBe(false)
+  })
+
+  it('rankTitle follows the rank (v1-spec §6)', async () => {
+    const res = await app.request('/api/leaderboard', {
+      headers: { Authorization: `Bearer ${tokenUser1A}` },
+    })
+    const body = (await res.json()) as Response
+    // Beta=rank 1, Alpha=rank 2, Charlie=rank 3.
+    expect(body.leaderboard.map((e) => e.rankTitle)).toEqual([
+      "O' Store Knutemester",
+      'Knutemester',
+      'Knutemester',
+    ])
   })
 
   it('isCurrentUser flag highlights the requester', async () => {
