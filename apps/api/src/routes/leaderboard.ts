@@ -3,6 +3,7 @@ import { and, desc, eq, isNull } from 'drizzle-orm'
 import { auth, type AuthVariables } from '../middleware/auth.js'
 import { tenantContext } from '../middleware/tenant-context.js'
 import { users } from '../db/schema/index.js'
+import { getRankTitle } from '../lib/rank-titles.js'
 import type { db } from '../db/client.js'
 
 type Variables = AuthVariables & {
@@ -35,6 +36,7 @@ export const leaderboardRoutes = new Hono<{ Variables: Variables }>()
     const leaderboard = rows.map((row, idx) => ({
       ...row,
       rank: idx + 1,
+      rankTitle: getRankTitle(idx + 1),
       isCurrentUser: row.userId === currentUserId,
     }))
 

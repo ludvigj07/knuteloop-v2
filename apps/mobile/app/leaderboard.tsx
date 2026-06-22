@@ -175,7 +175,7 @@ function LeaderboardRow({
         entry.isCurrentUser && styles.rowCurrentUser,
       ]}
       onLayout={entry.isCurrentUser ? handleLayout : undefined}
-      accessibilityLabel={`Plass ${formatPoints(entry.rank)}, ${entry.russenavn}, ${formatPoints(entry.points)} poeng${entry.isCurrentUser ? ', det er deg' : ''}`}
+      accessibilityLabel={`Plass ${formatPoints(entry.rank)}, ${entry.russenavn}, ${entry.rankTitle}, ${formatPoints(entry.points)} poeng${entry.isCurrentUser ? ', det er deg' : ''}`}
     >
       <View
         style={[
@@ -196,6 +196,9 @@ function LeaderboardRow({
       <View style={styles.nameBlock}>
         <Text style={[styles.russenavn, entry.isCurrentUser && styles.bold]} numberOfLines={1}>
           {entry.russenavn}
+        </Text>
+        <Text style={styles.rankTitle} numberOfLines={1}>
+          {entry.rankTitle}
         </Text>
         <View style={styles.metaRow}>
           <View style={styles.metaChip}>
@@ -420,6 +423,11 @@ const styles = StyleSheet.create({
   },
   bold: {
     fontWeight: fontWeight.bold,
+  },
+  rankTitle: {
+    color: colors.knuter.muted,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
   },
   metaRow: {
     flexDirection: 'row',
