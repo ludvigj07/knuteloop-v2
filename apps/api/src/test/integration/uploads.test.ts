@@ -25,14 +25,21 @@ beforeAll(async () => {
     .returning()
 
   // One approved submission with a REAL image key + one with a legacy placeholder.
+  // They sit on DISTINCT knuter — only one active (pending/approved) submission is
+  // allowed per (user, knute) by the S0-8 unique index.
   const realKey = `submissions/${randomUUID()}.jpg`
-  const [k] = await h.superDb
+  const insertedK = await h.superDb
     .insert(knuter)
-    .values({ schoolId: schoolAId, title: 'A-knute', points: 10, difficulty: 'Lett', category: 'Generelle' })
+    .values([
+      { schoolId: schoolAId, title: 'A-knute', points: 10, difficulty: 'Lett', category: 'Generelle' },
+      { schoolId: schoolAId, title: 'A-knute 2', points: 10, difficulty: 'Lett', category: 'Generelle' },
+    ])
     .returning()
+  const k = insertedK[0]!
+  const k2 = insertedK[1]!
   await h.superDb.insert(submissions).values([
-    { schoolId: schoolAId, userId: user!.id, knuteId: k!.id, imageKey: realKey, status: 'approved', reviewedAt: new Date() },
-    { schoolId: schoolAId, userId: user!.id, knuteId: k!.id, imageKey: 'placeholder/old.webp', status: 'approved', reviewedAt: new Date(new Date().getTime() - 1000) },
+    { schoolId: schoolAId, userId: user!.id, knuteId: k.id, imageKey: realKey, status: 'approved', reviewedAt: new Date() },
+    { schoolId: schoolAId, userId: user!.id, knuteId: k2.id, imageKey: 'placeholder/old.webp', status: 'approved', reviewedAt: new Date(new Date().getTime() - 1000) },
   ])
 
   tokenA = await signDevToken({ sub: user!.id, school_id: schoolAId, role: 'student' })

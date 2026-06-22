@@ -522,3 +522,55 @@ describe('POST /api/submissions — age gate (ADR-0015)', () => {
     expect(res.status).toBe(201)
   })
 })
+
+describe('POST /api/submissions — text-only knuter (ADR-0014)', () => {
+  async function freshTextKnute(label: string) {
+    const [row] = await h.superDb
+      .insert(knuter)
+      .values({
+        schoolId: schoolAId,
+        title: `A: tekst ${label}`,
+        points: 20,
+        difficulty: 'Medium',
+        evidenceType: 'text',
+      })
+      .returning()
+    return row!.id
+  }
+
+  const post = (body: object) =>
+    app.request('/api/submissions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${studentTokenA}`, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+
+  it('accepts a text knute with a caption and no image (imageKey stored null)', async () => {
+    const knuteId = await freshTextKnute('happy')
+    const res = await post({ knuteId, caption: 'Gjorde det, med samtykke.' })
+    expect(res.status).toBe(201)
+    const body = (await res.json()) as { submission: { imageKey: string | null; caption: string | null } }
+    expect(body.submission.imageKey).toBeNull()
+    expect(body.submission.caption).toBe('Gjorde det, med samtykke.')
+  })
+
+  it('rejects a text knute without a caption (400 — the caption is the evidence)', async () => {
+    const knuteId = await freshTextKnute('no-caption')
+    const res = await post({ knuteId })
+    expect(res.status).toBe(400)
+  })
+
+  it('ignores a stray imageKey on a text knute (still stored null)', async () => {
+    const knuteId = await freshTextKnute('stray-image')
+    const res = await post({ knuteId, caption: 'tekst', imageKey: 'bunny/should-be-ignored.webp' })
+    expect(res.status).toBe(201)
+    const body = (await res.json()) as { submission: { imageKey: string | null } }
+    expect(body.submission.imageKey).toBeNull()
+  })
+
+  it('rejects a media knute submitted with no image (400)', async () => {
+    const knuteId = await freshKnuteA('media-needs-image')
+    const res = await post({ knuteId, caption: 'glemte bildet' })
+    expect(res.status).toBe(400)
+  })
+})

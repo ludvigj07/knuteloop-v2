@@ -35,3 +35,10 @@ export class RateLimitError extends HTTPException {
     super(429, { message: 'Too many requests' })
   }
 }
+
+// True for a Postgres unique-constraint violation (SQLSTATE 23505). Lets a service
+// translate a lost check-then-insert race into a clean domain error (e.g. 409) instead
+// of letting the raw DB error surface as a 500.
+export function isUniqueViolation(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && (err as { code?: string }).code === '23505'
+}

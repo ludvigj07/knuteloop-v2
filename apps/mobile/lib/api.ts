@@ -4,7 +4,30 @@
 
 import { getActiveToken } from './auth'
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
+// The API base URL. In PRODUCTION builds it MUST be provided explicitly via
+// EXPO_PUBLIC_API_URL (an https:// URL) — we deliberately do NOT fall back to
+// localhost there, so a misconfigured release build fails loudly at startup
+// instead of silently shipping a dead app to TestFlight / the App Store (H-8).
+// In dev (__DEV__) we keep the convenient localhost fallback.
+function resolveApiUrl(): string {
+  const fromEnv = process.env.EXPO_PUBLIC_API_URL
+  if (__DEV__) {
+    return fromEnv ?? 'http://localhost:3000'
+  }
+  if (!fromEnv) {
+    throw new Error(
+      'EXPO_PUBLIC_API_URL er ikke satt. Produksjonsbygg krever en eksplisitt https:// API-URL.',
+    )
+  }
+  if (!fromEnv.startsWith('https://')) {
+    throw new Error(
+      `EXPO_PUBLIC_API_URL må være en https:// URL i produksjon (fikk: ${fromEnv}).`,
+    )
+  }
+  return fromEnv
+}
+
+const API_URL = resolveApiUrl()
 
 export type Knute = {
   id: string
@@ -12,6 +35,8 @@ export type Knute = {
   description: string | null
   points: number
   difficulty: 'Lett' | 'Medium' | 'Hard' | 'Valgfri'
+  /** 'media' = photo required; 'text' = caption-only submission (no photo). */
+  evidenceType: 'media' | 'text'
   /** Knutesjef-flagged gullknute (special/traditional). Drives gold styling. */
   isGold: boolean
   isActive: boolean
@@ -24,14 +49,15 @@ export type PendingSubmission = {
   id: string
   userId: string
   knuteId: string
-  imageKey: string
-  /** Loadable image URL (null for legacy placeholder keys). */
+  imageKey: string | null
+  /** Loadable image URL (null for text submissions + legacy placeholder keys). */
   imageUrl: string | null
   caption: string | null
   createdAt: string
   russenavn: string
   knuteTitle: string
   knutePoints: number
+  evidenceType: 'media' | 'text'
 }
 export type PendingResponse = { submissions: PendingSubmission[] }
 
@@ -122,7 +148,8 @@ export function updateKnute(id: string, input: UpdateKnuteInput): Promise<Create
 
 export type CreateSubmissionInput = {
   knuteId: string
-  imageKey: string
+  /** Omitted for text-only knuter (the caption is the evidence). */
+  imageKey?: string
   caption?: string
 }
 
@@ -181,14 +208,17 @@ export function rejectSubmission(id: string): Promise<ReviewResponse> {
 export type FeedItem = {
   id: string
   userId: string
-  imageKey: string
-  /** Loadable image URL (null for legacy placeholder keys). */
+  /** Null for text-only submissions. */
+  imageKey: string | null
+  /** Loadable image URL (null for text submissions + legacy placeholder keys). */
   imageUrl: string | null
   caption: string | null
   createdAt: string
   russenavn: string
   knuteTitle: string
   knutePoints: number
+  /** 'text' → render a text card instead of a photo. */
+  evidenceType: 'media' | 'text'
 }
 export type FeedResponse = { feed: FeedItem[]; nextCursor: string | null }
 
@@ -232,12 +262,14 @@ export type MyProfile = {
 export type MySubmission = {
   id: string
   status: 'pending' | 'approved' | 'rejected'
-  imageKey: string
+  knuteId: string
+  imageKey: string | null
   caption: string | null
   createdAt: string
   reviewedAt: string | null
   knuteTitle: string
   knutePoints: number
+  evidenceType: 'media' | 'text'
 }
 export type MeResponse = {
   user: MyProfile
@@ -288,6 +320,67 @@ export async function fetchDevUsers(): Promise<DevUsersResponse> {
     throw new ApiError(res.status, `Dev-login utilgjengelig (${res.status}). Kjører API-en i dev-modus?`)
   }
   return res.json() as Promise<DevUsersResponse>
+}
+
+// ── Knutebibliotek (ADR-0014) — the shared catalog a knutesjef browses + imports from.
+
+export type LibraryKnute = {
+  id: string
+  title: string
+  description: string | null
+  points: number
+  difficulty: 'Lett' | 'Medium' | 'Hard' | 'Valgfri'
+  /** 'media' (photo/video) or 'text' (no media — legally sensitive knuter). */
+  evidenceType: 'media' | 'text'
+  /** 17 (all-ages) or 18 (adult-only). */
+  minAge: number
+  /** The theme/type axis: Generelle / Dobbel / Rampestrek / Alkohol / Sex. */
+  suggestedFolder: string
+  /** Geography axis; null = Nasjonalt. */
+  region: string | null
+  /** Whether THIS school has already imported it. */
+  imported: boolean
+}
+export type LibraryKnuterResponse = { knuter: LibraryKnute[] }
+
+export type LibraryBrowseParams = { folder?: string; region?: string; q?: string; packId?: string }
+
+export function fetchLibraryKnuter(params: LibraryBrowseParams = {}): Promise<LibraryKnuterResponse> {
+  const parts: string[] = []
+  if (params.folder) parts.push(`folder=${encodeURIComponent(params.folder)}`)
+  if (params.region) parts.push(`region=${encodeURIComponent(params.region)}`)
+  if (params.q) parts.push(`q=${encodeURIComponent(params.q)}`)
+  if (params.packId) parts.push(`packId=${encodeURIComponent(params.packId)}`)
+  const suffix = parts.length > 0 ? `?${parts.join('&')}` : ''
+  return apiFetch<LibraryKnuterResponse>(`/api/library/knuter${suffix}`)
+}
+
+export type LibraryPack = {
+  id: string
+  name: string
+  description: string | null
+  sortOrder: number
+  knuteCount: number
+}
+export type LibraryPacksResponse = { packs: LibraryPack[] }
+
+export function fetchLibraryPacks(): Promise<LibraryPacksResponse> {
+  return apiFetch<LibraryPacksResponse>('/api/library/packs')
+}
+
+export type ImportKnuteResponse = { knute: Knute; folder: { id: string; name: string } }
+
+export function importLibraryKnute(libraryKnuteId: string): Promise<ImportKnuteResponse> {
+  return apiFetch<ImportKnuteResponse>('/api/library/imports', {
+    method: 'POST',
+    body: JSON.stringify({ libraryKnuteId }),
+  })
+}
+
+export type ImportPackResponse = { imported: number; skipped: number; folders: string[] }
+
+export function importLibraryPack(packId: string): Promise<ImportPackResponse> {
+  return apiFetch<ImportPackResponse>(`/api/library/packs/${packId}/import`, { method: 'POST' })
 }
 
 export { ApiError }

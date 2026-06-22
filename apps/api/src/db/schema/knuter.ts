@@ -10,6 +10,7 @@ import {
   pgPolicy,
 } from 'drizzle-orm/pg-core'
 import { schools } from './schools'
+import { libraryKnuter } from './library'
 
 // Per-school knuter. Each school's knutesjef creates their own — no shared
 // catalog at this stage. A curated library is planned as a separate feature
@@ -48,6 +49,12 @@ export const knuter = pgTable(
     // Minimum age to see/submit: 17 (all-ages) or 18 (adult-only). Gated against the
     // user's Vipps-verified is_adult flag — minors never see/submit 18+ knuter. ADR-0015.
     minAge: integer('min_age').notNull().default(17),
+    // Provenance: the central-library knute this was imported from (ADR-0014).
+    // NULL for school-created (custom) knuter. ON DELETE SET NULL so retiring a
+    // library entry never deletes a school's own copy.
+    sourceLibraryKnuteId: uuid('source_library_knute_id').references(() => libraryKnuter.id, {
+      onDelete: 'set null',
+    }),
     isActive: boolean('is_active').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

@@ -55,6 +55,11 @@ export async function setupTestDb(): Promise<TestHandles> {
     GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_role;
     GRANT ALL ON ALL TABLES IN SCHEMA public TO admin_role;
   `)
+  // The library_* catalog is read-only for the app role (ADR-0014 / migration 0014).
+  // Re-apply after the blanket grant above so RLS/grants tests see prod behaviour.
+  await superSql.unsafe(`
+    REVOKE INSERT, UPDATE, DELETE ON library_knuter, library_packs, library_pack_memberships FROM app_role;
+  `)
 
   // 4. Connect as app_user — the role whose RLS we test.
   const appUserUrl = `postgres://app_user:${APP_USER_PASSWORD}@localhost:5432/${TEST_DB}`

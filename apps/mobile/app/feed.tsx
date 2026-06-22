@@ -124,13 +124,22 @@ function FeedCard({
   // imageUrl is null for legacy placeholder keys (no real upload) — show a
   // placeholder for those; render the photo when there's a real URL.
   const url = item.imageUrl
+  // Text-only submission (Sex folder etc.) — render the caption as a text card
+  // instead of a photo (ADR-0014).
+  const isText = item.evidenceType === 'text'
 
   return (
     <View
       style={[styles.card, { height, width }]}
       accessibilityLabel={`${item.russenavn} fullførte ${item.knuteTitle}, ${item.knutePoints} poeng`}
     >
-      {url ? (
+      {isText ? (
+        <View style={styles.textCard}>
+          <Text style={styles.textCardQuote} numberOfLines={8}>
+            {item.caption ?? item.knuteTitle}
+          </Text>
+        </View>
+      ) : url ? (
         <>
           {/* Blurred fill behind — zoomed to cover, so no black bars */}
           <Image
@@ -169,7 +178,7 @@ function FeedCard({
             <Text style={styles.pointsText}>{item.knutePoints} p</Text>
           </View>
         </View>
-        {item.caption ? (
+        {!isText && item.caption ? (
           <Text style={styles.caption} numberOfLines={3}>
             {item.caption}
           </Text>
@@ -201,6 +210,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: spacing.md,
+  },
+  textCard: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  textCardQuote: {
+    color: colors.text.inverse,
+    fontSize: fontSize['2xl'],
+    fontWeight: fontWeight.semibold,
+    textAlign: 'center',
   },
   placeholderEmoji: {
     fontSize: fontSize['3xl'],

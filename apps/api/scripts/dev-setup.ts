@@ -16,6 +16,7 @@ import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import { eq } from 'drizzle-orm'
 import * as schema from '../src/db/schema/index.js'
 import { signDevToken } from '../src/lib/auth-dev.js'
+import { librarySeedKnuter } from './library-seed-data.js'
 
 const SUPERUSER_URL =
   process.env.SUPERUSER_DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5432/postgres'
@@ -62,6 +63,11 @@ await supSql.unsafe(`
   GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_role;
   GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_role;
   GRANT ALL ON ALL TABLES IN SCHEMA public TO admin_role;
+`)
+// The library_* catalog is read-only for the app role (ADR-0014 / migration 0014).
+// The blanket grant above re-granted write on EVERY table, so re-apply the REVOKE.
+await supSql.unsafe(`
+  REVOKE INSERT, UPDATE, DELETE ON library_knuter, library_packs, library_pack_memberships FROM app_role;
 `)
 process.stdout.write(`  grants applied\n`)
 
@@ -335,7 +341,56 @@ await supDb.update(schema.users).set({ points: firstKnute.points }).where(eq(sch
 await supDb.update(schema.users).set({ points: odinKnute.points }).where(eq(schema.users.id, userOdin.id))
 await supDb.update(schema.users).set({ points: hetlandFirst.points }).where(eq(schema.users.id, userTor.id))
 
+// ── Central knute library (ADR-0014). Shared catalog, seeded as SUPERUSER because
+// app_role is read-only on library_* (migration 0014). Source: docs/library-seed-source.md
+// → scripts/library-seed-data.ts. Sanity guards catch a truncated/mis-edited seed.
+{
+  const n = librarySeedKnuter.length
+  const text = librarySeedKnuter.filter((k) => k.evidenceType === 'text').length
+  const adult = librarySeedKnuter.filter((k) => k.minAge === 18).length
+  const stavanger = librarySeedKnuter.filter((k) => k.region === 'Stavanger').length
+  if (n !== 186) throw new Error(`library seed: expected 186 knuter, got ${n}`)
+  if (text !== 24) throw new Error(`library seed: expected 24 text-only, got ${text}`)
+  if (adult !== 21) throw new Error(`library seed: expected 21 adult-only (18+), got ${adult}`)
+  if (stavanger !== 5) throw new Error(`library seed: expected 5 Stavanger-region, got ${stavanger}`)
+}
+
+const difficultyFor = (p: number): 'Lett' | 'Medium' | 'Hard' | 'Valgfri' =>
+  p === 0 ? 'Valgfri' : p < 20 ? 'Lett' : p <= 45 ? 'Medium' : 'Hard'
+
+const insertedLibrary = await supDb
+  .insert(schema.libraryKnuter)
+  .values(
+    librarySeedKnuter.map((k) => ({
+      title: k.title,
+      description: k.description,
+      points: k.points,
+      difficulty: difficultyFor(k.points),
+      evidenceType: k.evidenceType ?? ('media' as const),
+      minAge: k.minAge ?? 17,
+      suggestedFolder: k.folder,
+      region: k.region ?? null,
+    })),
+  )
+  .returning()
+
+// "Anbefalt starter" = everything except the Sex folder. A sensible default the
+// knutesjef curates later (no super-admin tool yet — edit it in library-seed-data.ts).
+const [starterPack] = await supDb
+  .insert(schema.libraryPacks)
+  .values({
+    name: 'Anbefalt starter',
+    description: 'Et godt utgangspunkt — alt utenom Sex-mappa.',
+    sortOrder: 0,
+  })
+  .returning()
+const starterMembers = insertedLibrary.filter((k) => k.suggestedFolder !== 'Sex')
+await supDb
+  .insert(schema.libraryPackMemberships)
+  .values(starterMembers.map((k) => ({ packId: starterPack!.id, libraryKnuteId: k.id })))
+
 process.stdout.write(`  seeded:\n`)
+process.stdout.write(`    library: ${insertedLibrary.length} knuter, ${starterMembers.length} i «Anbefalt starter»\n`)
 process.stdout.write(`    ${stOlav.name}: ${stOlavKnuter.length} knuter\n`)
 process.stdout.write(`      ${userLoke.russenavn} (${userLoke.role})\n`)
 process.stdout.write(`      ${userFrida.russenavn} (${userFrida.role})\n`)

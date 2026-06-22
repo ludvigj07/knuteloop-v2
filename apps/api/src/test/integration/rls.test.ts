@@ -1,11 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { sql } from 'drizzle-orm'
-import { schools, users, knuter, submissions } from '../../db/schema/index.js'
+import { schools, users, knuter, submissions, libraryKnuter, schoolLibraryImports } from '../../db/schema/index.js'
 import { setupTestDb, type TestHandles } from '../helpers/test-db.js'
 
 let h: TestHandles
 let schoolAId: string
 let schoolBId: string
+let lib2Id: string
+let bCopyId: string
 
 beforeAll(async () => {
   h = await setupTestDb()
@@ -42,6 +44,32 @@ beforeAll(async () => {
   await h.superDb.insert(submissions).values([
     { schoolId: schoolAId, userId: lokeA.id, knuteId: insertedKnuter[0]!.id, imageKey: 'a.webp', status: 'approved', reviewedAt: new Date() },
     { schoolId: schoolBId, userId: torB.id, knuteId: insertedKnuter[1]!.id, imageKey: 'b.webp', status: 'approved', reviewedAt: new Date() },
+  ])
+
+  // school_library_imports is a NEW tenant-scoped table (ADR-0014) → it gets the same
+  // direct-RLS cross-tenant denial proof as users/submissions. Seed a shared library
+  // knute imported by BOTH schools (so A must see only its own import row), plus a
+  // second, un-imported library knute used to attempt a cross-tenant INSERT.
+  const libs = await h.superDb
+    .insert(libraryKnuter)
+    .values([
+      { title: 'Lib-knute', points: 10, suggestedFolder: 'Generelle' },
+      { title: 'Lib-knute-2', points: 12, suggestedFolder: 'Generelle' },
+    ])
+    .returning()
+  const libK = libs[0]!
+  lib2Id = libs[1]!.id
+  const copies = await h.superDb
+    .insert(knuter)
+    .values([
+      { schoolId: schoolAId, title: 'A-copy', points: 10, difficulty: 'Lett', category: 'Generelle', sourceLibraryKnuteId: libK.id },
+      { schoolId: schoolBId, title: 'B-copy', points: 10, difficulty: 'Lett', category: 'Generelle', sourceLibraryKnuteId: libK.id },
+    ])
+    .returning()
+  bCopyId = copies[1]!.id
+  await h.superDb.insert(schoolLibraryImports).values([
+    { schoolId: schoolAId, libraryKnuteId: libK.id, knuteId: copies[0]!.id },
+    { schoolId: schoolBId, libraryKnuteId: libK.id, knuteId: copies[1]!.id },
   ])
 })
 
@@ -131,6 +159,41 @@ describe('RLS cross-tenant isolation — users table', () => {
       { relname: string; relrowsecurity: boolean; relforcerowsecurity: boolean }[]
     >`SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = 'users'`
     expect(rows[0]?.relrowsecurity).toBe(true)
+    expect(rows[0]?.relforcerowsecurity).toBe(true)
+  })
+})
+
+describe('RLS cross-tenant isolation — school_library_imports', () => {
+  it('app_user school A sees ONLY its own import rows (raw SELECT, no WHERE)', async () => {
+    // Both schools imported the same library knute. Under school A context, the
+    // unfiltered select must return ONLY A's row — proving RLS isolates this table
+    // independent of any application-layer school_id filter (the route's join filter).
+    await h.appDb.transaction(async (tx) => {
+      await tx.execute(sql`SELECT set_config('app.school_id', ${schoolAId}, true)`)
+      const result = await tx.execute(sql`SELECT school_id FROM school_library_imports`)
+      expect(result).toHaveLength(1)
+      expect((result[0] as { school_id: string }).school_id).toBe(schoolAId)
+    })
+  })
+
+  it('cross-tenant INSERT is blocked by WITH CHECK', async () => {
+    // School A context attempting to write a school B import row (a fresh, non-duplicate
+    // library knute, so this fails on the RLS policy, not the unique constraint).
+    await expect(
+      h.appDb.transaction(async (tx) => {
+        await tx.execute(sql`SELECT set_config('app.school_id', ${schoolAId}, true)`)
+        await tx.insert(schoolLibraryImports).values({
+          schoolId: schoolBId,
+          libraryKnuteId: lib2Id,
+          knuteId: bCopyId,
+        })
+      }),
+    ).rejects.toThrow(/row-level security|new row violates row-level security/i)
+  })
+
+  it('FORCE RLS is verified live (relforcerowsecurity = true)', async () => {
+    const rows = await h.superSql<{ relforcerowsecurity: boolean }[]>`
+      SELECT relforcerowsecurity FROM pg_class WHERE relname = 'school_library_imports'`
     expect(rows[0]?.relforcerowsecurity).toBe(true)
   })
 })
