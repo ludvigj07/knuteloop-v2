@@ -3,7 +3,10 @@ import { View, ScrollView, StyleSheet, TextInput, Alert, RefreshControl } from '
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack } from 'expo-router'
-import { Button, Pressable, Skeleton, Text } from '../../components/primitives'
+import { Button, Pressable, Sheet, Skeleton, Text } from '../../components/primitives'
+import { LibraryKnuteRow } from '../../components/library/LibraryKnuteRow'
+import { KnuteDetailSheet } from '../../components/library/KnuteDetailSheet'
+import { isSensitive } from '../../components/library/libraryMeta'
 import {
   fetchLibraryKnuter,
   fetchLibraryPacks,
@@ -26,6 +29,10 @@ export default function BibliotekScreen() {
   const [folder, setFolder] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [packResult, setPackResult] = useState<{ packId: string; res: ImportPackResponse } | null>(null)
+  // Sheets are keyed by id (not the object) so they track the freshest data after
+  // an import flips `imported` — the open sheet then reflects "Lagt til".
+  const [detailKnuteId, setDetailKnuteId] = useState<string | null>(null)
+  const [confirmKnuteId, setConfirmKnuteId] = useState<string | null>(null)
 
   const q = search.trim()
   const packs = useQuery({ queryKey: ['library', 'packs'], queryFn: fetchLibraryPacks })
@@ -58,6 +65,31 @@ export default function BibliotekScreen() {
     },
     onError: (err) => Alert.alert('Import feilet', (err as Error).message),
   })
+
+  const list = knuter.data?.knuter ?? []
+  const detailKnute = detailKnuteId ? (list.find((k) => k.id === detailKnuteId) ?? null) : null
+  const confirmKnute = confirmKnuteId ? (list.find((k) => k.id === confirmKnuteId) ?? null) : null
+  const isImporting = (id: string) => importKnute.isPending && importKnute.variables === id
+
+  // The one gate every import goes through. Sensitive (18+) knuter pop a confirm
+  // first (ADR-0015); everything else imports straight away.
+  const requestImport = (k: LibraryKnute) => {
+    if (k.imported) return
+    if (isSensitive(k)) {
+      setDetailKnuteId(null)
+      setConfirmKnuteId(k.id)
+      void haptics.warning()
+      return
+    }
+    void haptics.medium()
+    importKnute.mutate(k.id)
+  }
+
+  const confirmSensitive = () => {
+    if (!confirmKnute) return
+    void haptics.medium()
+    importKnute.mutate(confirmKnute.id, { onSuccess: () => setConfirmKnuteId(null) })
+  }
 
   const bottomPadding = insets.bottom + spacing.xl
 
@@ -132,28 +164,83 @@ export default function BibliotekScreen() {
                 <Text style={styles.retryText}>Prøv igjen</Text>
               </Pressable>
             </View>
-          ) : (knuter.data?.knuter.length ?? 0) === 0 ? (
+          ) : list.length === 0 ? (
             <View style={styles.center}>
               <Text style={styles.muted}>Ingen knuter her. Prøv et annet filter eller søk.</Text>
             </View>
           ) : (
             <View style={styles.list}>
-              {knuter.data!.knuter.map((k) => (
-                <LibKnuteRow
+              {list.map((k) => (
+                <LibraryKnuteRow
                   key={k.id}
                   knute={k}
-                  importing={importKnute.isPending && importKnute.variables === k.id}
-                  onImport={() => {
-                    haptics.medium()
-                    importKnute.mutate(k.id)
-                  }}
+                  importing={isImporting(k.id)}
+                  onOpen={() => setDetailKnuteId(k.id)}
+                  onImport={() => requestImport(k)}
                 />
               ))}
             </View>
           )}
         </ScrollView>
       </View>
+
+      <KnuteDetailSheet
+        knute={detailKnute}
+        importing={detailKnute ? isImporting(detailKnute.id) : false}
+        onClose={() => setDetailKnuteId(null)}
+        onImport={() => detailKnute && requestImport(detailKnute)}
+      />
+
+      <SensitiveImportSheet
+        knute={confirmKnute}
+        importing={confirmKnute ? isImporting(confirmKnute.id) : false}
+        onCancel={() => setConfirmKnuteId(null)}
+        onConfirm={confirmSensitive}
+      />
     </>
+  )
+}
+
+function SensitiveImportSheet({
+  knute,
+  importing,
+  onCancel,
+  onConfirm,
+}: {
+  knute: LibraryKnute | null
+  importing: boolean
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <Sheet visible={knute !== null} onClose={onCancel} accessibilityLabel="Bekreft sensitiv knute">
+      {knute ? (
+        <View>
+          <Text size="xl" weight="bold" accessibilityRole="header">
+            Sensitiv knute
+          </Text>
+          <Text size="base" color="secondary" style={styles.confirmBody}>
+            «{knute.title}» er en 18+-knute i {knute.suggestedFolder}-temaet
+            {knute.evidenceType === 'text' ? ' (kun tekst-bevis)' : ''}. Legg den til i skolens
+            liste?
+          </Text>
+          <View style={styles.confirmRow}>
+            <View style={styles.confirmBtn}>
+              <Button label="Avbryt" variant="ghost" onPress={onCancel} fullWidth />
+            </View>
+            <View style={styles.confirmBtn}>
+              <Button
+                label="Legg til"
+                variant="secondary"
+                onPress={onConfirm}
+                loading={importing}
+                fullWidth
+              />
+            </View>
+          </View>
+        </View>
+      ) : null}
+    </Sheet>
   )
 }
 
@@ -229,57 +316,6 @@ function Pill({ label, active, onPress }: { label: string; active: boolean; onPr
   )
 }
 
-function LibKnuteRow({
-  knute,
-  importing,
-  onImport,
-}: {
-  knute: LibraryKnute
-  importing: boolean
-  onImport: () => void
-}) {
-  const ageLabel = knute.minAge >= 18 ? '18+' : null
-  return (
-    <View style={styles.row}>
-      <View style={styles.rowTextBlock}>
-        <Text style={styles.rowTitle} numberOfLines={2}>
-          {knute.title}
-        </Text>
-        <View style={styles.rowMeta}>
-          <View style={styles.pointsBadge}>
-            <Text style={styles.pointsText}>{formatNumber(knute.points)} p</Text>
-          </View>
-          <Text style={styles.folderTag}>{knute.suggestedFolder}</Text>
-          {knute.evidenceType === 'text' ? <Text style={styles.flagTag}>Tekst</Text> : null}
-          {ageLabel ? <Text style={[styles.flagTag, styles.ageTag]}>{ageLabel}</Text> : null}
-        </View>
-        {knute.description ? (
-          <Text style={styles.rowDesc} numberOfLines={2}>
-            {knute.description}
-          </Text>
-        ) : null}
-      </View>
-      {knute.imported ? (
-        <View style={styles.addedBadge} accessibilityLabel={`${knute.title} er lagt til`}>
-          <Text style={styles.addedText}>✓ Lagt til</Text>
-        </View>
-      ) : (
-        <Pressable
-          style={[styles.addButton, importing && styles.addButtonBusy]}
-          onPress={onImport}
-          disabled={importing}
-          haptic="none"
-          accessibilityRole="button"
-          accessibilityLabel={`Legg ${knute.title} til skolen`}
-          accessibilityHint="Kopierer knuten inn i skolens liste."
-        >
-          <Text style={styles.addText}>{importing ? 'Legger til…' : '+ Legg til'}</Text>
-        </Pressable>
-      )}
-    </View>
-  )
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   scroll: { flex: 1, backgroundColor: colors.background },
@@ -336,62 +372,9 @@ const styles = StyleSheet.create({
   },
   list: { paddingHorizontal: spacing.base, gap: spacing.sm },
   skeletonRow: { height: size.controlHeightLg, borderRadius: radius.md },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: borderWidth.thin,
-    borderColor: colors.border,
-  },
-  rowTextBlock: { flex: 1 },
-  rowTitle: {
-    color: colors.text.primary,
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.medium,
-    marginBottom: spacing.xs,
-  },
-  rowMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
-  rowDesc: { color: colors.text.secondary, fontSize: fontSize.sm, marginTop: spacing.xs },
-  pointsBadge: {
-    backgroundColor: colors.brand.primary,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing['2xs'],
-    borderRadius: radius.sm,
-  },
-  pointsText: { color: colors.text.inverse, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
-  folderTag: { color: colors.text.secondary, fontSize: fontSize.sm },
-  flagTag: {
-    color: colors.text.secondary,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing['2xs'],
-    borderRadius: radius.sm,
-    backgroundColor: colors.background,
-    overflow: 'hidden',
-  },
-  ageTag: { color: colors.text.inverse, backgroundColor: colors.warning },
-  addButton: {
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.ink,
-    minHeight: size.actionMinHeight,
-    justifyContent: 'center',
-  },
-  addButtonBusy: { opacity: 0.6 },
-  addText: { color: colors.text.inverse, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-  addedBadge: {
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.status.approvedBg,
-  },
-  addedText: { color: colors.success, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  confirmBody: { marginTop: spacing.sm, lineHeight: fontSize.base * 1.5 },
+  confirmRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
+  confirmBtn: { flex: 1 },
   center: {
     justifyContent: 'center',
     alignItems: 'center',
