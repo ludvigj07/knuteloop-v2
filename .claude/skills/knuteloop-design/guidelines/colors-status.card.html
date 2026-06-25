@@ -1,0 +1,16 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Status colors" subtitle="Godkjent / Venter / Avvist + success, warning, danger" -->
+<!DOCTYPE html>
+<html lang="nb"><head><meta charset="UTF-8" /><link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 18px; background: var(--bg); display: flex; gap: 12px; flex-wrap: wrap; align-items: stretch; }
+  .sw { flex: 1; min-width: 150px; border: var(--border-sticker); border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-sticker-sm); }
+  .chip { height: 50px; display: flex; align-items: center; padding: 0 14px; color: #fff; font-weight: 800; }
+  .meta { padding: 8px 12px; background: var(--card); display: flex; align-items: center; gap: 8px; }
+  .pill { padding: 4px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
+  .val { font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted); }
+</style></head>
+<body>
+  <div class="sw"><div class="chip" style="background:var(--success)">Godkjent</div><div class="meta"><span class="pill" style="background:var(--success-bg);color:var(--success)">Godkjent</span><span class="val">--success</span></div></div>
+  <div class="sw"><div class="chip" style="background:var(--warning)">Venter</div><div class="meta"><span class="pill" style="background:var(--warning-bg);color:#9a6f0f">Venter</span><span class="val">--warning</span></div></div>
+  <div class="sw"><div class="chip" style="background:var(--danger)">Avvist</div><div class="meta"><span class="pill" style="background:var(--danger-bg);color:var(--danger-strong)">Avvist</span><span class="val">--danger</span></div></div>
+</body></html>

@@ -1,0 +1,80 @@
+/* ============================================================
+   KNUTELOOP — COLORS
+   The live v1 "sticker" palette: warm cream paper, deep navy ink,
+   royal-blue primary, golden-yellow accent. Defined as HSL channels
+   (composable with color-mix) with semantic aliases on top.
+   Russ-red + Norwegian navy are reserved for the brand mark / splash.
+   ============================================================ */
+:root {
+  /* --- Raw HSL channels (composed into colors below) --- */
+  --background-hsl: 48 60% 96%; /* @kind color */
+  --foreground-hsl: 220 50% 12%; /* @kind color */
+  --primary-hsl: 222 75% 28%; /* @kind color */
+  --primary-foreground-hsl: 48 60% 96%; /* @kind color */
+  --accent-hsl: 46 100% 58%; /* @kind color */
+  --accent-foreground-hsl: 220 50% 12%; /* @kind color */
+  --card-hsl: 0 0% 100%; /* @kind color */
+  --secondary-hsl: 48 40% 92%; /* @kind color */
+  --muted-hsl: 45 30% 93%; /* @kind color */
+  --muted-foreground-hsl: 220 15% 40%; /* @kind color */
+  --border-hsl: 220 25% 14%; /* @kind color */
+
+  /* --- Resolved base colors --- */
+  --background: hsl(var(--background-hsl));
+  --foreground: hsl(var(--foreground-hsl));
+  --primary: hsl(var(--primary-hsl));
+  --primary-foreground: hsl(var(--primary-foreground-hsl));
+  --accent: hsl(var(--accent-hsl));
+  --accent-foreground: hsl(var(--accent-foreground-hsl));
+  --card: hsl(var(--card-hsl));
+  --secondary: hsl(var(--secondary-hsl));
+  --muted: hsl(var(--muted-hsl));
+  --muted-foreground: hsl(var(--muted-foreground-hsl));
+  --border: hsl(var(--border-hsl));
+
+  /* --- Semantic surfaces --- */
+  --bg: var(--background);
+  --surface: var(--card);
+  --surface-soft: var(--secondary);
+  --surface-media: var(--muted);
+  --line: color-mix(in srgb, var(--border) 16%, transparent);
+  --line-strong: var(--border);
+
+  /* --- Semantic text --- */
+  --text: var(--foreground);
+  --text-strong: var(--foreground);
+  --text-soft: color-mix(in srgb, var(--primary) 78%, var(--foreground) 22%);
+  --text-muted: var(--muted-foreground);
+  --text-inverse: var(--primary-foreground);
+
+  /* --- Primary (royal blue) tints --- */
+  --primary-strong: color-mix(in srgb, var(--primary) 80%, var(--foreground) 20%);
+  --primary-soft: color-mix(in srgb, var(--primary) 14%, transparent);
+  --primary-bg: color-mix(in srgb, var(--primary) 10%, white 90%);
+
+  /* --- Accent (golden yellow) tints --- */
+  --accent-strong: color-mix(in srgb, var(--accent) 45%, var(--foreground) 55%);
+  --accent-bg: color-mix(in srgb, var(--accent) 16%, white 84%);
+  --accent-border: color-mix(in srgb, var(--accent) 34%, var(--border) 66%);
+  --gold: var(--accent);
+
+  /* --- Status --- */
+  --success: #2f9e63;
+  --success-bg: rgba(47, 158, 99, 0.14);
+  --warning: #e6a417;
+  --warning-bg: rgba(230, 164, 23, 0.16);
+  --danger: #d6483f;
+  --danger-strong: #b53a32;
+  --danger-bg: rgba(214, 72, 63, 0.12);
+
+  /* --- Brand mark colors (icon / splash only — NOT general UI) --- */
+  --russ-red: #c8102e;
+  --russ-red-dark: #8b0918;
+  --russ-navy: #1a1a2e;
+
+  /* --- Medallion / tier gradients (badges) --- */
+  --tier-bronze: linear-gradient(145deg, #d59470 0%, #8c5a2e 100%);  /* @kind color */
+  --tier-silver: linear-gradient(145deg, #ececec 0%, #9ea4ad 100%);  /* @kind color */
+  --tier-gold: linear-gradient(145deg, #ffe387 0%, #d6a429 100%);    /* @kind color */
+  --tier-diamond: linear-gradient(145deg, #b6ecff 0%, #4aa6d9 100%); /* @kind color */
+}

@@ -1,0 +1,60 @@
+<!-- @dsCard group="Components" viewport="700x520" name="Knuter — domain components" subtitle="KnuteCard · LeaderRow · BadgeMedallion" -->
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; padding: 24px; background: var(--bg); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+  .lbl { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 12px; }
+  .stack { display: flex; flex-direction: column; gap: 10px; }
+  .badges { display: flex; flex-wrap: wrap; gap: 18px; }
+  @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+  const { KnuteCard, LeaderRow, BadgeMedallion, KnoteIcon } = window.KnuteloopDesignSystem_89dd9e;
+
+  function Demo() {
+    return (
+      <div>
+        <div className="grid">
+          <div>
+            <p className="lbl">KnuteCard</p>
+            <div className="stack">
+              <KnuteCard title="Spis 100 nuggets i en studietime" description="Fra St. Olav-listen." category="Generelle" difficulty="Medium" points={20} status="Tilgjengelig" />
+              <KnuteCard title="Gå edru hele rt" category="Alkoholknuter" difficulty="Hard" points={30} status="Godkjent" gold />
+            </div>
+          </div>
+          <div>
+            <p className="lbl">LeaderRow</p>
+            <div className="stack">
+              <LeaderRow rank={1} name="Emil Baka" group="3PBA" points={315} russType="blue" />
+              <LeaderRow rank={2} name="Nora Neon" group="3MKA" points={300} russType="red" />
+              <LeaderRow rank={3} name="Sofie Sprint" group="3STA" points={285} russType="red" highlight />
+            </div>
+          </div>
+        </div>
+        <p className="lbl" style={{ marginTop: 24 }}>BadgeMedallion</p>
+        <div className="badges">
+          <BadgeMedallion icon={<KnoteIcon name="knute" size={26} />} name="Knutesamler" tier="gull" caption="15/15" />
+          <BadgeMedallion icon={<KnoteIcon name="dobbel" size={24} />} name="Sosial motor" tier="sølv" caption="7/10" />
+          <BadgeMedallion icon={<KnoteIcon name="alkohol" size={24} />} name="Festpuls" tier="bronze" caption="2/6" />
+          <BadgeMedallion icon={<KnoteIcon name="generelle" size={24} />} name="Poengjager" tier="diamant" caption="500" />
+          <BadgeMedallion icon={<KnoteIcon name="sex" size={24} />} name="Gullknute-jeger" tier="bronze" locked />
+        </div>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script>
+</body>
+</html>

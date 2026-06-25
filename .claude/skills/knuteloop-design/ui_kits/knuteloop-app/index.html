@@ -1,0 +1,85 @@
+<!-- @dsCard group="Knuteloop App" viewport="460x920" name="Knuteloop mobil-app" subtitle="Interaktiv: onboarding → feed, knuter, toppliste, profil, send inn, knutesjef" -->
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Knuteloop — mobil-app</title>
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  html, body { margin: 0; height: 100%; }
+  body {
+    background:
+      radial-gradient(circle at 20% 12%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 38%),
+      radial-gradient(circle at 84% 86%, color-mix(in srgb, var(--primary) 18%, transparent), transparent 42%),
+      var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    padding: 28px 16px; min-height: 100vh; box-sizing: border-box;
+  }
+  .knl-phone {
+    width: 390px; height: 844px; max-height: calc(100vh - 48px);
+    background: var(--bg);
+    border: 3px solid var(--foreground);
+    border-radius: 46px;
+    box-shadow: 10px 10px 0 0 var(--foreground);
+    display: flex; flex-direction: column; overflow: hidden; position: relative;
+    flex-shrink: 0;
+  }
+  .knl-viewport { flex: 1; overflow-y: auto; overflow-x: hidden; position: relative; scrollbar-width: none; }
+  .knl-viewport::-webkit-scrollbar { display: none; }
+  .knl-sheet { position: absolute; inset: 0; background: var(--bg); z-index: 30; overflow-y: auto; animation: knlup 0.26s cubic-bezier(0.22,1,0.36,1); }
+  @keyframes knlup { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .knl-tabbar {
+    flex-shrink: 0; display: flex; align-items: center; gap: 4px;
+    padding: 8px 18px calc(8px + env(safe-area-inset-bottom, 12px));
+    padding-bottom: 18px;
+    background: var(--card); border-top: 2px solid var(--foreground);
+  }
+  /* Demo toolbar — the "feed variation" tweak */
+  .knl-tweaks {
+    position: fixed; left: 18px; bottom: 18px; z-index: 100;
+    background: var(--card); border: var(--border-sticker); box-shadow: var(--shadow-sticker-sm);
+    border-radius: var(--radius-md); padding: 10px 12px; display: flex; flex-direction: column; gap: 7px;
+    font-family: var(--font-sans); max-width: 200px;
+  }
+  .knl-tweaks .t { font-size: 0.64rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+  .knl-tweaks .seg { display: flex; gap: 4px; background: var(--surface-soft); border-radius: 999px; padding: 3px; }
+  .knl-tweaks button { flex: 1; border: 0; background: transparent; padding: 5px 10px; border-radius: 999px; cursor: pointer; font-weight: 700; font-size: 0.78rem; color: var(--text-soft); }
+  .knl-tweaks button.on { background: var(--primary); color: #fff; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div class="knl-tweaks" id="tweaks" hidden>
+  <span class="t">Feed-variant</span>
+  <div class="seg">
+    <button data-v="rich" class="on">Med bilde</button>
+    <button data-v="compact">Kompakt</button>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="icons.jsx"></script>
+<script src="screens-main.jsx"></script>
+<script src="screens-flow.jsx"></script>
+<script src="app.jsx"></script>
+<script>
+  // Wire the feed-variant toggle. Re-renders by toggling React state via the exposed setter.
+  (function () {
+    const box = document.getElementById('tweaks');
+    box.hidden = false;
+    box.querySelectorAll('button').forEach((b) => {
+      b.addEventListener('click', () => {
+        box.querySelectorAll('button').forEach((x) => x.classList.remove('on'));
+        b.classList.add('on');
+        if (window.__knlSetFeedVariant) window.__knlSetFeedVariant(b.dataset.v);
+      });
+    });
+  })();
+</script>
+</body>
+</html>
