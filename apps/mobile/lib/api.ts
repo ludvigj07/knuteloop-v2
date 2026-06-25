@@ -384,4 +384,55 @@ export function importLibraryPack(packId: string): Promise<ImportPackResponse> {
   return apiFetch<ImportPackResponse>(`/api/library/packs/${packId}/import`, { method: 'POST' })
 }
 
+// ── Knutemapper (per-school folders, ADR-0014) — the "Knuteboka" surface a
+// knutesjef manages. These wire the existing /api/folders endpoints; the server
+// gates every write to knutesjef/admin.
+
+export type Folder = { id: string; name: string; sortOrder: number; knuteCount: number }
+export type FoldersResponse = { folders: Folder[] }
+
+export function fetchFolders(): Promise<FoldersResponse> {
+  return apiFetch<FoldersResponse>('/api/folders')
+}
+
+export type CreatedFolder = {
+  folder: { id: string; name: string; sortOrder: number }
+}
+
+export function createFolder(name: string): Promise<CreatedFolder> {
+  return apiFetch<CreatedFolder>('/api/folders', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  })
+}
+
+export function deleteFolder(id: string): Promise<{ deleted: string }> {
+  return apiFetch<{ deleted: string }>(`/api/folders/${id}`, { method: 'DELETE' })
+}
+
+export function addKnuteToFolder(
+  folderId: string,
+  knuteId: string,
+): Promise<{ membership: { id: string } }> {
+  return apiFetch<{ membership: { id: string } }>(`/api/folders/${folderId}/knuter`, {
+    method: 'POST',
+    body: JSON.stringify({ knuteId }),
+  })
+}
+
+export function removeKnuteFromFolder(
+  folderId: string,
+  knuteId: string,
+): Promise<{ removed: string }> {
+  return apiFetch<{ removed: string }>(`/api/folders/${folderId}/knuter/${knuteId}`, {
+    method: 'DELETE',
+  })
+}
+
+// Knuter in one folder. Uses the manager view (all=1): includes inactive knuter
+// and skips the age gate, so a knutesjef sees everything they've filed there.
+export function fetchKnuterByFolder(folderId: string): Promise<KnuterResponse> {
+  return apiFetch<KnuterResponse>(`/api/knuter?all=1&folderId=${encodeURIComponent(folderId)}`)
+}
+
 export { ApiError }

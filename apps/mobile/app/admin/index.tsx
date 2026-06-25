@@ -118,6 +118,20 @@ export default function KnutesjefPanel() {
             </Pressable>
 
             <Pressable
+              style={styles.toolRow}
+              onPress={() => router.push('/admin/knuteboka')}
+              accessibilityRole="link"
+              accessibilityLabel="Åpne knuteboka"
+              accessibilityHint="Skolens mapper — sorter knutene i mapper."
+            >
+              <View style={styles.toolTextBlock}>
+                <Text style={styles.toolTitle}>Knuteboka</Text>
+                <Text style={styles.toolMeta}>Skolens mapper — sorter knutene som du vil.</Text>
+              </View>
+              <Text style={styles.toolArrow}>›</Text>
+            </Pressable>
+
+            <Pressable
               style={[styles.toolRow, styles.toolRowLast]}
               onPress={() => router.push('/admin/bibliotek')}
               accessibilityRole="link"
