@@ -1,0 +1,23 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Surfaces & text" subtitle="Card, soft, muted surfaces and the text ramp" -->
+<!DOCTYPE html>
+<html lang="nb"><head><meta charset="UTF-8" /><link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 18px; background: var(--bg); display: flex; gap: 12px; flex-wrap: wrap; }
+  .sw { flex: 1; min-width: 110px; border: 1.5px solid var(--line-strong); border-radius: var(--radius-md); overflow: hidden; }
+  .chip { height: 64px; }
+  .meta { padding: 7px 10px; background: var(--card); }
+  .name { font-weight: 800; font-size: 0.78rem; color: var(--text-strong); }
+  .val { font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted); }
+  .txt { flex: 2; min-width: 200px; border: var(--border-sticker); border-radius: var(--radius-md); background: var(--card); padding: 12px 14px; box-shadow: var(--shadow-sticker-sm); }
+  .txt p { margin: 0 0 5px; }
+</style></head>
+<body>
+  <div class="sw"><div class="chip" style="background:var(--card)"></div><div class="meta"><div class="name">Card</div><div class="val">#FFFFFF</div></div></div>
+  <div class="sw"><div class="chip" style="background:var(--surface-soft)"></div><div class="meta"><div class="name">Soft</div><div class="val">--surface-soft</div></div></div>
+  <div class="sw"><div class="chip" style="background:var(--surface-media)"></div><div class="meta"><div class="name">Media</div><div class="val">--surface-media</div></div></div>
+  <div class="txt">
+    <p style="color:var(--text-strong);font-weight:800;font-size:1rem">Text strong — overskrift</p>
+    <p style="color:var(--text-soft);font-weight:600">Text soft — fremhevet</p>
+    <p style="color:var(--text-muted)">Text muted — sekundær / brødtekst</p>
+  </div>
+</body></html>

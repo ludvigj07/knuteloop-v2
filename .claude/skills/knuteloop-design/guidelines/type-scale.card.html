@@ -1,0 +1,19 @@
+<!-- @dsCard group="Type" viewport="700x340" name="Type scale" subtitle="Fluid clamp() scale, xs → 4xl" -->
+<!DOCTYPE html>
+<html lang="nb"><head><meta charset="UTF-8" /><link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 18px 22px; background: var(--bg); }
+  .row { display: flex; align-items: baseline; gap: 14px; padding: 5px 0; border-bottom: 1px solid var(--line); }
+  .tok { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); width: 110px; flex-shrink: 0; }
+  .sample { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.03em; color: var(--text-strong); line-height: 1.05; }
+</style></head>
+<body>
+  <div class="row"><span class="tok">--text-4xl</span><span class="sample" style="font-size:var(--text-4xl)">Loop</span></div>
+  <div class="row"><span class="tok">--text-3xl</span><span class="sample" style="font-size:var(--text-3xl)">Russetid</span></div>
+  <div class="row"><span class="tok">--text-2xl</span><span class="sample" style="font-size:var(--text-2xl)">Skjermtittel</span></div>
+  <div class="row"><span class="tok">--text-xl</span><span class="sample" style="font-size:var(--text-xl)">Seksjon</span></div>
+  <div class="row"><span class="tok">--text-lg</span><span class="sample" style="font-size:var(--text-lg)">Korttittel</span></div>
+  <div class="row"><span class="tok">--text-base</span><span class="sample" style="font-size:var(--text-base);font-family:var(--font-sans);font-weight:500">Brødtekst 16px</span></div>
+  <div class="row"><span class="tok">--text-sm</span><span class="sample" style="font-size:var(--text-sm);font-family:var(--font-sans);font-weight:500">Sekundær / meta</span></div>
+  <div class="row" style="border:none"><span class="tok">--text-xs</span><span class="sample eyebrow">Eyebrow label</span></div>
+</body></html>

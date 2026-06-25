@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Knutebibliotek — knutesjef</title>
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  html, body { margin: 0; background: #d3d9e6; }
+  body { font-family: var(--font-sans); }
+
+  /* Signature canvas — recreated locally (warm cream + brand glows + ink dot-grid) */
+  .knuteloop-canvas {
+    background:
+      radial-gradient(120% 80% at 0% 0%, color-mix(in srgb, var(--accent) 18%, transparent) 0%, transparent 42%),
+      radial-gradient(120% 90% at 100% 100%, color-mix(in srgb, var(--primary) 12%, transparent) 0%, transparent 46%),
+      linear-gradient(180deg, var(--background) 0%, color-mix(in srgb, var(--background) 86%, white) 100%);
+    position: relative;
+  }
+  .knuteloop-canvas::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background-image: radial-gradient(color-mix(in srgb, var(--foreground) 8%, transparent) 1px, transparent 1px);
+    background-size: 26px 26px; z-index: 0;
+  }
+  .knuteloop-canvas > * { position: relative; z-index: 1; }
+
+  /* slim scrollbars inside the phone */
+  .kb-scroll::-webkit-scrollbar, .kb-chips::-webkit-scrollbar, .kb-sheet::-webkit-scrollbar { width: 0; height: 0; }
+  .kb-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+  .kb-chips { scrollbar-width: none; }
+  .kb-row:active { background: var(--surface-soft) !important; }
+
+  .kb-sheet { animation: none; }
+  .kb-toast { animation: kb-pop 0.2s cubic-bezier(0.34,1.56,0.64,1); }
+  @keyframes kb-pop { from { transform: translate(-50%, 14px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+
+  /* keep last rows clear of the floating nav */
+  .kb-scroll { padding-bottom: 92px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="data.js"></script>
+<script type="text/babel" data-presets="react" src="app.jsx"></script>
+</body>
+</html>

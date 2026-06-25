@@ -1,0 +1,25 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Brand mark & tier gradients" subtitle="Russ-red/navy (icon only) + badge tier metals" -->
+<!DOCTYPE html>
+<html lang="nb"><head><meta charset="UTF-8" /><link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 18px; background: var(--bg); display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+  .group { display: flex; gap: 10px; align-items: center; }
+  .lbl { font-size: 0.66rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); width: 100%; margin-bottom: -6px; }
+  .dot { width: 54px; height: 54px; border-radius: var(--radius-full); border: 2px solid var(--foreground); display: grid; place-items: center; font-size: 0.6rem; font-weight: 800; color: rgba(255,255,255,0.9); }
+  .tier { width: 54px; height: 54px; border-radius: var(--radius-full); border: 2px solid var(--foreground); }
+</style></head>
+<body>
+  <div class="lbl">Brand mark — icon & splash only</div>
+  <div class="group">
+    <div class="dot" style="background:var(--russ-red)">RED</div>
+    <div class="dot" style="background:var(--russ-navy)">NAVY</div>
+  </div>
+  <div style="width:1px;height:54px;background:var(--line-strong)"></div>
+  <div class="lbl" style="margin-top:8px">Badge tier metals</div>
+  <div class="group">
+    <div class="tier" style="background:var(--tier-bronze)"></div>
+    <div class="tier" style="background:var(--tier-silver)"></div>
+    <div class="tier" style="background:var(--tier-gold);box-shadow:0 0 14px rgba(255,200,60,0.45)"></div>
+    <div class="tier" style="background:var(--tier-diamond);box-shadow:0 0 16px rgba(120,200,240,0.55)"></div>
+  </div>
+</body></html>

@@ -1,0 +1,17 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Brand colors" subtitle="Royal blue primary + golden yellow accent on cream paper" -->
+<!DOCTYPE html>
+<html lang="nb"><head><meta charset="UTF-8" /><link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 18px; background: var(--bg); display: flex; gap: 12px; flex-wrap: wrap; }
+  .sw { flex: 1; min-width: 120px; border: var(--border-sticker); border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-sticker-sm); }
+  .chip { height: 78px; }
+  .meta { padding: 8px 10px; background: var(--card); }
+  .name { font-weight: 800; font-size: 0.82rem; color: var(--text-strong); }
+  .val { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); }
+</style></head>
+<body>
+  <div class="sw"><div class="chip" style="background:var(--primary)"></div><div class="meta"><div class="name">Primary</div><div class="val">royal blue · hsl(222 75% 28%)</div></div></div>
+  <div class="sw"><div class="chip" style="background:var(--accent)"></div><div class="meta"><div class="name">Accent</div><div class="val">golden yellow · hsl(46 100% 58%)</div></div></div>
+  <div class="sw"><div class="chip" style="background:var(--background)"></div><div class="meta"><div class="name">Paper</div><div class="val">cream · hsl(48 60% 96%)</div></div></div>
+  <div class="sw"><div class="chip" style="background:var(--foreground)"></div><div class="meta"><div class="name">Ink</div><div class="val">navy · hsl(220 50% 12%)</div></div></div>
+</body></html>

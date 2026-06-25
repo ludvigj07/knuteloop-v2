@@ -1,0 +1,14 @@
+<!-- @dsCard group="Spacing" viewport="700x180" name="Sticker shadow & interaction" subtitle="Hard offset shadow — hover lifts, press flattens (hover me)" -->
+<!DOCTYPE html>
+<html lang="nb"><head><meta charset="UTF-8" /><link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 22px; background: var(--bg); display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
+  .box { width: 130px; padding: 16px; border-radius: var(--radius-md); background: var(--card); font-weight: 700; color: var(--text-strong); font-size: 0.85rem; }
+  .tok { font-family: var(--font-mono); font-size: 0.66rem; color: var(--text-muted); display: block; margin-top: 6px; }
+</style></head>
+<body>
+  <div class="box" style="border:var(--border-sticker);box-shadow:var(--shadow-sticker-sm)">Soft<span class="tok">2px 2px 0</span></div>
+  <div class="box" style="border:var(--border-sticker);box-shadow:var(--shadow-sticker)">Base<span class="tok">4px 4px 0</span></div>
+  <div class="box" style="border:var(--border-sticker);box-shadow:var(--shadow-sticker-lg)">Large<span class="tok">6px 6px 0</span></div>
+  <div class="box sticker" style="background:var(--accent);color:var(--accent-foreground)">Hover / trykk meg<span class="tok" style="color:rgba(15,26,46,0.6)">.sticker</span></div>
+</body></html>

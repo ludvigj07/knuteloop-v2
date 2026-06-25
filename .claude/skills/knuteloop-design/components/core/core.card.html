@@ -1,0 +1,86 @@
+<!-- @dsCard group="Components" viewport="700x560" name="Core primitives" subtitle="Button · Chip · StickerCard · Avatar · StatTile · ProgressBar" -->
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; padding: 24px; background: var(--bg); }
+  .grp { margin-bottom: 22px; }
+  .lbl { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+  const { Button, Chip, StickerCard, Avatar, StatTile, ProgressBar, KnoteIcon } = window.KnuteloopDesignSystem_89dd9e;
+
+  function Demo() {
+    return (
+      <div>
+        <div className="grp">
+          <div className="lbl">Button</div>
+          <div className="row">
+            <Button variant="accent" size="lg">Send inn knute</Button>
+            <Button variant="primary">Logg inn</Button>
+            <Button variant="secondary" iconLeft={<KnoteIcon name="knute" size={18} />}>Se knuter</Button>
+            <Button variant="ghost">Avbryt</Button>
+            <Button variant="destructive" size="sm">Slett</Button>
+            <Button variant="primary" loading>Laster</Button>
+          </div>
+        </div>
+
+        <div className="grp">
+          <div className="lbl">Chip</div>
+          <div className="row">
+            <Chip tone="primary" icon={<KnoteIcon name="alkohol" size={13} />}>Alkohol</Chip>
+            <Chip tone="accent">25 poeng</Chip>
+            <Chip tone="success">Godkjent</Chip>
+            <Chip tone="warning">Venter</Chip>
+            <Chip tone="danger">Avvist</Chip>
+            <Chip tone="neutral" outline>Tilgjengelig</Chip>
+          </div>
+        </div>
+
+        <div className="grp">
+          <div className="lbl">StatTile</div>
+          <div className="row">
+            <StatTile value="285" label="Poeng" tone="primary" />
+            <StatTile value="7" label="Streak" tone="accent" />
+            <StatTile value="#3" label="Toppliste" />
+            <StatTile value="15" label="Knuter" tone="soft" />
+          </div>
+        </div>
+
+        <div className="grp">
+          <div className="lbl">Avatar</div>
+          <div className="row">
+            <Avatar name="Sofie Sprint" ring="red" size={52} />
+            <Avatar name="Emil Baka" ring="blue" size={52} />
+            <Avatar name="Nora Neon" ring="accent" size={52} />
+            <Avatar name="Jonas Turbo" square size={52} />
+          </div>
+        </div>
+
+        <div className="grp">
+          <div className="lbl">StickerCard &amp; ProgressBar</div>
+          <div className="row" style={{ alignItems: 'stretch' }}>
+            <StickerCard interactive as="button" style={{ minWidth: 180 }}>Trykkbart kort →</StickerCard>
+            <StickerCard tone="soft" style={{ minWidth: 220, display: 'flex', flexDirection: 'column', gap: 10, justifyContent: 'center' }}>
+              <ProgressBar value={8} max={15} tone="accent" showLabel label="Knutesamler" />
+            </StickerCard>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script>
+</body>
+</html>

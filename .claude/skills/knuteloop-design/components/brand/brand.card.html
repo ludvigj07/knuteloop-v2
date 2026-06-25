@@ -1,0 +1,51 @@
+<!-- @dsCard group="Components" viewport="700x420" name="Brand — logo & knot icons" subtitle="KnoteLogo lockup + the custom knot / category glyph set" -->
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; padding: 24px; background: var(--bg); }
+  .lbl { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 12px; }
+  .lockups { display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px; }
+  .onnavy { background: var(--russ-navy); padding: 16px 20px; border-radius: var(--radius-lg); width: fit-content; }
+  .glyphs { display: flex; flex-wrap: wrap; gap: 14px; }
+  .glyph { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 96px; padding: 16px 8px; background: var(--card); border: var(--border-sticker); box-shadow: var(--shadow-sticker-sm); border-radius: var(--radius-md); color: var(--primary); }
+  .glyph span { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+  const { KnoteLogo, KnoteIcon } = window.KnuteloopDesignSystem_89dd9e;
+  const NAMES = ['knute', 'generelle', 'dobbel', 'alkohol', 'sex', 'fordervett'];
+
+  function Demo() {
+    return (
+      <div>
+        <p className="lbl">Logo lockups</p>
+        <div className="lockups">
+          <KnoteLogo size={30} />
+          <div className="onnavy"><KnoteLogo size={30} tone="inverse" /></div>
+        </div>
+        <p className="lbl">Custom knot &amp; category glyphs</p>
+        <div className="glyphs">
+          {NAMES.map((n) => (
+            <div className="glyph" key={n}>
+              <KnoteIcon name={n} size={34} />
+              <span>{n}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+/* ============================================================
+   KNUTELOOP — TYPOGRAPHY
+   Display: Bricolage Grotesque (700/800), tight tracking, near-1 leading.
+   Body / UI: Inter (400/500/600).
+   Numerals / codes: JetBrains Mono.
+   Fluid sizes via clamp() — mobile-first, scales up on larger frames.
+   ============================================================ */
+:root {
+  --font-display: 'Bricolage Grotesque', 'Inter', 'Segoe UI', sans-serif;
+  --font-sans: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+
+  /* Fluid type scale */
+  --text-xs: clamp(0.72rem, 2.2vw, 0.78rem);   /* labels, captions */
+  --text-sm: clamp(0.84rem, 2.5vw, 0.9rem);    /* secondary / meta */
+  --text-base: clamp(0.95rem, 3vw, 1rem);      /* body */
+  --text-lg: clamp(1.05rem, 3.7vw, 1.18rem);   /* lead / card title */
+  --text-xl: clamp(1.25rem, 4.4vw, 1.5rem);    /* section heading */
+  --text-2xl: clamp(1.55rem, 5vw, 2.1rem);     /* screen heading */
+  --text-3xl: clamp(2.1rem, 7vw, 3rem);        /* display */
+  --text-4xl: clamp(2.6rem, 9vw, 4rem);        /* hero display */
+
+  /* Weights */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-black: 800;
+
+  /* Leading */
+  --leading-display: 0.98;
+  --leading-tight: 1.15;
+  --leading-normal: 1.5;
+
+  /* Tracking */
+  --tracking-display: -0.03em;
+  --tracking-eyebrow: 0.08em;
+}
