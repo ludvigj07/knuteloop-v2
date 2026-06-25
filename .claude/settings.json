@@ -23,7 +23,15 @@
       "Bash(pnpm drizzle-kit push:*)",
       "Bash(psql *production*)",
       "Bash(npm publish:*)",
-      "Bash(eas submit --profile production:*)"
+      "Bash(eas submit --profile production:*)",
+
+      "PowerShell(git push origin main:*)",
+      "PowerShell(git push --force:*)",
+      "PowerShell(git push -f:*)",
+      "PowerShell(drizzle-kit push:*)",
+      "PowerShell(pnpm drizzle-kit push:*)",
+      "PowerShell(npm publish:*)",
+      "PowerShell(eas submit --profile production:*)"
     ],
     "ask": [
       "Bash(git push:*)",
@@ -32,6 +40,14 @@
       "Bash(eas build:*)",
       "Bash(eas submit:*)",
       "Bash(eas update:*)",
+
+      "PowerShell(git push:*)",
+      "PowerShell(drizzle-kit migrate:*)",
+      "PowerShell(pnpm drizzle-kit migrate:*)",
+      "PowerShell(eas build:*)",
+      "PowerShell(eas submit:*)",
+      "PowerShell(eas update:*)",
+
       "Edit(CLAUDE.md)",
       "Edit(.claude/settings.json)",
       "Edit(.claude/rules/**)",
@@ -81,6 +97,16 @@
             "type": "command",
             "command": ".claude/hooks/pre-bash-validate.sh",
             "$comment": "Catches drizzle-kit push to non-local, raw SQL on prod, etc."
+          }
+        ]
+      },
+      {
+        "matcher": "PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/pre-powershell-validate.sh",
+            "$comment": "Windows shell parity: ports the pre-bash guards to the PowerShell tool (git push main/force, drizzle push, psql prod, recursive force-delete, web exfil to non-allowlisted hosts, .env reads, encoded commands)."
           }
         ]
       }
