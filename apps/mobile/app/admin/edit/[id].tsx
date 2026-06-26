@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react'
-import {
-  View,
-  TextInput,
-  ScrollView,
-  StyleSheet,
-  Alert,
-  Switch,
-  ActivityIndicator,
-} from 'react-native'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Pressable, Text } from '../../../components/primitives'
+import {
+  Pressable,
+  Skeleton,
+  StickerButton,
+  StickerCard,
+  Text,
+  Toast,
+  useToast,
+} from '../../../components/primitives'
 import {
   fetchAllKnuter,
   createKnute,
@@ -19,7 +19,7 @@ import {
   type CreateKnuteInput,
   type UpdateKnuteInput,
 } from '../../../lib/api'
-import { colors, spacing, radius, fontSize, fontWeight } from '../../../lib/theme'
+import { fontSize, sticker, spacing } from '../../../lib/theme'
 
 type Difficulty = 'Lett' | 'Medium' | 'Hard' | 'Valgfri'
 const DIFFICULTIES: Difficulty[] = ['Lett', 'Medium', 'Hard', 'Valgfri']
@@ -29,7 +29,7 @@ export default function EditKnuteScreen() {
   const router = useRouter()
   const qc = useQueryClient()
   const insets = useSafeAreaInsets()
-
+  const toast = useToast()
   const isNew = id === 'new'
 
   const [title, setTitle] = useState('')
@@ -40,12 +40,7 @@ export default function EditKnuteScreen() {
   const [isActive, setIsActive] = useState(true)
   const [loaded, setLoaded] = useState(false)
 
-  // Hydrate edit form from cached /api/knuter?all=1.
-  const list = useQuery({
-    queryKey: ['knuter', 'all'],
-    queryFn: fetchAllKnuter,
-    enabled: !isNew,
-  })
+  const list = useQuery({ queryKey: ['knuter', 'all'], queryFn: fetchAllKnuter, enabled: !isNew })
 
   useEffect(() => {
     if (isNew || loaded) return
@@ -62,7 +57,7 @@ export default function EditKnuteScreen() {
 
   const invalidateAll = () => {
     void qc.invalidateQueries({ queryKey: ['knuter'] })
-    void qc.invalidateQueries({ queryKey: ['knuter', 'all'] })
+    void qc.invalidateQueries({ queryKey: ['folders'] })
   }
 
   const create = useMutation({
@@ -71,7 +66,7 @@ export default function EditKnuteScreen() {
       invalidateAll()
       router.back()
     },
-    onError: (err) => Alert.alert('Kunne ikke lage knuten', (err as Error).message),
+    onError: (err) => toast.show((err as Error).message),
   })
 
   const update = useMutation({
@@ -80,273 +75,229 @@ export default function EditKnuteScreen() {
       invalidateAll()
       router.back()
     },
-    onError: (err) => Alert.alert('Kunne ikke lagre', (err as Error).message),
+    onError: (err) => toast.show((err as Error).message),
   })
 
   const busy = create.isPending || update.isPending
 
-  // Loading for edit before we have the cached data:
+  const screen = (
+    <Stack.Screen
+      options={{
+        title: isNew ? 'Ny knute' : 'Rediger knute',
+        headerStyle: { backgroundColor: sticker.color.paper },
+        headerTintColor: sticker.color.ink,
+        headerShadowVisible: false,
+      }}
+    />
+  )
+
   if (!isNew && !loaded) {
     return (
-      <>
-        <Stack.Screen options={{ title: 'Rediger knute' }} />
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.brand.primary} />
+      <View style={styles.root}>
+        {screen}
+        <View style={styles.form}>
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} style={styles.skeletonField} />
+          ))}
         </View>
-      </>
+      </View>
     )
   }
 
   function handleSubmit() {
     const titleTrim = title.trim()
     if (!titleTrim) {
-      Alert.alert('Tittel mangler', 'Knuten må ha en tittel.')
+      toast.show('Knuten må ha en tittel.')
       return
     }
     const points = Number.parseInt(pointsText, 10)
     if (!Number.isFinite(points) || points < 0 || points > 1000) {
-      Alert.alert('Ugyldig poeng', 'Poeng må være et tall mellom 0 og 1000.')
+      toast.show('Poeng må være et tall mellom 0 og 1000.')
       return
     }
     const descTrim = description.trim()
-
     if (isNew) {
-      create.mutate({
-        title: titleTrim,
-        description: descTrim || undefined,
-        points,
-        difficulty,
-        isGold,
-      })
+      create.mutate({ title: titleTrim, description: descTrim || undefined, points, difficulty, isGold })
     } else {
-      update.mutate({
-        title: titleTrim,
-        description: descTrim || null,
-        points,
-        difficulty,
-        isGold,
-        isActive,
-      })
+      update.mutate({ title: titleTrim, description: descTrim || null, points, difficulty, isGold, isActive })
     }
   }
 
   return (
-    <>
-      <Stack.Screen options={{ title: isNew ? 'Ny knute' : 'Rediger knute' }} />
+    <View style={styles.root}>
+      {screen}
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={{
-          padding: spacing.base,
-          paddingBottom: insets.bottom + spacing.lg,
-        }}
+        contentContainerStyle={[styles.form, { paddingBottom: insets.bottom + spacing.xl }]}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.label}>Tittel</Text>
-        <TextInput
-          style={styles.input}
-          value={title}
-          onChangeText={setTitle}
-          placeholder="F.eks. Spis frokost under pulten"
-          placeholderTextColor={colors.text.muted}
-          maxLength={200}
-          accessibilityLabel="Tittel"
-        />
-
-        <Text style={styles.label}>Beskrivelse (valgfritt)</Text>
-        <TextInput
-          style={[styles.input, styles.inputMulti]}
-          value={description}
-          onChangeText={setDescription}
-          placeholder="Detaljer om hva som teller som godkjent"
-          placeholderTextColor={colors.text.muted}
-          multiline
-          maxLength={2000}
-          accessibilityLabel="Beskrivelse"
-        />
-
-        <Text style={styles.label}>Poeng</Text>
-        <TextInput
-          style={styles.input}
-          value={pointsText}
-          onChangeText={(v) => setPointsText(v.replace(/[^0-9]/g, '').slice(0, 4))}
-          placeholder="10"
-          placeholderTextColor={colors.text.muted}
-          keyboardType="number-pad"
-          accessibilityLabel="Poeng"
-        />
-
-        <Text style={styles.label}>Vanskelighet</Text>
-        <View style={styles.diffRow}>
-          {DIFFICULTIES.map((d) => (
-            <Pressable
-              key={d}
-              style={[styles.diffChip, difficulty === d && styles.diffChipActive]}
-              onPress={() => setDifficulty(d)}
-              accessibilityRole="button"
-              accessibilityLabel={`Velg ${d}`}
-              accessibilityState={{ selected: difficulty === d }}
-            >
-              <Text
-                style={[styles.diffText, difficulty === d && styles.diffTextActive]}
-              >
-                {d}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <View style={styles.toggleRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.toggleLabel}>Gullknute ★</Text>
-            <Text style={styles.muted}>
-              Marker spesielle, tradisjonelle knuter som gull. Vises med gullfarge i appen.
-            </Text>
-          </View>
-          <Switch
-            value={isGold}
-            onValueChange={setIsGold}
-            trackColor={{ true: colors.gold, false: colors.borderStrong }}
-            accessibilityLabel="Gullknute"
+        <Field label="Tittel">
+          <TextInput
+            style={styles.input}
+            value={title}
+            onChangeText={setTitle}
+            placeholder="F.eks. Spis frokost under pulten"
+            placeholderTextColor={sticker.color.textMuted}
+            maxLength={200}
+            accessibilityLabel="Tittel"
           />
-        </View>
+        </Field>
 
-        {!isNew && (
-          <View style={styles.toggleRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.toggleLabel}>Aktiv</Text>
-              <Text style={styles.muted}>
-                Skru av for å arkivere — knuten skjules fra listen, men gamle innsendinger beholder titlen.
-              </Text>
-            </View>
-            <Switch
-              value={isActive}
-              onValueChange={setIsActive}
-              trackColor={{ true: colors.brand.primary, false: colors.borderStrong }}
-              accessibilityLabel="Aktiv"
-            />
+        <Field label="Beskrivelse (valgfritt)">
+          <TextInput
+            style={[styles.input, styles.inputMulti]}
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Detaljer om hva som teller som godkjent"
+            placeholderTextColor={sticker.color.textMuted}
+            multiline
+            maxLength={2000}
+            accessibilityLabel="Beskrivelse"
+          />
+        </Field>
+
+        <Field label="Poeng">
+          <TextInput
+            style={styles.input}
+            value={pointsText}
+            onChangeText={(v) => setPointsText(v.replace(/[^0-9]/g, '').slice(0, 4))}
+            placeholder="10"
+            placeholderTextColor={sticker.color.textMuted}
+            keyboardType="number-pad"
+            accessibilityLabel="Poeng"
+          />
+        </Field>
+
+        <Field label="Vanskelighet">
+          <View style={styles.diffRow}>
+            {DIFFICULTIES.map((d) => {
+              const active = difficulty === d
+              return (
+                <Pressable
+                  key={d}
+                  onPress={() => setDifficulty(d)}
+                  haptic="selection"
+                  accessibilityLabel={`Velg ${d}`}
+                  accessibilityState={{ selected: active }}
+                  style={[styles.diffChip, active ? styles.diffChipActive : styles.diffChipIdle]}
+                >
+                  <Text size="sm" weight="semibold" color={active ? sticker.color.textInverse : sticker.color.text}>
+                    {d}
+                  </Text>
+                </Pressable>
+              )
+            })}
           </View>
-        )}
+        </Field>
 
-        <Pressable
-          style={[styles.saveButton, busy && styles.buttonDisabled]}
-          onPress={handleSubmit}
-          disabled={busy}
-          accessibilityRole="button"
-          accessibilityLabel={isNew ? 'Lag knute' : 'Lagre endringer'}
-        >
-          <Text style={styles.saveText}>
-            {busy ? 'Lagrer…' : isNew ? 'Lag knute' : 'Lagre endringer'}
-          </Text>
-        </Pressable>
+        <ToggleCard
+          label="Gullknute ★"
+          hint="Marker spesielle, tradisjonelle knuter som gull. Vises med gullfarge i appen."
+          value={isGold}
+          onValueChange={setIsGold}
+          trackColor={sticker.color.gold}
+        />
 
-        <Pressable
-          style={styles.cancelButton}
-          onPress={() => router.back()}
-          disabled={busy}
-          accessibilityRole="button"
-          accessibilityLabel="Avbryt"
-        >
-          <Text style={styles.cancelText}>Avbryt</Text>
-        </Pressable>
+        {!isNew ? (
+          <ToggleCard
+            label="Aktiv"
+            hint="Skru av for å arkivere — knuten skjules fra listen, men gamle innsendinger beholder tittelen."
+            value={isActive}
+            onValueChange={setIsActive}
+            trackColor={sticker.color.primary}
+          />
+        ) : null}
+
+        <View style={styles.actions}>
+          <StickerButton
+            label={isNew ? 'Lag knute' : 'Lagre endringer'}
+            variant="accent"
+            fullWidth
+            loading={busy}
+            onPress={handleSubmit}
+          />
+          <StickerButton label="Avbryt" variant="ghost" fullWidth disabled={busy} onPress={() => router.back()} />
+        </View>
       </ScrollView>
-    </>
+      <Toast message={toast.message} bottomOffset={insets.bottom + spacing.lg} />
+    </View>
+  )
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <View style={styles.field}>
+      <Text size="sm" weight="semibold" color={sticker.color.textMuted}>
+        {label}
+      </Text>
+      {children}
+    </View>
+  )
+}
+
+function ToggleCard({
+  label,
+  hint,
+  value,
+  onValueChange,
+  trackColor,
+}: {
+  label: string
+  hint: string
+  value: boolean
+  onValueChange: (v: boolean) => void
+  trackColor: string
+}) {
+  return (
+    <StickerCard tone="surface" radius="md" shadow="sm" padding="md" style={styles.toggleCard}>
+      <View style={styles.toggleRow}>
+        <View style={styles.toggleText}>
+          <Text weight="semibold" size="base" color={sticker.color.ink}>
+            {label}
+          </Text>
+          <Text size="xs" color={sticker.color.textMuted}>
+            {hint}
+          </Text>
+        </View>
+        <Switch
+          value={value}
+          onValueChange={onValueChange}
+          trackColor={{ true: trackColor, false: sticker.color.line }}
+          thumbColor={sticker.color.card}
+          accessibilityLabel={label}
+        />
+      </View>
+    </StickerCard>
   )
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: colors.background },
-  label: {
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
-    fontWeight: fontWeight.medium,
-    marginBottom: spacing.xs,
-    marginTop: spacing.base,
-  },
+  root: { flex: 1, backgroundColor: sticker.color.paper },
+  form: { padding: spacing.base, gap: spacing.base },
+  field: { gap: spacing.xs },
   input: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.base,
+    backgroundColor: sticker.color.card,
+    borderWidth: sticker.borderWidth,
+    borderColor: sticker.color.ink,
+    borderRadius: sticker.radius.md,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md,
     fontSize: fontSize.base,
-    color: colors.text.primary,
+    fontFamily: 'Inter_400Regular',
+    color: sticker.color.text,
   },
-  inputMulti: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  diffRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    flexWrap: 'wrap',
-  },
+  inputMulti: { minHeight: 100, textAlignVertical: 'top' },
+  diffRow: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
   diffChip: {
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.sm,
-    borderRadius: radius.full,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: sticker.radius.full,
+    borderWidth: sticker.borderWidth,
   },
-  diffChipActive: {
-    backgroundColor: colors.brand.primary,
-    borderColor: colors.brand.primary,
-  },
-  diffText: {
-    fontSize: fontSize.sm,
-    color: colors.text.primary,
-    fontWeight: fontWeight.medium,
-  },
-  diffTextActive: {
-    color: colors.text.inverse,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    padding: spacing.base,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginTop: spacing.lg,
-    gap: spacing.base,
-  },
-  toggleLabel: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
-    color: colors.text.primary,
-  },
-  muted: {
-    fontSize: fontSize.xs,
-    color: colors.text.muted,
-    marginTop: 2,
-  },
-  saveButton: {
-    backgroundColor: colors.brand.primary,
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    marginTop: spacing.lg,
-  },
-  saveText: {
-    color: colors.text.inverse,
-    fontWeight: fontWeight.semibold,
-    fontSize: fontSize.base,
-  },
-  cancelButton: {
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    marginTop: spacing.xs,
-  },
-  cancelText: {
-    color: colors.text.secondary,
-    fontSize: fontSize.base,
-  },
-  buttonDisabled: { opacity: 0.5 },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.lg,
-  },
+  diffChipIdle: { backgroundColor: sticker.color.card, borderColor: sticker.color.ink },
+  diffChipActive: { backgroundColor: sticker.color.ink, borderColor: sticker.color.ink },
+  toggleCard: { marginTop: spacing.xs },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.base },
+  toggleText: { flex: 1, gap: spacing['2xs'] },
+  actions: { marginTop: spacing.lg, gap: spacing.sm },
+  skeletonField: { height: 64, borderRadius: sticker.radius.md, marginBottom: spacing.base },
 })
