@@ -406,4 +406,37 @@ export function importLibraryPack(packId: string): Promise<ImportPackResponse> {
   return apiFetch<ImportPackResponse>(`/api/library/packs/${packId}/import`, { method: 'POST' })
 }
 
+// ── Knutemapper (folders) — the school's own organization of its knuter (ADR-0014).
+
+export type Folder = { id: string; name: string; sortOrder: number; knuteCount: number }
+export type FoldersResponse = { folders: Folder[] }
+
+export function fetchFolders(): Promise<FoldersResponse> {
+  return apiFetch<FoldersResponse>('/api/folders')
+}
+
+export type CreatedFolder = { folder: { id: string; name: string; sortOrder: number } }
+
+export function createFolder(name: string): Promise<CreatedFolder> {
+  return apiFetch<CreatedFolder>('/api/folders', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  })
+}
+
+export function deleteFolder(id: string): Promise<{ deleted: string }> {
+  return apiFetch<{ deleted: string }>(`/api/folders/${id}`, { method: 'DELETE' })
+}
+
+export function removeKnuteFromFolder(folderId: string, knuteId: string): Promise<{ removed: string }> {
+  return apiFetch<{ removed: string }>(`/api/folders/${folderId}/knuter/${knuteId}`, {
+    method: 'DELETE',
+  })
+}
+
+// Knuter in a single folder (knutesjef view — all=1 includes inactive).
+export function fetchKnuterByFolder(folderId: string): Promise<KnuterResponse> {
+  return apiFetch<KnuterResponse>(`/api/knuter?all=1&folderId=${encodeURIComponent(folderId)}`)
+}
+
 export { ApiError }
