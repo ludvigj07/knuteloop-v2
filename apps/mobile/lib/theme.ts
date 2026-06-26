@@ -136,6 +136,7 @@ export const fontSize = {
   xl: 22,
   '2xl': 28,
   '3xl': 36,
+  '4xl': 44,
 } as const
 
 export const size = {
@@ -212,3 +213,103 @@ export const animation = {
   },
   pressScale: 0.96,
 } as const
+
+// ============================================================
+// Font families — the three Google Fonts loaded in app/_layout.tsx.
+// Custom fonts in RN are single-weight files, so the weight is baked into the
+// family name (NEVER pair these with `fontWeight` — that causes faux-bold on
+// Android). The Text primitive resolves (font, weight) -> the right family here.
+// Keys MUST match the registered names in useFonts (the @expo-google-fonts ids).
+// ============================================================
+export const fontFamily = {
+  // Inter — body + UI. Near-identical to the system sans, so making it the app
+  // default is a safe, on-brand upgrade from the previous system font.
+  sans: {
+    regular: 'Inter_400Regular',
+    medium: 'Inter_500Medium',
+    semibold: 'Inter_600SemiBold',
+    bold: 'Inter_700Bold',
+  },
+  // Bricolage Grotesque — display / headings. Big, condensed personality.
+  display: {
+    regular: 'BricolageGrotesque_700Bold',
+    medium: 'BricolageGrotesque_700Bold',
+    semibold: 'BricolageGrotesque_700Bold',
+    bold: 'BricolageGrotesque_800ExtraBold',
+  },
+  // JetBrains Mono — numerals (points, ranks, counts, times).
+  mono: {
+    regular: 'JetBrainsMono_400Regular',
+    medium: 'JetBrainsMono_500Medium',
+    semibold: 'JetBrainsMono_500Medium',
+    bold: 'JetBrainsMono_700Bold',
+  },
+} as const
+
+export type FontFamilyToken = keyof typeof fontFamily
+
+// ============================================================
+// STICKER design system (the live v1 "sticker" identity, ported to RN).
+// Warm cream paper, royal-blue primary, golden-yellow accent, deep-navy ink,
+// 2px ink borders + hard offset shadows. Source of truth: the /knuteloop-design
+// skill tokens. Kept as its own namespace so it layers on top of the existing
+// tokens without changing any screen that hasn't opted in.
+//
+// HSL values from the design tokens, resolved to hex; color-mix tints precomputed.
+// ============================================================
+export const sticker = {
+  color: {
+    paper: '#FBF8EF', // background — warm cream (hsl 48 60% 96%)
+    ink: '#0F1A2E', // foreground — deep navy (borders + text)
+    card: '#FFFFFF',
+    surfaceSoft: '#F3EFE2', // secondary — warm off-white panels
+    surfaceMedia: '#F3F0E8', // muted — photo/placeholder wells
+
+    primary: '#12327D', // royal blue (hsl 222 75% 28%)
+    primaryStrong: '#112D6D',
+    primarySoft: 'rgba(18, 50, 125, 0.14)',
+    primaryBg: '#E7EAF2', // pale blue tint behind glyph tiles
+
+    accent: '#FFCD29', // golden yellow (hsl 46 100% 58%)
+    accentBg: '#FFF7DD', // pale amber tint (sensitive folder tiles)
+    accentStrong: '#7B6A2C', // readable text/icon on amber tints
+
+    line: 'rgba(27, 33, 45, 0.16)', // hairline dividers
+    lineStrong: '#1B212D',
+
+    text: '#0F1A2E',
+    textSoft: '#112D6C',
+    textMuted: '#576175',
+    textInverse: '#FBF8EF', // text on primary/ink surfaces
+
+    success: '#2F9E63',
+    successBg: 'rgba(47, 158, 99, 0.14)',
+    warning: '#E6A417',
+    warningBg: 'rgba(230, 164, 23, 0.16)',
+    danger: '#D6483F',
+    dangerStrong: '#B53A32',
+    dangerBg: 'rgba(214, 72, 63, 0.12)',
+
+    gold: '#D6A429', // gullknute star / accents
+  },
+  // Generous, friendly radii (much rounder than the legacy `radius` scale).
+  radius: {
+    sm: 14, // chips, inputs
+    md: 18, // buttons, rows
+    lg: 22, // cards
+    xl: 26, // hero panels, sheets
+    full: 999,
+  },
+  borderWidth: 2,
+  // The hard offset shadow distance, by size. Rendered as a solid ink backing
+  // View (StickerCard) so it works identically on iOS and Android.
+  shadowOffset: {
+    sm: 2,
+    base: 4,
+    lg: 6,
+  },
+  tap: { size: 52, min: 44 },
+  icon: { sm: 18, md: 22, lg: 28 },
+} as const
+
+export type StickerTone = 'surface' | 'soft' | 'media' | 'primary' | 'accent'

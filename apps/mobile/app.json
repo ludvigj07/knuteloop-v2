@@ -26,7 +26,8 @@
           "cameraPermission": "Knuteloop trenger tilgang til kameraet for å ta bilde av en fullført knute.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
