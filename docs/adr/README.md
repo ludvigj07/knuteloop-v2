@@ -89,3 +89,4 @@ What we are choosing. Be specific — name versions, libraries, vendors.
 | [0014](./0014-knute-library-and-folders.md) | Knute library + per-school folders + evidence type | Accepted | 2026-06-14 |
 | [0015](./0015-age-verification-and-content-gating.md) | Age verification (Vipps) + per-knute age gating | Accepted | 2026-06-14 |
 | [0016](./0016-vipps-and-apple-auth.md) | Vipps Login + Sign in with Apple auth (supersedes 0006) | Proposed | 2026-06-19 |
+| [0017](./0017-sticker-design-system.md) | "Sticker" design system (supersedes frontend.md §3 token proposal) | Accepted | 2026-06-27 |
