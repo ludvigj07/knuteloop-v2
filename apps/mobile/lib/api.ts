@@ -99,10 +99,21 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!res.ok) {
-    throw new ApiError(
-      res.status,
-      `API svarte ${res.status} ${res.statusText}.${res.status === 401 ? ' Token utløpt? Re-kjør dev:token.' : ''}`,
-    )
+    // The API formats domain errors as { error: { message, requestId? } } (and
+    // 400s as { error: { message, issues } }). Surface that Norwegian message —
+    // e.g. "Knuten er allerede importert" — instead of a generic status string.
+    let serverMessage: string | undefined
+    try {
+      const body = (await res.json()) as { error?: { message?: unknown } }
+      if (typeof body?.error?.message === 'string' && body.error.message.length > 0) {
+        serverMessage = body.error.message
+      }
+    } catch {
+      // Body wasn't JSON (proxy error, empty body) — fall back to the generic message.
+    }
+    const fallback = `API svarte ${res.status} ${res.statusText}.`
+    const devHint = res.status === 401 ? ' Token utløpt? Re-kjør dev:token.' : ''
+    throw new ApiError(res.status, (serverMessage ?? fallback) + devHint)
   }
 
   return res.json() as Promise<T>
