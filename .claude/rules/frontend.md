@@ -94,8 +94,18 @@ apps/mobile/
 
 ## 3. Design tokens — the only file with raw values
 
+> **Source of truth = `apps/mobile/lib/theme.ts` + the `/knuteloop-design` skill (ADR-0017).**
+> Knuteloop uses the warm neo-brutalist **"sticker"** identity: cream paper, **royal-blue**
+> primary, **golden-yellow** accent, deep-navy ink; **Bricolage Grotesque** display / **Inter**
+> body / **JetBrains Mono** numerals; a 2px ink border + a **hard offset shadow** as the
+> signature. Russ-red is reserved for the **app icon / splash only**, not general UI.
+> These live in the **`sticker` namespace** of `theme.ts` (+ the `fontFamily` map, loaded via
+> `expo-font` in `app/_layout.tsx`). The block below is the older base layer, kept for the
+> pre-sticker screens (feed / leaderboard / profile) until they migrate. Never hardcode raw
+> values — always import from `theme.ts`.
+
 ```ts
-// apps/mobile/lib/theme.ts
+// apps/mobile/lib/theme.ts (excerpt — see the file + the `sticker` namespace for the full set)
 export const colors = {
   // Brand
   brand: {
@@ -143,10 +153,12 @@ export const radius = {
 } as const
 
 export const typography = {
-  // Use Inter for body, custom display for brand moments
+  // Body = Inter, display = Bricolage Grotesque, numerals = JetBrains Mono.
+  // (In the real theme these are the `fontFamily` map — single-weight family names
+  //  like 'Inter_400Regular' / 'BricolageGrotesque_800ExtraBold'.)
   fontFamily: {
     sans: 'Inter',
-    display: 'InstrumentSerif',  // For headlines, leaderboard rank, badge titles
+    display: 'BricolageGrotesque',
     mono: 'JetBrainsMono',
   },
   size: {
@@ -212,7 +224,7 @@ export const shadows = {
 - Default body line-height is `1.5` (loose for prose, tight for UI labels).
 - Default font weight for body is `regular` (400), but headings step up to `semibold` (600) — bold (700) is reserved for emphasis only.
 - Font scale respects iOS Dynamic Type / Android font scale by default. Test at 1.3× scale before shipping any screen.
-- Avoid all-caps headings (harder to read). Use `font-display` (Instrument Serif) for visual hierarchy instead.
+- Avoid all-caps (harder to read) — the single exception is the one golden `accent` hero CTA per screen. Use the display font (**Bricolage Grotesque**, via `<Text font="display">`) for visual hierarchy instead.
 
 ---
 
@@ -280,6 +292,12 @@ type ButtonProps = {
   accessibilityHint?: string
 }
 ```
+
+**Sticker design-system primitives** (ADR-0017), all exported from `components/primitives`:
+- `StickerCard` — the signature surface (2px ink border + cross-platform hard offset shadow; optional `onPress` presses it flat). `tone`: surface/soft/media/primary/accent/danger.
+- `StickerButton` — sticker-styled button (`variant`: primary/accent/secondary/destructive/ghost). The flat `Button` stays for pre-sticker screens.
+- `Chip` (points/difficulty/folder pills), `Badge` (18+/Tekst tags), `StatTile` (stat cards), `Eyebrow` (kicker), `Toast`/`useToast` (transient feedback — replaces `Alert.alert` for non-destructive messages), `KnoteIcon` (custom knot/category glyphs).
+- `Text` gained a `font` prop: `'sans' | 'display' | 'mono'`.
 
 Every primitive must:
 - Accept design tokens, never raw values
