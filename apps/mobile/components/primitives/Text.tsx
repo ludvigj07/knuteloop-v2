@@ -1,8 +1,14 @@
 import { Text as RNText, type TextProps as RNTextProps, type TextStyle } from 'react-native'
-import { colors, fontSize, fontWeight } from '../../lib/theme'
+import {
+  colors,
+  fontFamily,
+  fontSize,
+  fontWeight,
+  type FontFamilyToken,
+} from '../../lib/theme'
 
 // Design-system Text. NEVER use raw react-native Text in screens — use this so
-// size/weight/colour all flow from theme tokens (frontend.md §4).
+// size/weight/colour/family all flow from theme tokens (frontend.md §4).
 
 type ColorToken =
   | 'primary'
@@ -30,6 +36,8 @@ const COLOR: Record<ColorToken, string> = {
 export type TextProps = RNTextProps & {
   size?: keyof typeof fontSize
   weight?: keyof typeof fontWeight
+  /** Font family: 'sans' (Inter, default), 'display' (Bricolage), 'mono' (JetBrains). */
+  font?: FontFamilyToken
   /** A theme colour token, or a raw colour string for one-off cases. */
   color?: ColorToken | string
   align?: TextStyle['textAlign']
@@ -38,18 +46,22 @@ export type TextProps = RNTextProps & {
 export function Text({
   size = 'base',
   weight = 'regular',
+  font = 'sans',
   color = 'primary',
   align,
   style,
   ...rest
 }: TextProps) {
   const resolvedColor = color in COLOR ? COLOR[color as ColorToken] : color
+  // The weight is baked into the family name (single-weight font files), so we
+  // set fontFamily and deliberately omit fontWeight — pairing both causes
+  // faux-bold on Android.
   return (
     <RNText
       style={[
         {
+          fontFamily: fontFamily[font][weight],
           fontSize: fontSize[size],
-          fontWeight: fontWeight[weight],
           color: resolvedColor,
           textAlign: align,
         },
