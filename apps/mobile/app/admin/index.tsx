@@ -1,12 +1,26 @@
-import { View, ScrollView, StyleSheet, RefreshControl, ActivityIndicator } from 'react-native'
+import { View, StyleSheet, RefreshControl } from 'react-native'
+import { FlashList } from '@shopify/flash-list'
 import { useQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useRouter } from 'expo-router'
+import { ChevronRight, Inbox, LibraryBig, SquarePen } from 'lucide-react-native'
 import { AppTabBar } from '../../components/AppTabBar'
-import { Pressable, Text } from '../../components/primitives'
+import {
+  Badge,
+  Chip,
+  Eyebrow,
+  KnoteIcon,
+  Pressable,
+  Skeleton,
+  StickerButton,
+  StickerCard,
+  Text,
+} from '../../components/primitives'
+import { GlyphTile } from '../../components/knute/GlyphTile'
 import { ApiError, fetchAllKnuter, tryFetchPendingCount, type Knute } from '../../lib/api'
 import { formatNumber } from '../../lib/format'
-import { borderWidth, colors, fontSize, fontWeight, radius, size, spacing } from '../../lib/theme'
+import { difficultyTone } from '../../lib/knute-ui'
+import { size, sticker, spacing } from '../../lib/theme'
 
 export default function KnutesjefPanel() {
   const insets = useSafeAreaInsets()
@@ -21,155 +35,192 @@ export default function KnutesjefPanel() {
     staleTime: 10_000,
   })
 
+  const topPad = insets.top + spacing.base
+  const bottomPad = insets.bottom + size.bottomNavMinHeight + spacing.xl
+
   if (isLoading) {
     return (
-      <>
-        <Stack.Screen options={{ title: 'Knutesjef' }} />
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.brand.primary} />
+      <Screen>
+        <View style={{ paddingTop: topPad }}>
+          <View style={styles.gutter}>
+            <Skeleton style={{ width: size.skeletonTitleWidth, height: size.skeletonTitleHeight }} />
+          </View>
+          <View style={[styles.gutter, styles.skeletonList]}>
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} style={styles.skeletonRow} />
+            ))}
+          </View>
         </View>
-      </>
+      </Screen>
     )
   }
 
   if (error) {
     const isForbidden = error instanceof ApiError && error.status === 403
     return (
-      <>
-        <Stack.Screen options={{ title: 'Knutesjef' }} />
-        <View style={styles.center}>
-          <Text style={styles.errorTitle}>
-            {isForbidden ? 'Du må være knutesjef' : 'Kunne ikke laste knutene'}
-          </Text>
-          <Text style={styles.muted}>
-            {isForbidden ? 'Denne siden er kun for knutesjefer.' : (error as Error).message}
-          </Text>
-          {!isForbidden && (
-            <Pressable
-              style={styles.retryButton}
-              onPress={() => void refetch()}
-              accessibilityRole="button"
-              accessibilityLabel="Prøv igjen"
-            >
-              <Text style={styles.retryText}>Prøv igjen</Text>
-            </Pressable>
-          )}
+      <Screen>
+        <View style={[styles.center, { paddingTop: topPad }]}>
+          <StickerCard tone="surface" style={styles.errorCard}>
+            <Text font="display" weight="bold" size="lg" color={sticker.color.ink}>
+              {isForbidden ? 'Du må være knutesjef' : 'Kunne ikke laste knutene'}
+            </Text>
+            <Text color={sticker.color.textMuted}>
+              {isForbidden ? 'Denne siden er kun for knutesjefer.' : (error as Error).message}
+            </Text>
+            {!isForbidden ? (
+              <StickerButton label="Prøv igjen" variant="secondary" size="sm" onPress={() => void refetch()} />
+            ) : null}
+          </StickerCard>
         </View>
-      </>
+      </Screen>
     )
   }
 
   const allKnuter = data?.knuter ?? []
   const active = allKnuter.filter((k) => k.isActive)
   const inactive = allKnuter.filter((k) => !k.isActive)
+  const pending = pendingCount.data ?? 0
   const pendingLabel =
-    pendingCount.data === 1
-      ? '1 innsending venter'
-      : `${formatNumber(pendingCount.data ?? spacing.none)} innsendinger venter`
-  const bottomPadding = insets.bottom + size.bottomNavMinHeight + spacing.xl
+    pending === 1 ? '1 innsending venter' : `${formatNumber(pending)} innsendinger venter`
+
+  const header = (
+    <View style={{ paddingTop: topPad }}>
+      <View style={styles.headerBlock}>
+        <Eyebrow>Knutesjef</Eyebrow>
+        <Text font="display" weight="bold" size="3xl" color={sticker.color.ink}>
+          Verktøy
+        </Text>
+        <Text color={sticker.color.textMuted}>Innsendinger, knuter og verktøy for skolen.</Text>
+      </View>
+
+      <StickerCard padding="none" radius="lg" style={styles.gutter}>
+        <ToolRow
+          icon={<Inbox size={sticker.icon.sm} color={sticker.color.primary} strokeWidth={2} />}
+          tone="primary"
+          title="Innsendinger"
+          meta={pendingLabel}
+          highlight={pending > 0}
+          onPress={() => router.push('/review')}
+        />
+        <ToolRow
+          icon={<SquarePen size={sticker.icon.sm} color={sticker.color.accentStrong} strokeWidth={2} />}
+          tone="accent"
+          title="Ny knute"
+          meta="Legg til et nytt oppdrag for skolen."
+          onPress={() => router.push('/admin/edit/new')}
+        />
+        <ToolRow
+          icon={<LibraryBig size={sticker.icon.sm} color={sticker.color.primary} strokeWidth={2} />}
+          tone="primary"
+          title="Bibliotek"
+          meta="Importer ferdige knuter — hele pakker i ett trykk."
+          onPress={() => router.push('/admin/bibliotek')}
+          last
+        />
+      </StickerCard>
+
+      <View style={styles.sectionHead}>
+        <Text font="display" weight="bold" size="xl" color={sticker.color.ink}>
+          Skolens knuter
+        </Text>
+        <Text size="sm" color={sticker.color.textMuted}>
+          {formatNumber(active.length)} aktive · {formatNumber(inactive.length)} arkivert
+        </Text>
+      </View>
+    </View>
+  )
+
+  const footer =
+    inactive.length > 0 ? (
+      <View>
+        <Text size="sm" weight="semibold" color={sticker.color.textMuted} style={styles.archivedHead}>
+          Arkivert
+        </Text>
+        {inactive.map((k) => (
+          <KnuteRow key={k.id} knute={k} inactive onPress={() => router.push(`/admin/edit/${k.id}`)} />
+        ))}
+      </View>
+    ) : null
 
   return (
+    <Screen>
+      <FlashList
+        data={active}
+        keyExtractor={(k) => k.id}
+        estimatedItemSize={84}
+        contentContainerStyle={{ paddingBottom: bottomPad }}
+        ListHeaderComponent={header}
+        ListFooterComponent={footer}
+        ListEmptyComponent={
+          <View style={styles.gutter}>
+            <StickerCard tone="soft" shadow="sm">
+              <Text color={sticker.color.textMuted}>Ingen aktive knuter. Lag en med «Ny knute» over.</Text>
+            </StickerCard>
+          </View>
+        }
+        renderItem={({ item }) => (
+          <KnuteRow knute={item} onPress={() => router.push(`/admin/edit/${item.id}`)} />
+        )}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={() => void refetch()}
+            tintColor={sticker.color.primary}
+          />
+        }
+      />
+      <AppTabBar active="knutesjef" />
+    </Screen>
+  )
+}
+
+function Screen({ children }: { children: React.ReactNode }) {
+  return (
     <>
-      <Stack.Screen options={{ title: 'Knutesjef' }} />
-      <View style={styles.root}>
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={{ paddingBottom: bottomPadding }}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={() => void refetch()}
-              tintColor={colors.brand.primary}
-            />
-          }
-        >
-          <View style={styles.header}>
-            <Text style={styles.heading}>Knutesjef</Text>
-            <Text style={styles.muted}>Innsendinger, knuter og verktøy for skolen.</Text>
-          </View>
-
-          <View style={styles.toolPanel}>
-            <Pressable
-              style={styles.toolRow}
-              onPress={() => router.push('/review')}
-              accessibilityRole="link"
-              accessibilityLabel={pendingLabel}
-              accessibilityHint="Åpner innsendinger som venter på godkjenning."
-            >
-              <View style={styles.toolTextBlock}>
-                <Text style={styles.toolTitle}>Innsendinger</Text>
-                <Text style={styles.toolMeta}>{pendingLabel}</Text>
-              </View>
-              <Text style={styles.toolArrow}>›</Text>
-            </Pressable>
-
-            <Pressable
-              style={styles.toolRow}
-              onPress={() => router.push('/admin/edit/new')}
-              accessibilityRole="link"
-              accessibilityLabel="Lag ny knute"
-              accessibilityHint="Åpner skjema for å lage en ny knute."
-            >
-              <View style={styles.toolTextBlock}>
-                <Text style={styles.toolTitle}>Ny knute</Text>
-                <Text style={styles.toolMeta}>Legg til et nytt oppdrag for skolen.</Text>
-              </View>
-              <Text style={styles.toolArrow}>›</Text>
-            </Pressable>
-
-            <Pressable
-              style={[styles.toolRow, styles.toolRowLast]}
-              onPress={() => router.push('/admin/bibliotek')}
-              accessibilityRole="link"
-              accessibilityLabel="Åpne knutebiblioteket"
-              accessibilityHint="Bla i ferdige knuter og legg dem til skolen."
-            >
-              <View style={styles.toolTextBlock}>
-                <Text style={styles.toolTitle}>Bibliotek</Text>
-                <Text style={styles.toolMeta}>Importer ferdige knuter — hele pakker i ett trykk.</Text>
-              </View>
-              <Text style={styles.toolArrow}>›</Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.header}>
-            <Text style={styles.subHeading}>Skolens knuter</Text>
-            <Text style={styles.muted}>
-              {formatNumber(active.length)} aktive · {formatNumber(inactive.length)} arkivert
-            </Text>
-          </View>
-
-          {active.length === spacing.none ? (
-            <View style={styles.center}>
-              <Text style={styles.muted}>Ingen aktive knuter. Lag en med knappen over.</Text>
-            </View>
-          ) : (
-            active.map((knute) => (
-              <KnuteRow
-                key={knute.id}
-                knute={knute}
-                onPress={() => router.push(`/admin/edit/${knute.id}`)}
-              />
-            ))
-          )}
-
-          {inactive.length > spacing.none && (
-            <>
-              <Text style={styles.sectionHeading}>Arkivert</Text>
-              {inactive.map((knute) => (
-                <KnuteRow
-                  key={knute.id}
-                  knute={knute}
-                  inactive
-                  onPress={() => router.push(`/admin/edit/${knute.id}`)}
-                />
-              ))}
-            </>
-          )}
-        </ScrollView>
-        <AppTabBar active="knutesjef" />
-      </View>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={styles.root}>{children}</View>
     </>
+  )
+}
+
+function ToolRow({
+  icon,
+  tone,
+  title,
+  meta,
+  onPress,
+  highlight,
+  last,
+}: {
+  icon: React.ReactNode
+  tone: 'primary' | 'accent'
+  title: string
+  meta: string
+  onPress: () => void
+  highlight?: boolean
+  last?: boolean
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      haptic="light"
+      accessibilityRole="link"
+      accessibilityLabel={`${title}. ${meta}`}
+      style={[styles.toolRow, last ? null : styles.toolRowBorder]}
+    >
+      <GlyphTile size={40} tone={tone}>
+        {icon}
+      </GlyphTile>
+      <View style={styles.toolText}>
+        <Text font="display" weight="bold" size="base" color={sticker.color.ink}>
+          {title}
+        </Text>
+        <Text size="sm" color={highlight ? sticker.color.primary : sticker.color.textMuted}>
+          {meta}
+        </Text>
+      </View>
+      <ChevronRight size={sticker.icon.md} color={sticker.color.textMuted} strokeWidth={2} />
+    </Pressable>
   )
 }
 
@@ -183,200 +234,69 @@ function KnuteRow({
   onPress: () => void
 }) {
   return (
-    <Pressable
-      style={[styles.row, inactive && styles.rowInactive]}
+    <StickerCard
       onPress={onPress}
-      accessibilityRole="link"
+      radius="md"
+      shadow="sm"
+      padding="md"
+      style={[styles.knuteRow, inactive ? styles.dim : null]}
       accessibilityLabel={`Rediger ${knute.isGold ? 'gullknute ' : ''}${knute.title}, ${formatNumber(knute.points)} poeng, ${knute.difficulty}${inactive ? ', arkivert' : ''}`}
     >
-      <View style={styles.rowTextBlock}>
-        <Text style={[styles.rowTitle, inactive && styles.rowTextDim]} numberOfLines={2}>
-          {knute.isGold ? <Text style={styles.goldStar}>★ </Text> : null}
-          {knute.title}
-        </Text>
-        <View style={styles.rowMeta}>
-          <View
-            style={[
-              styles.pointsBadge,
-              knute.isGold && styles.pointsBadgeGold,
-              inactive && styles.pointsBadgeDim,
-            ]}
-          >
-            <Text style={styles.pointsText}>{formatNumber(knute.points)} p</Text>
+      <View style={styles.knuteRowInner}>
+        <GlyphTile size={44} tone={knute.isGold ? 'accent' : 'primary'}>
+          <KnoteIcon name="knute" size={24} color={knute.isGold ? sticker.color.gold : sticker.color.primary} />
+        </GlyphTile>
+        <View style={styles.knuteText}>
+          <Text weight="semibold" size="base" color={sticker.color.ink} numberOfLines={2}>
+            {knute.isGold ? <Text color={sticker.color.gold}>★ </Text> : null}
+            {knute.title}
+          </Text>
+          <View style={styles.knuteMeta}>
+            <Chip label={`${formatNumber(knute.points)} P`} tone="accent" mono />
+            <Chip label={knute.difficulty} tone={difficultyTone(knute.difficulty)} />
+            {inactive ? <Badge label="Arkivert" /> : null}
           </View>
-          <Text style={[styles.difficulty, inactive && styles.rowTextDim]}>{knute.difficulty}</Text>
         </View>
+        <ChevronRight size={sticker.icon.md} color={sticker.color.textMuted} strokeWidth={2} />
       </View>
-      <Text style={[styles.editArrow, inactive && styles.rowTextDim]}>›</Text>
-    </Pressable>
+    </StickerCard>
   )
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  scroll: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    paddingHorizontal: spacing.base,
-    paddingTop: spacing.base,
-    paddingBottom: spacing.sm,
-  },
-  heading: {
-    color: colors.text.primary,
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-    marginBottom: spacing.xs,
-  },
-  subHeading: {
-    color: colors.text.primary,
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    marginBottom: spacing.xs,
-  },
-  toolPanel: {
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-    borderWidth: borderWidth.medium,
-    borderColor: colors.borderInk,
-    borderRadius: radius.lg,
-    marginHorizontal: spacing.base,
-    marginBottom: spacing.base,
-  },
+  root: { flex: 1, backgroundColor: sticker.color.paper },
+  gutter: { paddingHorizontal: spacing.base },
+  headerBlock: { paddingHorizontal: spacing.base, paddingBottom: spacing.base, gap: spacing['2xs'] },
+  skeletonList: { marginTop: spacing.base, gap: spacing.sm },
+  skeletonRow: { height: size.controlHeightLg, borderRadius: sticker.radius.md },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.base },
+  errorCard: { gap: spacing.sm, alignItems: 'flex-start' },
   toolRow: {
-    minHeight: size.bottomNavMinHeight,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
+    gap: spacing.md,
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.md,
-    borderBottomWidth: borderWidth.thin,
-    borderBottomColor: colors.border,
+    minHeight: sticker.tap.size,
   },
-  toolRowLast: {
-    borderBottomWidth: borderWidth.none,
-  },
-  toolTextBlock: {
-    flex: 1,
+  toolRowBorder: { borderBottomWidth: 1, borderBottomColor: sticker.color.line },
+  toolText: { flex: 1, gap: spacing['2xs'] },
+  sectionHead: {
+    paddingHorizontal: spacing.base,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
     gap: spacing['2xs'],
   },
-  toolTitle: {
-    color: colors.ink,
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.bold,
-  },
-  toolMeta: {
-    color: colors.text.secondary,
-    fontSize: fontSize.sm,
-  },
-  toolArrow: {
-    color: colors.ink,
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-  },
-  sectionHeading: {
-    color: colors.text.muted,
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
-    marginHorizontal: spacing.base,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
+  archivedHead: {
     paddingHorizontal: spacing.base,
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    marginHorizontal: spacing.base,
-    marginBottom: spacing.sm,
-    borderWidth: borderWidth.thin,
-    borderColor: colors.border,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  rowInactive: {
-    backgroundColor: colors.background,
-    borderStyle: 'dashed',
-  },
-  rowTextBlock: {
-    flex: 1,
-  },
-  rowTitle: {
-    color: colors.text.primary,
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.medium,
-    marginBottom: spacing.xs,
-  },
-  rowTextDim: {
-    color: colors.text.muted,
-  },
-  rowMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  pointsBadge: {
-    backgroundColor: colors.brand.primary,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing['2xs'],
-    borderRadius: radius.sm,
-  },
-  pointsBadgeGold: {
-    backgroundColor: colors.gold,
-  },
-  pointsBadgeDim: {
-    backgroundColor: colors.text.muted,
-  },
-  goldStar: {
-    color: colors.gold,
-  },
-  pointsText: {
-    color: colors.text.inverse,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-  },
-  difficulty: {
-    color: colors.text.secondary,
-    fontSize: fontSize.sm,
-  },
-  editArrow: {
-    color: colors.text.muted,
-    fontSize: fontSize.xl,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.lg,
-    minHeight: size.emptyMinHeight,
-  },
-  errorTitle: {
-    color: colors.error,
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-    marginBottom: spacing.sm,
-  },
-  muted: {
-    color: colors.text.muted,
-    fontSize: fontSize.sm,
-    marginTop: spacing['2xs'],
-  },
-  retryButton: {
-    marginTop: spacing.base,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.brand.primary,
-    borderRadius: radius.md,
-  },
-  retryText: {
-    color: colors.text.inverse,
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
-  },
+  knuteRow: { marginHorizontal: spacing.base, marginBottom: spacing.sm },
+  dim: { opacity: 0.6 },
+  knuteRowInner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  knuteText: { flex: 1, gap: spacing.xs },
+  knuteMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' },
 })
