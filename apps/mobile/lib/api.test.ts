@@ -1,4 +1,4 @@
-import { fetchKnuter } from './api'
+import { fetchKnuter, fetchLibraryKnuter } from './api'
 
 // getActiveToken must return a token so apiFetch reaches the fetch call.
 jest.mock('./auth', () => ({ getActiveToken: () => 'test-token' }))
@@ -43,5 +43,30 @@ describe('apiFetch error handling', () => {
     }) as unknown as typeof fetch
 
     await expect(fetchKnuter()).rejects.toThrow('Re-kjør dev:token')
+  })
+})
+
+describe('fetchLibraryKnuter query string', () => {
+  const realFetch = global.fetch
+  afterEach(() => {
+    global.fetch = realFetch
+  })
+
+  it('passes folder, region, search, limit and offset to the API', async () => {
+    const spy = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ knuter: [] }),
+    })
+    global.fetch = spy as unknown as typeof fetch
+
+    await fetchLibraryKnuter({ folder: 'Sex', region: 'nasjonalt', q: 'shot', limit: 30, offset: 60 })
+
+    const url = String(spy.mock.calls[0][0])
+    expect(url).toContain('folder=Sex')
+    expect(url).toContain('region=nasjonalt')
+    expect(url).toContain('q=shot')
+    expect(url).toContain('limit=30')
+    expect(url).toContain('offset=60')
   })
 })
