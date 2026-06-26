@@ -355,7 +355,16 @@ export type LibraryKnute = {
 }
 export type LibraryKnuterResponse = { knuter: LibraryKnute[] }
 
-export type LibraryBrowseParams = { folder?: string; region?: string; q?: string; packId?: string }
+export type LibraryBrowseParams = {
+  folder?: string
+  region?: string
+  q?: string
+  packId?: string
+  /** Page size (server caps at 100, defaults to 50). */
+  limit?: number
+  /** Pagination offset — drives "vis flere" / infinite scroll. */
+  offset?: number
+}
 
 export function fetchLibraryKnuter(params: LibraryBrowseParams = {}): Promise<LibraryKnuterResponse> {
   const parts: string[] = []
@@ -363,6 +372,8 @@ export function fetchLibraryKnuter(params: LibraryBrowseParams = {}): Promise<Li
   if (params.region) parts.push(`region=${encodeURIComponent(params.region)}`)
   if (params.q) parts.push(`q=${encodeURIComponent(params.q)}`)
   if (params.packId) parts.push(`packId=${encodeURIComponent(params.packId)}`)
+  if (params.limit != null) parts.push(`limit=${params.limit}`)
+  if (params.offset != null) parts.push(`offset=${params.offset}`)
   const suffix = parts.length > 0 ? `?${parts.join('&')}` : ''
   return apiFetch<LibraryKnuterResponse>(`/api/library/knuter${suffix}`)
 }

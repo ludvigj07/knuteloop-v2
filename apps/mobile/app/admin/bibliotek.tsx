@@ -1,38 +1,76 @@
 import { useState } from 'react'
-import { View, ScrollView, StyleSheet, TextInput, Alert, RefreshControl } from 'react-native'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { RefreshControl, StyleSheet, View } from 'react-native'
+import { FlashList } from '@shopify/flash-list'
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type InfiniteData,
+} from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack } from 'expo-router'
-import { Button, Pressable, Skeleton, Text } from '../../components/primitives'
+import {
+  Eyebrow,
+  Skeleton,
+  StickerButton,
+  StickerCard,
+  Text,
+  Toast,
+  useToast,
+} from '../../components/primitives'
+import { FilterBar } from '../../components/library/FilterBar'
+import { PackHero } from '../../components/library/PackHero'
+import { LibraryRow } from '../../components/library/LibraryRow'
+import { KnuteDetailSheet } from '../../components/library/KnuteDetailSheet'
 import {
   fetchLibraryKnuter,
   fetchLibraryPacks,
   importLibraryKnute,
   importLibraryPack,
   type LibraryKnute,
-  type LibraryPack,
-  type ImportPackResponse,
+  type LibraryKnuterResponse,
 } from '../../lib/api'
 import { formatNumber } from '../../lib/format'
 import { haptics } from '../../lib/haptics'
-import { borderWidth, colors, fontSize, fontWeight, radius, size, spacing } from '../../lib/theme'
+import { isSensitiveFolder } from '../../lib/knute-ui'
+import { sticker, spacing } from '../../lib/theme'
 
-// The five library themes (suggested_folder). "Alle" = no filter.
-const FOLDERS = ['Generelle', 'Dobbel', 'Rampestrek', 'Alkohol', 'Sex'] as const
+const PAGE = 30
 
 export default function BibliotekScreen() {
   const insets = useSafeAreaInsets()
   const qc = useQueryClient()
+  const toast = useToast()
+
   const [folder, setFolder] = useState<string | null>(null)
+  const [region, setRegion] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [packResult, setPackResult] = useState<{ packId: string; res: ImportPackResponse } | null>(null)
+  const [selected, setSelected] = useState<LibraryKnute | null>(null)
 
   const q = search.trim()
+  const knuterKey = ['library', 'knuter', folder, region, q] as const
+
   const packs = useQuery({ queryKey: ['library', 'packs'], queryFn: fetchLibraryPacks })
-  const knuter = useQuery({
-    queryKey: ['library', 'knuter', folder, q],
-    queryFn: () => fetchLibraryKnuter({ folder: folder ?? undefined, q: q || undefined }),
+
+  const knuter = useInfiniteQuery({
+    queryKey: knuterKey,
+    queryFn: ({ pageParam }) =>
+      fetchLibraryKnuter({
+        folder: folder ?? undefined,
+        region: region ?? undefined,
+        q: q || undefined,
+        limit: PAGE,
+        offset: pageParam,
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      const loaded = allPages.reduce((n, p) => n + p.knuter.length, 0)
+      return lastPage.knuter.length < PAGE ? undefined : loaded
+    },
   })
+
+  const items = knuter.data?.pages.flatMap((p) => p.knuter) ?? []
 
   const invalidateAfterImport = () => {
     void qc.invalidateQueries({ queryKey: ['library'] })
@@ -42,33 +80,131 @@ export default function BibliotekScreen() {
 
   const importKnute = useMutation({
     mutationFn: importLibraryKnute,
-    onSuccess: () => {
+    onSuccess: (_res, libId) => {
       haptics.success()
+      // Optimistically flip the row to "added" so it can't be tapped again
+      // (kills the double-tap → spurious 409 window), then reconcile.
+      qc.setQueryData<InfiniteData<LibraryKnuterResponse>>(knuterKey, (old) =>
+        old
+          ? {
+              ...old,
+              pages: old.pages.map((p) => ({
+                ...p,
+                knuter: p.knuter.map((k) => (k.id === libId ? { ...k, imported: true } : k)),
+              })),
+            }
+          : old,
+      )
       invalidateAfterImport()
+      setSelected(null)
+      toast.show('Lagt til i knuteboka ✓')
     },
-    onError: (err) => Alert.alert('Kunne ikke legge til', (err as Error).message),
+    onError: (err) => toast.show((err as Error).message),
   })
 
   const importPack = useMutation({
     mutationFn: importLibraryPack,
-    onSuccess: (res, packId) => {
+    onSuccess: (res) => {
       haptics.success()
-      setPackResult({ packId, res })
       invalidateAfterImport()
+      toast.show(
+        res.imported > 0
+          ? `La til ${formatNumber(res.imported)} knuter ✓`
+          : 'Alt i pakka er allerede lagt til',
+      )
     },
-    onError: (err) => Alert.alert('Import feilet', (err as Error).message),
+    onError: (err) => toast.show((err as Error).message),
   })
 
-  const bottomPadding = insets.bottom + spacing.xl
+  const onAddRow = (k: LibraryKnute) => {
+    // Sensitive knuter open the detail sheet first (context before adding).
+    if (isSensitiveFolder(k.suggestedFolder)) {
+      setSelected(k)
+      return
+    }
+    importKnute.mutate(k.id)
+  }
+
+  const showPacks = q === '' && folder === null && region === null
+  const header = (
+    <View>
+      <View style={styles.headerBlock}>
+        <Eyebrow>Knutebibliotek</Eyebrow>
+        <Text font="display" weight="bold" size="3xl" color={sticker.color.ink}>
+          Biblioteket
+        </Text>
+        <Text color={sticker.color.textMuted}>
+          Bla i ferdige knuter og legg dem til skolen. Kopiene blir dine — rediger fritt.
+        </Text>
+      </View>
+
+      {showPacks
+        ? packs.data?.packs.map((pack) => (
+            <PackHero
+              key={pack.id}
+              pack={pack}
+              importing={importPack.isPending && importPack.variables === pack.id}
+              onImport={() => importPack.mutate(pack.id)}
+            />
+          ))
+        : null}
+
+      <FilterBar
+        folder={folder}
+        onFolder={setFolder}
+        region={region}
+        onRegion={setRegion}
+        search={search}
+        onSearch={setSearch}
+      />
+    </View>
+  )
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Bibliotek' }} />
+      <Stack.Screen
+        options={{
+          title: 'Bibliotek',
+          headerStyle: { backgroundColor: sticker.color.paper },
+          headerTintColor: sticker.color.ink,
+          headerShadowVisible: false,
+        }}
+      />
       <View style={styles.root}>
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={{ paddingBottom: bottomPadding }}
+        <FlashList
+          data={items}
+          keyExtractor={(k) => k.id}
+          estimatedItemSize={88}
           keyboardDismissMode="on-drag"
+          contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}
+          ListHeaderComponent={header}
+          renderItem={({ item }) => (
+            <LibraryRow
+              knute={item}
+              importing={importKnute.isPending && importKnute.variables === item.id}
+              onOpen={() => setSelected(item)}
+              onAdd={() => onAddRow(item)}
+            />
+          )}
+          ListEmptyComponent={
+            <EmptyState
+              isLoading={knuter.isLoading}
+              isError={knuter.isError}
+              error={knuter.error}
+              onRetry={() => void knuter.refetch()}
+            />
+          }
+          ListFooterComponent={
+            knuter.isFetchingNextPage ? (
+              <View style={styles.gutter}>
+                <Skeleton style={styles.skeletonRow} />
+              </View>
+            ) : null
+          }
+          onEndReachedThreshold={0.5}
+          onEndReached={() => {
+            if (knuter.hasNextPage && !knuter.isFetchingNextPage) void knuter.fetchNextPage()
+          }}
           refreshControl={
             <RefreshControl
               refreshing={knuter.isRefetching || packs.isRefetching}
@@ -76,340 +212,71 @@ export default function BibliotekScreen() {
                 void knuter.refetch()
                 void packs.refetch()
               }}
-              tintColor={colors.brand.primary}
+              tintColor={sticker.color.primary}
             />
           }
-        >
-          <View style={styles.header}>
-            <Text style={styles.heading}>Bibliotek</Text>
-            <Text style={styles.muted}>
-              Bla i ferdige knuter og legg dem til skolen din. Kopiene blir dine — rediger fritt.
-            </Text>
-          </View>
-
-          {packs.data?.packs.map((pack) => (
-            <PackCard
-              key={pack.id}
-              pack={pack}
-              importing={importPack.isPending && importPack.variables === pack.id}
-              result={packResult?.packId === pack.id ? packResult.res : null}
-              onImport={() => importPack.mutate(pack.id)}
-            />
-          ))}
-
-          <FolderPills selected={folder} onSelect={setFolder} />
-
-          <View style={styles.searchWrap}>
-            <TextInput
-              style={styles.search}
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Søk i biblioteket…"
-              placeholderTextColor={colors.text.muted}
-              autoCapitalize="none"
-              autoCorrect={false}
-              accessibilityLabel="Søk i biblioteket"
-              returnKeyType="search"
-            />
-          </View>
-
-          {knuter.isLoading ? (
-            <View style={styles.list}>
-              {[0, 1, 2, 3].map((i) => (
-                <Skeleton key={i} style={styles.skeletonRow} />
-              ))}
-            </View>
-          ) : knuter.error ? (
-            <View style={styles.center}>
-              <Text style={styles.errorTitle}>Kunne ikke laste biblioteket</Text>
-              <Text style={styles.muted}>{(knuter.error as Error).message}</Text>
-              <Pressable
-                style={styles.retryButton}
-                onPress={() => void knuter.refetch()}
-                accessibilityRole="button"
-                accessibilityLabel="Prøv igjen"
-              >
-                <Text style={styles.retryText}>Prøv igjen</Text>
-              </Pressable>
-            </View>
-          ) : (knuter.data?.knuter.length ?? 0) === 0 ? (
-            <View style={styles.center}>
-              <Text style={styles.muted}>Ingen knuter her. Prøv et annet filter eller søk.</Text>
-            </View>
-          ) : (
-            <View style={styles.list}>
-              {knuter.data!.knuter.map((k) => (
-                <LibKnuteRow
-                  key={k.id}
-                  knute={k}
-                  importing={importKnute.isPending && importKnute.variables === k.id}
-                  onImport={() => {
-                    haptics.medium()
-                    importKnute.mutate(k.id)
-                  }}
-                />
-              ))}
-            </View>
-          )}
-        </ScrollView>
+        />
       </View>
+
+      <KnuteDetailSheet
+        knute={selected}
+        importing={importKnute.isPending && importKnute.variables === selected?.id}
+        onClose={() => setSelected(null)}
+        onImport={(k) => importKnute.mutate(k.id)}
+      />
+
+      <Toast message={toast.message} bottomOffset={insets.bottom + spacing.lg} />
     </>
   )
 }
 
-function PackCard({
-  pack,
-  importing,
-  result,
-  onImport,
+function EmptyState({
+  isLoading,
+  isError,
+  error,
+  onRetry,
 }: {
-  pack: LibraryPack
-  importing: boolean
-  result: ImportPackResponse | null
-  onImport: () => void
+  isLoading: boolean
+  isError: boolean
+  error: unknown
+  onRetry: () => void
 }) {
-  return (
-    <View style={styles.packCard}>
-      <Text style={styles.packName}>{pack.name}</Text>
-      {pack.description ? <Text style={styles.packDesc}>{pack.description}</Text> : null}
-      <Text style={styles.packMeta}>{formatNumber(pack.knuteCount)} knuter</Text>
-      {result ? (
-        <Text style={styles.packResult}>
-          ✓ La til {formatNumber(result.imported)} knuter
-          {result.skipped > 0 ? ` (${formatNumber(result.skipped)} fantes alt)` : ''} i{' '}
-          {formatNumber(result.folders.length)} mapper
-        </Text>
-      ) : (
-        <View style={styles.packButton}>
-          <Button
-            label={`Importer alle (${formatNumber(pack.knuteCount)})`}
-            onPress={onImport}
-            loading={importing}
-            fullWidth
-            accessibilityHint="Legger alle knutene i pakka til skolen din, sortert i mapper."
-          />
-        </View>
-      )}
-    </View>
-  )
-}
-
-function FolderPills({
-  selected,
-  onSelect,
-}: {
-  selected: string | null
-  onSelect: (folder: string | null) => void
-}) {
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.pills}
-    >
-      <Pill label="Alle" active={selected === null} onPress={() => onSelect(null)} />
-      {FOLDERS.map((f) => (
-        <Pill key={f} label={f} active={selected === f} onPress={() => onSelect(f)} />
-      ))}
-    </ScrollView>
-  )
-}
-
-function Pill({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  return (
-    <Pressable
-      style={[styles.pill, active && styles.pillActive]}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`Filtrer på ${label}`}
-      accessibilityState={{ selected: active }}
-    >
-      <Text style={[styles.pillText, active && styles.pillTextActive]}>{label}</Text>
-    </Pressable>
-  )
-}
-
-function LibKnuteRow({
-  knute,
-  importing,
-  onImport,
-}: {
-  knute: LibraryKnute
-  importing: boolean
-  onImport: () => void
-}) {
-  const ageLabel = knute.minAge >= 18 ? '18+' : null
-  return (
-    <View style={styles.row}>
-      <View style={styles.rowTextBlock}>
-        <Text style={styles.rowTitle} numberOfLines={2}>
-          {knute.title}
-        </Text>
-        <View style={styles.rowMeta}>
-          <View style={styles.pointsBadge}>
-            <Text style={styles.pointsText}>{formatNumber(knute.points)} p</Text>
-          </View>
-          <Text style={styles.folderTag}>{knute.suggestedFolder}</Text>
-          {knute.evidenceType === 'text' ? <Text style={styles.flagTag}>Tekst</Text> : null}
-          {ageLabel ? <Text style={[styles.flagTag, styles.ageTag]}>{ageLabel}</Text> : null}
-        </View>
-        {knute.description ? (
-          <Text style={styles.rowDesc} numberOfLines={2}>
-            {knute.description}
-          </Text>
-        ) : null}
+  if (isLoading) {
+    return (
+      <View style={[styles.gutter, styles.skeletonList]}>
+        {[0, 1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} style={styles.skeletonRow} />
+        ))}
       </View>
-      {knute.imported ? (
-        <View style={styles.addedBadge} accessibilityLabel={`${knute.title} er lagt til`}>
-          <Text style={styles.addedText}>✓ Lagt til</Text>
-        </View>
-      ) : (
-        <Pressable
-          style={[styles.addButton, importing && styles.addButtonBusy]}
-          onPress={onImport}
-          disabled={importing}
-          haptic="none"
-          accessibilityRole="button"
-          accessibilityLabel={`Legg ${knute.title} til skolen`}
-          accessibilityHint="Kopierer knuten inn i skolens liste."
-        >
-          <Text style={styles.addText}>{importing ? 'Legger til…' : '+ Legg til'}</Text>
-        </Pressable>
-      )}
+    )
+  }
+  if (isError) {
+    return (
+      <View style={styles.gutter}>
+        <StickerCard tone="surface" style={styles.errorCard}>
+          <Text font="display" weight="bold" size="lg" color={sticker.color.ink}>
+            Kunne ikke laste biblioteket
+          </Text>
+          <Text color={sticker.color.textMuted}>{(error as Error).message}</Text>
+          <StickerButton label="Prøv igjen" variant="secondary" size="sm" onPress={onRetry} />
+        </StickerCard>
+      </View>
+    )
+  }
+  return (
+    <View style={styles.gutter}>
+      <StickerCard tone="soft" shadow="sm">
+        <Text color={sticker.color.textMuted}>Ingen treff. Prøv et annet filter eller søk.</Text>
+      </StickerCard>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  scroll: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: spacing.base, paddingTop: spacing.base, paddingBottom: spacing.sm },
-  heading: {
-    color: colors.text.primary,
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-    marginBottom: spacing.xs,
-  },
-  muted: { color: colors.text.muted, fontSize: fontSize.sm, marginTop: spacing['2xs'] },
-  packCard: {
-    backgroundColor: colors.surface,
-    borderWidth: borderWidth.medium,
-    borderColor: colors.borderInk,
-    borderRadius: radius.lg,
-    padding: spacing.base,
-    marginHorizontal: spacing.base,
-    marginBottom: spacing.base,
-    gap: spacing.xs,
-  },
-  packName: { color: colors.ink, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
-  packDesc: { color: colors.text.secondary, fontSize: fontSize.sm },
-  packMeta: { color: colors.text.muted, fontSize: fontSize.sm },
-  packButton: { marginTop: spacing.sm },
-  packResult: {
-    marginTop: spacing.sm,
-    color: colors.success,
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
-  },
-  pills: { gap: spacing.sm, paddingHorizontal: spacing.base, paddingBottom: spacing.sm },
-  pill: {
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.full,
-    borderWidth: borderWidth.thin,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surface,
-  },
-  pillActive: { backgroundColor: colors.ink, borderColor: colors.ink },
-  pillText: { color: colors.text.secondary, fontSize: fontSize.sm, fontWeight: fontWeight.medium },
-  pillTextActive: { color: colors.text.inverse, fontWeight: fontWeight.semibold },
-  searchWrap: { paddingHorizontal: spacing.base, paddingBottom: spacing.sm },
-  search: {
-    minHeight: size.searchMinHeight,
-    backgroundColor: colors.surface,
-    borderWidth: borderWidth.thin,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.base,
-    color: colors.text.primary,
-    fontSize: fontSize.base,
-  },
-  list: { paddingHorizontal: spacing.base, gap: spacing.sm },
-  skeletonRow: { height: size.controlHeightLg, borderRadius: radius.md },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: borderWidth.thin,
-    borderColor: colors.border,
-  },
-  rowTextBlock: { flex: 1 },
-  rowTitle: {
-    color: colors.text.primary,
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.medium,
-    marginBottom: spacing.xs,
-  },
-  rowMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
-  rowDesc: { color: colors.text.secondary, fontSize: fontSize.sm, marginTop: spacing.xs },
-  pointsBadge: {
-    backgroundColor: colors.brand.primary,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing['2xs'],
-    borderRadius: radius.sm,
-  },
-  pointsText: { color: colors.text.inverse, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
-  folderTag: { color: colors.text.secondary, fontSize: fontSize.sm },
-  flagTag: {
-    color: colors.text.secondary,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing['2xs'],
-    borderRadius: radius.sm,
-    backgroundColor: colors.background,
-    overflow: 'hidden',
-  },
-  ageTag: { color: colors.text.inverse, backgroundColor: colors.warning },
-  addButton: {
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.ink,
-    minHeight: size.actionMinHeight,
-    justifyContent: 'center',
-  },
-  addButtonBusy: { opacity: 0.6 },
-  addText: { color: colors.text.inverse, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-  addedBadge: {
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.status.approvedBg,
-  },
-  addedText: { color: colors.success, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-  center: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.lg,
-    minHeight: size.emptyMinHeight,
-  },
-  errorTitle: {
-    color: colors.error,
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-    marginBottom: spacing.sm,
-  },
-  retryButton: {
-    marginTop: spacing.base,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.brand.primary,
-    borderRadius: radius.md,
-  },
-  retryText: { color: colors.text.inverse, fontSize: fontSize.base, fontWeight: fontWeight.semibold },
+  root: { flex: 1, backgroundColor: sticker.color.paper },
+  gutter: { paddingHorizontal: spacing.base },
+  headerBlock: { paddingHorizontal: spacing.base, paddingTop: spacing.base, paddingBottom: spacing.base, gap: spacing['2xs'] },
+  skeletonList: { gap: spacing.sm },
+  skeletonRow: { height: 76, borderRadius: sticker.radius.md, marginBottom: spacing.sm },
+  errorCard: { gap: spacing.sm, alignItems: 'flex-start' },
 })
