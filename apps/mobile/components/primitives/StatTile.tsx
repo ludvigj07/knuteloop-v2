@@ -29,7 +29,15 @@ export function StatTile({ value, label, icon, tone = 'surface', style }: StatTi
     <StickerCard tone={tone} radius="md" shadow="sm" padding="md" style={style}>
       <View style={styles.inner}>
         {icon}
-        <Text font="mono" weight="bold" size="2xl" color={fg.value}>
+        <Text
+          font="mono"
+          weight="bold"
+          size="2xl"
+          color={fg.value}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.6}
+        >
           {value}
         </Text>
         <Text size="xs" weight="semibold" color={fg.label}>
