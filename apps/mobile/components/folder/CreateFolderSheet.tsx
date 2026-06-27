@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { StyleSheet, TextInput, View } from 'react-native'
-import { Eyebrow, Sheet, StickerButton, Text } from '../primitives'
+import type { FolderIconKey } from '@knuteloop/shared'
+import { Eyebrow, Pressable, Sheet, StickerButton, Text } from '../primitives'
+import { folderIconFor, folderIconKeys } from '../../lib/folder-icons'
 import { fontSize, sticker, spacing } from '../../lib/theme'
 
-// "Ny mappe" sheet — a single name field + create action. Controlled via `open`.
-// Uses the cross-platform Sheet (RN Modal) so it works on web too.
+// "Ny mappe" sheet — name field + icon picker + create action. Controlled via
+// `open`. Uses the cross-platform Sheet (RN Modal) so it works on web too.
 
 export function CreateFolderSheet({
   open,
@@ -15,13 +17,17 @@ export function CreateFolderSheet({
   open: boolean
   creating: boolean
   onClose: () => void
-  onCreate: (name: string) => void
+  onCreate: (name: string, icon: FolderIconKey) => void
 }) {
   const [name, setName] = useState('')
+  const [icon, setIcon] = useState<FolderIconKey>('folder')
 
-  // Reset the field each time the sheet opens.
+  // Reset the form each time the sheet opens.
   useEffect(() => {
-    if (open) setName('')
+    if (open) {
+      setName('')
+      setIcon('folder')
+    }
   }, [open])
 
   const trimmed = name.trim()
@@ -34,6 +40,7 @@ export function CreateFolderSheet({
         <Text font="display" weight="bold" size="xl" color={sticker.color.ink}>
           Ny mappe
         </Text>
+
         <Text size="sm" color={sticker.color.textMuted}>
           Navn på mappa
         </Text>
@@ -47,10 +54,37 @@ export function CreateFolderSheet({
           maxLength={100}
           returnKeyType="done"
           onSubmitEditing={() => {
-            if (canCreate) onCreate(trimmed)
+            if (canCreate) onCreate(trimmed, icon)
           }}
           accessibilityLabel="Navn på mappa"
         />
+
+        <Text size="sm" color={sticker.color.textMuted} style={styles.iconLabel}>
+          Ikon
+        </Text>
+        <View style={styles.iconGrid}>
+          {folderIconKeys.map((key) => {
+            const Icon = folderIconFor(key)
+            const selected = key === icon
+            return (
+              <Pressable
+                key={key}
+                onPress={() => setIcon(key)}
+                haptic="selection"
+                accessibilityLabel={`Velg ikon ${key}`}
+                accessibilityState={{ selected }}
+                style={[styles.iconTile, selected ? styles.iconTileActive : styles.iconTileIdle]}
+              >
+                <Icon
+                  size={sticker.icon.md}
+                  color={selected ? sticker.color.textInverse : sticker.color.ink}
+                  strokeWidth={2}
+                />
+              </Pressable>
+            )
+          })}
+        </View>
+
         <View style={styles.action}>
           <StickerButton
             label="Opprett mappe"
@@ -58,7 +92,7 @@ export function CreateFolderSheet({
             fullWidth
             disabled={trimmed.length < 2}
             loading={creating}
-            onPress={() => onCreate(trimmed)}
+            onPress={() => onCreate(trimmed, icon)}
           />
         </View>
       </View>
@@ -80,5 +114,17 @@ const styles = StyleSheet.create({
     fontSize: fontSize.base,
     fontFamily: 'Inter_400Regular',
   },
+  iconLabel: { marginTop: spacing.xs },
+  iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  iconTile: {
+    width: sticker.tap.min,
+    height: sticker.tap.min,
+    borderRadius: sticker.radius.md,
+    borderWidth: sticker.borderWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconTileIdle: { backgroundColor: sticker.color.card, borderColor: sticker.color.ink },
+  iconTileActive: { backgroundColor: sticker.color.ink, borderColor: sticker.color.ink },
   action: { marginTop: spacing.sm },
 })

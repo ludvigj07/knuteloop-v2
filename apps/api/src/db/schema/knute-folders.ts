@@ -14,6 +14,9 @@ export const knuteFolders = pgTable(
       .notNull()
       .references(() => schools.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
+    // Optional lucide icon key (see @knuteloop/shared FOLDER_ICON_KEYS). Null =
+    // the default folder icon. Validated against the shared key set in the route.
+    icon: text('icon'),
     sortOrder: integer('sort_order').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
