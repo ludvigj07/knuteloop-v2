@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import { View, ScrollView, StyleSheet, RefreshControl, TextInput } from 'react-native'
 import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useRouter } from 'expo-router'
 import { AppTabBar } from '../components/AppTabBar'
+import { FolderChips } from '../components/knute/FolderChips'
 import { CountUp, Pressable, Skeleton, Text } from '../components/primitives'
-import { fetchKnuter, type Knute } from '../lib/api'
+import { fetchFolders, fetchKnuter, fetchKnuterInFolder, type Knute } from '../lib/api'
 import { formatNumber } from '../lib/format'
 import {
   animation,
@@ -39,12 +40,22 @@ export default function KnuterScreen() {
   const router = useRouter()
   const reduceMotion = useReducedMotion()
   const [search, setSearch] = useState('')
+  // null = "Alle" (the whole catalog); otherwise the selected folder's id.
+  const [folderId, setFolderId] = useState<string | null>(null)
 
+  const foldersQuery = useQuery({ queryKey: ['folders'], queryFn: fetchFolders })
+
+  // "Alle" reuses the shared ['knuter'] entry (same one the knute-detail screen reads);
+  // a folder gets its own entry. keepPreviousData keeps the list on screen while a new
+  // folder loads instead of flashing the skeleton.
   const { data, error, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ['knuter'],
-    queryFn: fetchKnuter,
+    queryKey: folderId ? (['knuter', 'folder', folderId] as const) : (['knuter'] as const),
+    queryFn: () => (folderId ? fetchKnuterInFolder(folderId) : fetchKnuter()),
+    placeholderData: keepPreviousData,
   })
 
+  const folders = foldersQuery.data?.folders ?? []
+  const selectedFolder = folders.find((f) => f.id === folderId) ?? null
   const knuter = data?.knuter ?? []
   const searchTerm = search.trim().toLocaleLowerCase('nb-NO')
   const visibleKnuter = useMemo(() => {
@@ -65,9 +76,19 @@ export default function KnuterScreen() {
   }, [knuter, searchTerm])
 
   if (isLoading) return <LoadingState />
-  if (error) return <ErrorState message={(error as Error).message} onRetry={() => void refetch()} />
+  // Only take over the whole screen when we have nothing to show. With keepPreviousData,
+  // a failed folder switch keeps the previous list + chips on screen instead of trapping
+  // the user on an error page with no way back to "Alle".
+  if (error && !data) return <ErrorState message={(error as Error).message} onRetry={() => void refetch()} />
 
   const bottomPadding = insets.bottom + size.bottomNavMinHeight + spacing.xl
+
+  // Distinguish a genuinely empty folder from a search that matched nothing.
+  const isEmptyFolder = folderId !== null && !searchTerm && knuter.length === spacing.none
+  const emptyTitle = isEmptyFolder ? 'Tom mappe' : 'Ingen treff'
+  const emptyText = isEmptyFolder
+    ? `Ingen knuter i «${selectedFolder?.name ?? 'mappa'}» ennå. Velg «Alle» for hele knuteboka.`
+    : 'Prøv et annet søk, eller trykk Tilfeldig når listen har knuter igjen.'
 
   const openRandomKnute = () => {
     const randomKnute = visibleKnuter[Math.floor(Math.random() * visibleKnuter.length)]
@@ -101,8 +122,12 @@ export default function KnuterScreen() {
           </View>
         </View>
 
+        {folders.length > 0 ? (
+          <FolderChips folders={folders} selected={folderId} onSelect={setFolderId} />
+        ) : null}
+
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Alle knuter</Text>
+          <Text style={styles.sectionTitle}>{selectedFolder?.name ?? 'Alle knuter'}</Text>
           <Text style={styles.sectionMeta}>
             {formatNumber(visibleKnuter.length)}/{formatNumber(knuter.length)} synlig
           </Text>
@@ -143,10 +168,8 @@ export default function KnuterScreen() {
           <View style={styles.listPanel}>
             {visibleKnuter.length === spacing.none ? (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyTitle}>Ingen treff</Text>
-                <Text style={styles.emptyText}>
-                  Prøv et annet søk, eller trykk Tilfeldig når listen har knuter igjen.
-                </Text>
+                <Text style={styles.emptyTitle}>{emptyTitle}</Text>
+                <Text style={styles.emptyText}>{emptyText}</Text>
               </View>
             ) : (
               visibleKnuter.map((knute, index) => (
