@@ -14,9 +14,10 @@ import { difficultyTone, folderGlyph, isSensitiveFolder } from '../../lib/knute-
 import { formatNumber } from '../../lib/format'
 import { sticker, spacing } from '../../lib/theme'
 
-// One library knute as a sticker row: category glyph tile, title + meta chips,
-// and a circular add toggle (Plus → Check). Tapping the body opens the detail
-// sheet; the toggle is the quick-add. Sensitive folders get the amber tint.
+// One library knute as a sticker row. The card itself is NOT pressable; instead
+// the left/content area and the add toggle are two SEPARATE sibling pressables.
+// (Nesting a pressable add button inside a pressable card made taps land on the
+// wrong target — sometimes opening the sheet instead of adding.)
 
 export function LibraryRow({
   knute,
@@ -34,34 +35,34 @@ export function LibraryRow({
   const isAdult = knute.minAge >= 18
 
   return (
-    <StickerCard
-      onPress={onOpen}
-      radius="md"
-      shadow="sm"
-      padding="md"
-      style={styles.card}
-      accessibilityLabel={`${knute.title}. ${formatNumber(knute.points)} poeng. Trykk for detaljer.`}
-    >
+    <StickerCard radius="md" shadow="sm" padding="md" style={styles.card}>
       <View style={styles.row}>
-        <GlyphTile size={44} tone={sensitive ? 'accent' : 'primary'}>
-          <KnoteIcon
-            name={folderGlyph(knute.suggestedFolder)}
-            size={24}
-            color={sensitive ? sticker.color.accentStrong : sticker.color.primary}
-          />
-        </GlyphTile>
+        <Pressable
+          onPress={onOpen}
+          haptic="light"
+          accessibilityLabel={`${knute.title}. ${formatNumber(knute.points)} poeng. Trykk for detaljer.`}
+          style={styles.openArea}
+        >
+          <GlyphTile size={44} tone={sensitive ? 'accent' : 'primary'}>
+            <KnoteIcon
+              name={folderGlyph(knute.suggestedFolder)}
+              size={24}
+              color={sensitive ? sticker.color.accentStrong : sticker.color.primary}
+            />
+          </GlyphTile>
 
-        <View style={styles.body}>
-          <Text weight="semibold" size="base" color={sticker.color.ink} numberOfLines={1}>
-            {knute.title}
-          </Text>
-          <View style={styles.meta}>
-            <Chip label={`${formatNumber(knute.points)} P`} tone="accent" mono />
-            <Chip label={knute.difficulty} tone={difficultyTone(knute.difficulty)} />
-            {isText ? <Badge label="Tekst" /> : null}
-            {isAdult ? <Badge label="18+" tone="age" /> : null}
+          <View style={styles.body}>
+            <Text weight="semibold" size="base" color={sticker.color.ink} numberOfLines={1}>
+              {knute.title}
+            </Text>
+            <View style={styles.meta}>
+              <Chip label={`${formatNumber(knute.points)} P`} tone="accent" mono />
+              <Chip label={knute.difficulty} tone={difficultyTone(knute.difficulty)} />
+              {isText ? <Badge label="Tekst" /> : null}
+              {isAdult ? <Badge label="18+" tone="age" /> : null}
+            </View>
           </View>
-        </View>
+        </Pressable>
 
         <AddToggle imported={knute.imported} importing={importing} onAdd={onAdd} title={knute.title} />
       </View>
@@ -98,6 +99,7 @@ function AddToggle({
       haptic="medium"
       accessibilityLabel={`Legg ${title} til i knuteboka`}
       accessibilityHint="Kopierer knuten inn i skolens liste."
+      hitSlop={8}
       style={[styles.toggle, styles.toggleAdd]}
     >
       {importing ? (
@@ -112,6 +114,7 @@ function AddToggle({
 const styles = StyleSheet.create({
   card: { marginHorizontal: spacing.base, marginBottom: spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  openArea: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   body: { flex: 1, gap: spacing.xs },
   meta: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' },
   toggle: {
