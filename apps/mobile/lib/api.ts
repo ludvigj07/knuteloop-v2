@@ -395,12 +395,24 @@ export function fetchLibraryPacks(): Promise<LibraryPacksResponse> {
   return apiFetch<LibraryPacksResponse>('/api/library/packs')
 }
 
-export type ImportKnuteResponse = { knute: Knute; folder: { id: string; name: string } }
+export type ImportKnuteResponse = {
+  /** The school's own copy (existing one reused if already imported). */
+  knuteId: string
+  /** True when the knute was already in the school — the call just added folders. */
+  alreadyImported: boolean
+  /** The folders the copy was filed into by this call (deduped). */
+  folderIds: string[]
+}
 
-export function importLibraryKnute(libraryKnuteId: string): Promise<ImportKnuteResponse> {
+// Import a library knute into the chosen folder(s) ("add to playlist"). Pass no folders
+// to import into the catalog only. Idempotent — safe to call again to add more folders.
+export function importLibraryKnute(
+  libraryKnuteId: string,
+  folderIds?: string[],
+): Promise<ImportKnuteResponse> {
   return apiFetch<ImportKnuteResponse>('/api/library/imports', {
     method: 'POST',
-    body: JSON.stringify({ libraryKnuteId }),
+    body: JSON.stringify({ libraryKnuteId, folderIds }),
   })
 }
 

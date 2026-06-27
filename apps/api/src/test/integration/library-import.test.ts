@@ -26,20 +26,19 @@ let authC: Record<string, string> // knutesjef, school C — partial-overlap tes
 let studentTokenA: string
 let bikkjaId: string
 let romeoId: string
+let bronsetradId: string
 let solibatId: string
 let inaktivId: string
 let tvillingId: string
 let starterPackId: string
+let sportFolderAId: string
+let festFolderAId: string
+let folderCId: string // a folder owned by school C — used to test cross-tenant folder rejection
 
 type ImportResponse = {
-  knute: {
-    id: string
-    title: string
-    sourceLibraryKnuteId: string | null
-    minAge: number
-    evidenceType: string
-  }
-  folder: { id: string; name: string }
+  knuteId: string
+  alreadyImported: boolean
+  folderIds: string[]
 }
 type PackImportResponse = { imported: number; skipped: number; folders: string[] }
 type BrowseResponse = { knuter: { id: string; title: string; imported: boolean }[] }
@@ -81,9 +80,25 @@ beforeAll(async () => {
   const id = (t: string) => lib.find((k) => k.title === t)!.id
   bikkjaId = id('Bikkjå')
   romeoId = id('Romeo')
+  bronsetradId = id('Bronsetråd')
   solibatId = id('Sølibat')
   inaktivId = id('Inaktiv')
   tvillingId = id('Tvilling')
+
+  // Pre-seed folders: two for school A (the "add to playlist" targets) and one for
+  // school C (to prove a cross-tenant folderId is rejected before any write). School B
+  // gets none — its pack-import tests assert an exact auto-created folder count.
+  const [sportA, festA, folderC] = await h.superDb
+    .insert(knuteFolders)
+    .values([
+      { schoolId: schoolAId, name: 'Sport', sortOrder: 0 },
+      { schoolId: schoolAId, name: 'Fest', sortOrder: 1 },
+      { schoolId: schoolCId, name: 'C-mappe', sortOrder: 0 },
+    ])
+    .returning()
+  sportFolderAId = sportA!.id
+  festFolderAId = festA!.id
+  folderCId = folderC!.id
 
   // Starter pack = the non-Sex knuter (mirrors the real seed) PLUS the inactive one,
   // so we can prove pack import skips inactive members.
@@ -110,8 +125,12 @@ afterAll(async () => {
   await h?.cleanup()
 })
 
-const postImport = (headers: Record<string, string>, libraryKnuteId: string) =>
-  app.request('/api/library/imports', { method: 'POST', headers, body: JSON.stringify({ libraryKnuteId }) })
+const postImport = (headers: Record<string, string>, libraryKnuteId: string, folderIds?: string[]) =>
+  app.request('/api/library/imports', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ libraryKnuteId, folderIds }),
+  })
 
 const postPackImport = (headers: Record<string, string>, packId: string) =>
   app.request(`/api/library/packs/${packId}/import`, { method: 'POST', headers })
@@ -134,20 +153,26 @@ describe('POST /api/library/imports — single knute (school A)', () => {
     expect(res.status).toBe(403)
   })
 
-  it('imports a copy, files it in its folder, and records the import', async () => {
-    const res = await postImport(authA, bikkjaId)
+  it('imports a copy into the chosen folders and records the import', async () => {
+    const res = await postImport(authA, bikkjaId, [sportFolderAId, festFolderAId])
     expect(res.status).toBe(201)
     const body = (await res.json()) as ImportResponse
-    expect(body.knute.title).toBe('Bikkjå')
-    expect(body.knute.sourceLibraryKnuteId).toBe(bikkjaId)
-    expect(body.folder.name).toBe('Generelle')
+    expect(body.alreadyImported).toBe(false)
+    expect(body.knuteId).toBeTruthy()
+    expect([...body.folderIds].sort()).toEqual([sportFolderAId, festFolderAId].sort())
 
-    // The copy + folder + membership + import row all exist for school A.
+    // The copy + import row exist, and the copy is filed in BOTH chosen folders.
     const copies = await h.superDb
       .select()
       .from(knuter)
       .where(and(eq(knuter.schoolId, schoolAId), eq(knuter.sourceLibraryKnuteId, bikkjaId)))
     expect(copies).toHaveLength(1)
+    expect(copies[0]!.id).toBe(body.knuteId)
+    const memberships = await h.superDb
+      .select()
+      .from(knuteFolderMemberships)
+      .where(and(eq(knuteFolderMemberships.schoolId, schoolAId), eq(knuteFolderMemberships.knuteId, body.knuteId)))
+    expect(memberships.map((m) => m.folderId).sort()).toEqual([sportFolderAId, festFolderAId].sort())
     const imports = await h.superDb
       .select()
       .from(schoolLibraryImports)
@@ -157,6 +182,20 @@ describe('POST /api/library/imports — single knute (school A)', () => {
     expect(imports).toHaveLength(1)
   })
 
+  it('imports into the catalog only when no folders are given (no membership)', async () => {
+    const res = await postImport(authA, romeoId)
+    expect(res.status).toBe(201)
+    const body = (await res.json()) as ImportResponse
+    expect(body.alreadyImported).toBe(false)
+    expect(body.folderIds).toEqual([])
+
+    const memberships = await h.superDb
+      .select()
+      .from(knuteFolderMemberships)
+      .where(and(eq(knuteFolderMemberships.schoolId, schoolAId), eq(knuteFolderMemberships.knuteId, body.knuteId)))
+    expect(memberships).toHaveLength(0)
+  })
+
   it('the imported copy shows up in the school catalog (GET /api/knuter)', async () => {
     const res = await app.request('/api/knuter', { headers: authA })
     expect(res.status).toBe(200)
@@ -164,9 +203,46 @@ describe('POST /api/library/imports — single knute (school A)', () => {
     expect(body.knuter.some((k) => k.title === 'Bikkjå')).toBe(true)
   })
 
-  it('409 on re-import (dedupe)', async () => {
-    const res = await postImport(authA, bikkjaId)
-    expect(res.status).toBe(409)
+  it('re-import is idempotent: reuses the copy and adds the newly-chosen folders', async () => {
+    // Romeo was imported above with no folders. Re-importing with a folder must reuse the
+    // same copy (no second snapshot) and just add the membership.
+    const firstCopy = await h.superDb
+      .select()
+      .from(knuter)
+      .where(and(eq(knuter.schoolId, schoolAId), eq(knuter.sourceLibraryKnuteId, romeoId)))
+    expect(firstCopy).toHaveLength(1)
+
+    const res = await postImport(authA, romeoId, [sportFolderAId])
+    expect(res.status).toBe(201)
+    const body = (await res.json()) as ImportResponse
+    expect(body.alreadyImported).toBe(true)
+    expect(body.knuteId).toBe(firstCopy[0]!.id)
+    expect(body.folderIds).toEqual([sportFolderAId])
+
+    // Still exactly one copy + one import row; the new membership is present.
+    const copies = await h.superDb
+      .select()
+      .from(knuter)
+      .where(and(eq(knuter.schoolId, schoolAId), eq(knuter.sourceLibraryKnuteId, romeoId)))
+    expect(copies).toHaveLength(1)
+    const imports = await h.superDb
+      .select()
+      .from(schoolLibraryImports)
+      .where(
+        and(eq(schoolLibraryImports.schoolId, schoolAId), eq(schoolLibraryImports.libraryKnuteId, romeoId)),
+      )
+    expect(imports).toHaveLength(1)
+    const membership = await h.superDb
+      .select()
+      .from(knuteFolderMemberships)
+      .where(
+        and(
+          eq(knuteFolderMemberships.schoolId, schoolAId),
+          eq(knuteFolderMemberships.knuteId, body.knuteId),
+          eq(knuteFolderMemberships.folderId, sportFolderAId),
+        ),
+      )
+    expect(membership).toHaveLength(1)
   })
 
   it('404 for a nonexistent library knute', async () => {
@@ -179,22 +255,39 @@ describe('POST /api/library/imports — single knute (school A)', () => {
     expect(res.status).toBe(404)
   })
 
+  it('404 when a folderId belongs to another school, with NO partial write', async () => {
+    // School A tries to file Bronsetråd into school C's folder. RLS + the explicit
+    // school_id filter reject it, and the throw happens BEFORE any copy is written.
+    const res = await postImport(authA, bronsetradId, [folderCId])
+    expect(res.status).toBe(404)
+
+    const copies = await h.superDb
+      .select()
+      .from(knuter)
+      .where(and(eq(knuter.schoolId, schoolAId), eq(knuter.sourceLibraryKnuteId, bronsetradId)))
+    expect(copies).toHaveLength(0)
+    const imports = await h.superDb
+      .select()
+      .from(schoolLibraryImports)
+      .where(
+        and(
+          eq(schoolLibraryImports.schoolId, schoolAId),
+          eq(schoolLibraryImports.libraryKnuteId, bronsetradId),
+        ),
+      )
+    expect(imports).toHaveLength(0)
+  })
+
   it('copies the unrelaxable 18+ / text-only flags', async () => {
     const res = await postImport(authA, solibatId)
     expect(res.status).toBe(201)
     const body = (await res.json()) as ImportResponse
-    expect(body.knute.minAge).toBe(18)
-    expect(body.knute.evidenceType).toBe('text')
-  })
-
-  it('reuses an existing folder for a second knute in the same suggested_folder', async () => {
-    const res = await postImport(authA, romeoId) // also Generelle
-    expect(res.status).toBe(201)
-    const generelle = await h.superDb
+    const [copy] = await h.superDb
       .select()
-      .from(knuteFolders)
-      .where(and(eq(knuteFolders.schoolId, schoolAId), eq(knuteFolders.name, 'Generelle')))
-    expect(generelle).toHaveLength(1) // not duplicated
+      .from(knuter)
+      .where(and(eq(knuter.schoolId, schoolAId), eq(knuter.id, body.knuteId)))
+    expect(copy!.minAge).toBe(18)
+    expect(copy!.evidenceType).toBe('text')
   })
 
   it('400 for a malformed body (missing/invalid libraryKnuteId)', async () => {
@@ -202,6 +295,15 @@ describe('POST /api/library/imports — single knute (school A)', () => {
       method: 'POST',
       headers: authA,
       body: JSON.stringify({}),
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('400 for a non-uuid folderId', async () => {
+    const res = await app.request('/api/library/imports', {
+      method: 'POST',
+      headers: authA,
+      body: JSON.stringify({ libraryKnuteId: bikkjaId, folderIds: ['not-a-uuid'] }),
     })
     expect(res.status).toBe(400)
   })
@@ -293,12 +395,16 @@ describe('import isolation between schools', () => {
   })
 })
 
-describe('concurrent single-import of the same knute (atomicity + clean 409)', () => {
-  it('one wins (201), the other gets a clean 409, and exactly one copy exists', async () => {
+describe('concurrent single-import of the same knute (atomicity + idempotency)', () => {
+  it('both succeed (201), exactly one creates the copy, and exactly one copy exists', async () => {
     const [r1, r2] = await Promise.all([postImport(authA, tvillingId), postImport(authA, tvillingId)])
-    expect([r1.status, r2.status].sort()).toEqual([201, 409])
+    expect([r1.status, r2.status]).toEqual([201, 201])
 
-    // The loser's partial writes (copy + membership) rolled back — exactly one of each.
+    // The advisory lock serializes them: one creates the copy, the other reuses it.
+    const [b1, b2] = (await Promise.all([r1.json(), r2.json()])) as [ImportResponse, ImportResponse]
+    expect([b1.alreadyImported, b2.alreadyImported].sort()).toEqual([false, true])
+
+    // Exactly one copy + one import row — the reuse path never wrote a second snapshot.
     const copies = await h.superDb
       .select()
       .from(knuter)

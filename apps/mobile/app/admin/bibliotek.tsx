@@ -90,7 +90,7 @@ export default function BibliotekScreen() {
   }
 
   const importKnute = useMutation({
-    mutationFn: importLibraryKnute,
+    mutationFn: (libId: string) => importLibraryKnute(libId),
     onSuccess: (_res, libId) => {
       haptics.success()
       // Optimistically flip the row to "added" so it can't be tapped again
