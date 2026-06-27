@@ -34,6 +34,17 @@ describe('apiFetch error handling', () => {
     await expect(fetchKnuter()).rejects.toThrow('API svarte 500 Internal Server Error.')
   })
 
+  it('maps a zod-400 (issues present) to a bokmål message, not English "Invalid input"', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      statusText: 'Bad Request',
+      json: async () => ({ error: { message: 'Invalid input', issues: { fieldErrors: {} } } }),
+    }) as unknown as typeof fetch
+
+    await expect(fetchKnuter()).rejects.toThrow('Ugyldige verdier')
+  })
+
   it('appends the dev hint on a 401', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: false,

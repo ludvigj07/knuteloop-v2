@@ -71,9 +71,12 @@ export function CreateFolderSheet({
           placeholder="F.eks. Sosialt, Tradisjon …"
           placeholderTextColor={sticker.color.textMuted}
           autoFocus
+          maxLength={100}
           returnKeyType="done"
           onSubmitEditing={() => {
-            if (trimmed.length >= 2) onCreate(trimmed)
+            // Mirror the button's guard — don't fire a second createFolder while
+            // one is already in flight (the autofocused keyboard stays up).
+            if (trimmed.length >= 2 && !creating) onCreate(trimmed)
           }}
           accessibilityLabel="Navn på mappa"
         />

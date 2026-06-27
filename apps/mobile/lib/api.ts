@@ -104,8 +104,12 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     // e.g. "Knuten er allerede importert" — instead of a generic status string.
     let serverMessage: string | undefined
     try {
-      const body = (await res.json()) as { error?: { message?: unknown } }
-      if (typeof body?.error?.message === 'string' && body.error.message.length > 0) {
+      const body = (await res.json()) as { error?: { message?: unknown; issues?: unknown } }
+      if (res.status === 400 && body?.error?.issues != null) {
+        // Zod validation failures come back as the English "Invalid input" with an
+        // `issues` payload. The rest of the app is bokmål — show a bokmål message.
+        serverMessage = 'Ugyldige verdier. Sjekk feltene og prøv igjen.'
+      } else if (typeof body?.error?.message === 'string' && body.error.message.length > 0) {
         serverMessage = body.error.message
       }
     } catch {
