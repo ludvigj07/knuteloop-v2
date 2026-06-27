@@ -34,7 +34,6 @@ import {
 } from '../../lib/api'
 import { formatNumber } from '../../lib/format'
 import { haptics } from '../../lib/haptics'
-import { isSensitiveKnute } from '../../lib/knute-ui'
 import { sticker, spacing } from '../../lib/theme'
 
 const PAGE = 30
@@ -129,12 +128,11 @@ export default function BibliotekScreen() {
   })
 
   const onAddRow = (k: LibraryKnute) => {
-    // Sensitive knuter (sensitive folder, 18+, or text-evidence) open the detail
-    // sheet first — context before adding.
-    if (isSensitiveKnute(k)) {
-      setSelected(k)
-      return
-    }
+    // The "+" always adds directly so it works on every platform. Routing
+    // sensitive adds through the detail sheet broke adding on web, where
+    // @gorhom/bottom-sheet doesn't reliably present. Sensitivity is still clearly
+    // signalled inline (amber tint + 18+/Tekst badges); tapping the row opens the
+    // detail sheet with the full warning for anyone who wants context.
     importKnute.mutate(k.id)
   }
 
