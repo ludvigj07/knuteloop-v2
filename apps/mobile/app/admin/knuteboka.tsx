@@ -74,8 +74,15 @@ export default function KnutebokaScreen() {
     )
   }
 
-  if (knuter.isError) {
-    const isForbidden = knuter.error instanceof ApiError && knuter.error.status === 403
+  // Handle a failure in EITHER query — a folders-only failure must not fall
+  // through to a misleading "0 mapper / Ingen mapper ennå" empty state.
+  if (knuter.isError || folders.isError) {
+    const err = knuter.error ?? folders.error
+    const isForbidden = err instanceof ApiError && err.status === 403
+    const retry = () => {
+      void knuter.refetch()
+      void folders.refetch()
+    }
     return (
       <View style={styles.root}>
         {sheetHeader}
@@ -85,10 +92,10 @@ export default function KnutebokaScreen() {
               {isForbidden ? 'Du må være knutesjef' : 'Kunne ikke laste'}
             </Text>
             <Text color={sticker.color.textMuted}>
-              {isForbidden ? 'Denne siden er kun for knutesjefer.' : (knuter.error as Error).message}
+              {isForbidden ? 'Denne siden er kun for knutesjefer.' : (err as Error).message}
             </Text>
             {!isForbidden ? (
-              <StickerButton label="Prøv igjen" variant="secondary" size="sm" onPress={() => void knuter.refetch()} />
+              <StickerButton label="Prøv igjen" variant="secondary" size="sm" onPress={retry} />
             ) : null}
           </StickerCard>
         </View>

@@ -35,7 +35,7 @@ const queryClient = new QueryClient({
 export default function RootLayout() {
   // Brand fonts: Bricolage (display), Inter (body/UI), JetBrains Mono (numerals).
   // The keys here are the fontFamily names the Text primitive resolves to.
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     BricolageGrotesque_700Bold,
     BricolageGrotesque_800ExtraBold,
     Inter_400Regular,
@@ -48,7 +48,9 @@ export default function RootLayout() {
   })
 
   // Hold render until fonts are ready so text never flashes in a fallback face.
-  if (!fontsLoaded) return null
+  // If loading FAILS, render anyway (system-font fallback) — never hang forever
+  // on a blank screen with no recovery.
+  if (!fontsLoaded && !fontError) return null
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
