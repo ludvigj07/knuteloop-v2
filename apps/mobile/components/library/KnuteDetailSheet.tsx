@@ -1,20 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { StyleSheet, View } from 'react-native'
-import {
-  BottomSheetBackdrop,
-  BottomSheetModal,
-  BottomSheetScrollView,
-  type BottomSheetBackdropProps,
-} from '@gorhom/bottom-sheet'
+import { useEffect, useState } from 'react'
+import { ScrollView, StyleSheet, View } from 'react-native'
 import { Check, TriangleAlert } from 'lucide-react-native'
-import {
-  Chip,
-  Eyebrow,
-  KnoteIcon,
-  StickerButton,
-  StickerCard,
-  Text,
-} from '../primitives'
+import { Chip, Eyebrow, KnoteIcon, Sheet, StickerButton, StickerCard, Text } from '../primitives'
 import { GlyphTile } from '../knute/GlyphTile'
 import type { LibraryKnute } from '../../lib/api'
 import { difficultyTone, folderGlyph, isSensitiveKnute } from '../../lib/knute-ui'
@@ -23,7 +10,8 @@ import { sticker, spacing } from '../../lib/theme'
 
 // Bottom sheet shown when a library knute is tapped: full description, a meta
 // grid, a sensitive-folder warning, and the import action. Controlled by the
-// `knute` prop (present → open, null → dismiss); `onClose` fires on dismiss.
+// `knute` prop (present → open, null → closed). Built on the cross-platform Sheet
+// so it works on web too.
 
 export function KnuteDetailSheet({
   knute,
@@ -36,35 +24,18 @@ export function KnuteDetailSheet({
   onClose: () => void
   onImport: (knute: LibraryKnute) => void
 }) {
-  const ref = useRef<BottomSheetModal>(null)
-  const snapPoints = useMemo(() => ['70%'], [])
-
+  // Retain the last knute so the content stays rendered during the close animation.
+  const [shown, setShown] = useState<LibraryKnute | null>(knute)
   useEffect(() => {
-    if (knute) ref.current?.present()
-    else ref.current?.dismiss()
+    if (knute) setShown(knute)
   }, [knute])
 
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} opacity={0.45} />
-    ),
-    [],
-  )
-
   return (
-    <BottomSheetModal
-      ref={ref}
-      snapPoints={snapPoints}
-      enablePanDownToClose
-      onDismiss={onClose}
-      backdropComponent={renderBackdrop}
-      handleIndicatorStyle={styles.handle}
-      backgroundStyle={styles.sheetBg}
-    >
-      <BottomSheetScrollView contentContainerStyle={styles.content}>
-        {knute ? <Body knute={knute} importing={importing} onImport={() => onImport(knute)} /> : null}
-      </BottomSheetScrollView>
-    </BottomSheetModal>
+    <Sheet open={knute !== null} onClose={onClose}>
+      <ScrollView contentContainerStyle={styles.content}>
+        {shown ? <Body knute={shown} importing={importing} onImport={() => onImport(shown)} /> : null}
+      </ScrollView>
+    </Sheet>
   )
 }
 
@@ -164,15 +135,7 @@ function MetaCell({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  sheetBg: {
-    backgroundColor: sticker.color.card,
-    borderColor: sticker.color.ink,
-    borderWidth: sticker.borderWidth,
-    borderTopLeftRadius: sticker.radius.xl,
-    borderTopRightRadius: sticker.radius.xl,
-  },
-  handle: { backgroundColor: sticker.color.lineStrong, width: 44 },
-  content: { padding: spacing.lg, paddingBottom: spacing['2xl'], gap: spacing.base },
+  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.base },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   headerText: { flex: 1, gap: spacing['2xs'] },
   chips: { flexDirection: 'row', gap: spacing.xs, flexWrap: 'wrap' },
