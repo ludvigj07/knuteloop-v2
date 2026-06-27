@@ -1,0 +1,1 @@
+ALTER TABLE "knute_folders" ADD COLUMN "icon" text;
