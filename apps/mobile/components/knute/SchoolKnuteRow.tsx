@@ -5,7 +5,7 @@ import { GlyphTile } from './GlyphTile'
 import type { Knute } from '../../lib/api'
 import { difficultyTone } from '../../lib/knute-ui'
 import { formatNumber } from '../../lib/format'
-import { sticker, spacing } from '../../lib/theme'
+import { size, sticker, spacing } from '../../lib/theme'
 
 // A school-owned knute as a sticker row. Shared by the folder view (tap to edit
 // + a remove button). The card is static; the content area and the remove button
@@ -80,8 +80,8 @@ const styles = StyleSheet.create({
   body: { flex: 1, gap: spacing.xs },
   meta: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' },
   removeBtn: {
-    width: 40,
-    height: 40,
+    width: size.actionMinHeight,
+    height: size.actionMinHeight,
     borderRadius: sticker.radius.full,
     borderWidth: sticker.borderWidth,
     borderColor: sticker.color.danger,

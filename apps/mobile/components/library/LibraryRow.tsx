@@ -12,7 +12,7 @@ import { GlyphTile } from '../knute/GlyphTile'
 import type { LibraryKnute } from '../../lib/api'
 import { difficultyTone, folderGlyph, isSensitiveKnute } from '../../lib/knute-ui'
 import { formatNumber } from '../../lib/format'
-import { sticker, spacing } from '../../lib/theme'
+import { size, sticker, spacing } from '../../lib/theme'
 
 // One library knute as a sticker row. The card itself is NOT pressable; instead
 // the left/content area and the add toggle are two SEPARATE sibling pressables.
@@ -118,8 +118,8 @@ const styles = StyleSheet.create({
   body: { flex: 1, gap: spacing.xs },
   meta: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' },
   toggle: {
-    width: 40,
-    height: 40,
+    width: size.actionMinHeight,
+    height: size.actionMinHeight,
     borderRadius: sticker.radius.full,
     borderWidth: sticker.borderWidth,
     borderColor: sticker.color.ink,

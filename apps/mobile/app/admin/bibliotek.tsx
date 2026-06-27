@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { RefreshControl, StyleSheet, View } from 'react-native'
 import { FlashList } from '@shopify/flash-list'
 import {
+  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -48,7 +49,15 @@ export default function BibliotekScreen() {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<LibraryKnute | null>(null)
 
-  const q = search.trim()
+  // Debounce the term that drives the query key so each keystroke doesn't spawn a
+  // new request + cache entry. The TextInput stays controlled by `search`.
+  const [debouncedQ, setDebouncedQ] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(search.trim()), 300)
+    return () => clearTimeout(t)
+  }, [search])
+
+  const q = debouncedQ
   const knuterKey = ['library', 'knuter', folder, region, q] as const
 
   const packs = useQuery({ queryKey: ['library', 'packs'], queryFn: fetchLibraryPacks })
@@ -68,6 +77,9 @@ export default function BibliotekScreen() {
       const loaded = allPages.reduce((n, p) => n + p.knuter.length, 0)
       return lastPage.knuter.length < PAGE ? undefined : loaded
     },
+    // Keep showing the previous results while a new folder/region/search loads,
+    // so the list doesn't flash to skeletons on every filter change.
+    placeholderData: keepPreviousData,
   })
 
   const items = knuter.data?.pages.flatMap((p) => p.knuter) ?? []
