@@ -17,6 +17,7 @@ import {
   createKnute,
   updateKnute,
   type CreateKnuteInput,
+  type KnuterResponse,
   type UpdateKnuteInput,
 } from '../../../lib/api'
 import { fontSize, sticker, spacing } from '../../../lib/theme'
@@ -71,7 +72,13 @@ export default function EditKnuteScreen() {
 
   const update = useMutation({
     mutationFn: (input: UpdateKnuteInput) => updateKnute(id!, input),
-    onSuccess: () => {
+    onSuccess: (res) => {
+      // Write the fresh row back into the cache so re-opening the editor before
+      // the invalidation refetch lands doesn't seed the form from a stale row
+      // (and re-save a revert of the change just made).
+      qc.setQueryData<KnuterResponse>(['knuter', 'all'], (old) =>
+        old ? { knuter: old.knuter.map((k) => (k.id === res.knute.id ? res.knute : k)) } : old,
+      )
       invalidateAll()
       router.back()
     },
