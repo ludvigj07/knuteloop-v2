@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native'
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -126,6 +126,10 @@ export default function EditKnuteScreen() {
   return (
     <View style={styles.root}>
       {screen}
+      <KeyboardAvoidingView
+        style={styles.kav}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <ScrollView
         contentContainerStyle={[styles.form, { paddingBottom: insets.bottom + spacing.xl }]}
         keyboardShouldPersistTaps="handled"
@@ -218,6 +222,7 @@ export default function EditKnuteScreen() {
           <StickerButton label="Avbryt" variant="ghost" fullWidth disabled={busy} onPress={() => router.back()} />
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
       <Toast message={toast.message} bottomOffset={insets.bottom + spacing.lg} />
     </View>
   )
@@ -272,6 +277,7 @@ function ToggleCard({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: sticker.color.paper },
+  kav: { flex: 1 },
   form: { padding: spacing.base, gap: spacing.base },
   field: { gap: spacing.xs },
   input: {
