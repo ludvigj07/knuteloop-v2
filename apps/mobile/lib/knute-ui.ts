@@ -41,3 +41,21 @@ const SENSITIVE_FOLDERS = new Set(['Alkohol', 'Sex'])
 export function isSensitiveFolder(folder: string | null | undefined): boolean {
   return folder != null && SENSITIVE_FOLDERS.has(folder)
 }
+
+// A knute warrants the sensitive treatment (amber tint + a "read before adding"
+// friction sheet) when its folder is sensitive OR it is adult-only (18+) OR it is
+// text-evidence (the legally/sexually sensitive ones are modelled as text). Keying
+// only on folder name missed adult text knuter that live outside Alkohol/Sex
+// (e.g. the lapdance knuter seeded into Rampestrek). Treat all users as possibly
+// minors (CRITICAL RULE 12) — err on the side of the gate.
+export function isSensitiveKnute(knute: {
+  suggestedFolder?: string | null
+  minAge?: number | null
+  evidenceType?: string | null
+}): boolean {
+  return (
+    isSensitiveFolder(knute.suggestedFolder) ||
+    (knute.minAge ?? 0) >= 18 ||
+    knute.evidenceType === 'text'
+  )
+}
