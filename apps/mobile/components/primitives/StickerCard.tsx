@@ -18,10 +18,12 @@ import { haptics, type HapticKind } from '../../lib/haptics'
 // The signature "sticker" surface — a white (or tinted) card with a 2px ink
 // border and a HARD offset shadow (solid ink, no blur). The shadow is a real
 // View rendered behind-and-offset, so it looks identical on iOS and Android
-// (Android `elevation` can't do a directional hard shadow). When `onPress` is
-// given the surface presses flat onto its shadow, mirroring the web `.sticker`.
-
-const AnimatedPressable = Animated.createAnimatedComponent(RNPressable)
+// (Android `elevation` can't do a directional hard shadow).
+//
+// Press feedback: the SURFACE stays put (its hit target never moves) and the
+// offset shadow fades out — it reads as "pressed flat" but, crucially, the touch
+// never leaves the pressable, so onPress always fires. (An earlier version
+// translated the surface 4px on press, which made edge/small taps miss.)
 
 type ShadowSize = 'sm' | 'base' | 'lg' | 'none'
 type Tone = 'surface' | 'soft' | 'media' | 'primary' | 'accent' | 'danger'
@@ -72,12 +74,7 @@ export function StickerCard({
   const pressed = useSharedValue(0)
   const reduceMotion = useReducedMotion()
 
-  const surfaceAnimStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: pressed.value * offset },
-      { translateY: pressed.value * offset },
-    ],
-  }))
+  const shadowAnimStyle = useAnimatedStyle(() => ({ opacity: 1 - pressed.value }))
 
   const surfaceStyle: ViewStyle = {
     borderWidth: sticker.borderWidth,
@@ -87,41 +84,38 @@ export function StickerCard({
     padding: spacing[padding],
   }
 
-  const content = (
-    <>
-      {offset > 0 ? (
-        <View
-          pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFill,
-            { backgroundColor: sticker.color.ink, borderRadius, transform: [{ translateX: offset }, { translateY: offset }] },
-          ]}
-        />
-      ) : null}
-    </>
-  )
+  const shadowBaseStyle: StyleProp<ViewStyle> = [
+    StyleSheet.absoluteFill,
+    {
+      backgroundColor: sticker.color.ink,
+      borderRadius,
+      transform: [{ translateX: offset }, { translateY: offset }],
+    },
+  ]
 
   if (!onPress) {
     return (
       <View style={[styles.outer, style]}>
-        {content}
+        {offset > 0 ? <View pointerEvents="none" style={shadowBaseStyle} /> : null}
         <View style={surfaceStyle}>{children}</View>
       </View>
     )
   }
 
   const handlePressIn = () => {
-    if (!reduceMotion && offset > 0) pressed.value = withTiming(1, { duration: 120 })
+    if (!reduceMotion && offset > 0) pressed.value = withTiming(1, { duration: 90 })
     if (haptic !== 'none' && !disabled) void haptics[haptic]()
   }
   const handlePressOut = () => {
-    if (!reduceMotion && offset > 0) pressed.value = withTiming(0, { duration: 120 })
+    if (!reduceMotion && offset > 0) pressed.value = withTiming(0, { duration: 140 })
   }
 
   return (
     <View style={[styles.outer, style]}>
-      {content}
-      <AnimatedPressable
+      {offset > 0 ? (
+        <Animated.View pointerEvents="none" style={[shadowBaseStyle, shadowAnimStyle]} />
+      ) : null}
+      <RNPressable
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
@@ -130,10 +124,17 @@ export function StickerCard({
         accessibilityLabel={accessibilityLabel}
         accessibilityHint={accessibilityHint}
         accessibilityState={{ disabled }}
-        style={[surfaceStyle, surfaceAnimStyle, disabled ? styles.disabled : null]}
+        // hitSlop gives a little forgiveness near the edges; the surface itself
+        // never moves, so taps register reliably.
+        hitSlop={6}
+        style={({ pressed: isPressed }) => [
+          surfaceStyle,
+          isPressed ? styles.pressedDim : null,
+          disabled ? styles.disabled : null,
+        ]}
       >
         {children}
-      </AnimatedPressable>
+      </RNPressable>
     </View>
   )
 }
@@ -141,4 +142,5 @@ export function StickerCard({
 const styles = StyleSheet.create({
   outer: { position: 'relative' },
   disabled: { opacity: 0.5 },
+  pressedDim: { opacity: 0.92 },
 })
