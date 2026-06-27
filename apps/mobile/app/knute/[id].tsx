@@ -1,33 +1,53 @@
-import { useState } from 'react'
-import {
-  View,
-  TextInput,
-  ScrollView,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-} from 'react-native'
-import { Image } from 'expo-image'
+import { type ReactNode, useState } from 'react'
+import { ScrollView, StyleSheet, TextInput, View } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import * as ImageManipulator from 'expo-image-manipulator'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Pressable, Text } from '../../components/primitives'
-import { createSubmission, fetchKnuter, fetchMe, fetchUploadUrl, uploadImageBinary } from '../../lib/api'
+import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated'
+import { Check, Clock } from 'lucide-react-native'
+import {
+  Eyebrow,
+  Skeleton,
+  StickerButton,
+  StickerCard,
+  Text,
+  Toast,
+  useToast,
+} from '../../components/primitives'
+import { KnutePreviewCard } from '../../components/submit/KnutePreviewCard'
+import { PhotoEvidence } from '../../components/submit/PhotoEvidence'
+import {
+  createSubmission,
+  fetchKnuter,
+  fetchMe,
+  fetchUploadUrl,
+  uploadImageBinary,
+} from '../../lib/api'
 import { haptics } from '../../lib/haptics'
-import { colors, spacing, radius, fontSize, fontWeight, size } from '../../lib/theme'
+import { animation, fontSize, size, spacing, sticker } from '../../lib/theme'
 
 // Photos are compressed to ~1MB before upload: resize to max 1280px wide, JPEG
 // at 0.6 quality. Keeps uploads fast on school WiFi and CDN bandwidth low.
 const MAX_WIDTH = 1280
 const JPEG_QUALITY = 0.6
+const MAX_CAPTION = 500
+
+const screenOptions = {
+  title: 'Send inn',
+  headerStyle: { backgroundColor: sticker.color.paper },
+  headerTintColor: sticker.color.ink,
+  headerShadowVisible: false,
+} as const
 
 export default function KnuteDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const router = useRouter()
   const qc = useQueryClient()
   const insets = useSafeAreaInsets()
+  const toast = useToast()
+
   const [caption, setCaption] = useState('')
   const [imageUri, setImageUri] = useState<string | null>(null)
   const [picking, setPicking] = useState(false)
@@ -39,11 +59,10 @@ export default function KnuteDetailScreen() {
   const isText = knute?.evidenceType === 'text'
 
   // Look up the user's prior submission for THIS knute to lock the form
-  // proactively. The backend also enforces this (returns 409), but UX is
-  // better if Send-inn just isn't tappable when it can't succeed.
+  // proactively. The backend also enforces this (returns 409), but UX is better
+  // if Send-inn just isn't tappable when it can't succeed. Match by knute ID, NOT
+  // title — two knuter can share a title and a title match would wrongly lock (H-7).
   const me = useQuery({ queryKey: ['me'], queryFn: fetchMe })
-  // Match the prior submission by knute ID, NOT title — two knuter can share a
-  // title, and a title match would wrongly lock the form for the other one (H-7).
   const prior = me.data?.submissions.find(
     (s) => knute && s.knuteId === knute.id && (s.status === 'pending' || s.status === 'approved'),
   )
@@ -61,11 +80,10 @@ export default function KnuteDetailScreen() {
           ? await ImagePicker.requestCameraPermissionsAsync()
           : await ImagePicker.requestMediaLibraryPermissionsAsync()
       if (!perm.granted) {
-        Alert.alert(
-          'Mangler tilgang',
+        toast.show(
           source === 'camera'
-            ? 'Gi Knuteloop tilgang til kameraet i Innstillinger for å ta bilde.'
-            : 'Gi Knuteloop tilgang til bildene i Innstillinger for å velge et bilde.',
+            ? 'Gi Knuteloop tilgang til kameraet i Innstillinger.'
+            : 'Gi Knuteloop tilgang til bildene i Innstillinger.',
         )
         return
       }
@@ -84,7 +102,7 @@ export default function KnuteDetailScreen() {
       setImageUri(compressed.uri)
       void haptics.selection()
     } catch (err) {
-      Alert.alert('Noe gikk galt', (err as Error).message)
+      toast.show((err as Error).message)
     } finally {
       setPicking(false)
     }
@@ -109,42 +127,54 @@ export default function KnuteDetailScreen() {
       void qc.invalidateQueries({ queryKey: ['me'] })
       void qc.invalidateQueries({ queryKey: ['submissions', 'pending'] })
       void qc.invalidateQueries({ queryKey: ['submissions', 'pending', 'count'] })
-      Alert.alert('Innsending lagret', 'Knutesjefen får den til godkjenning.', [
-        { text: 'OK', onPress: () => router.back() },
-      ])
     },
-    onError: (err) => {
-      Alert.alert('Kunne ikke sende inn', (err as Error).message)
-    },
+    onError: (err) => toast.show((err as Error).message),
   })
 
   if (isLoading) {
     return (
-      <>
-        <Stack.Screen options={{ title: 'Knute' }} />
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.brand.primary} />
+      <View style={styles.root}>
+        <Stack.Screen options={screenOptions} />
+        <View style={styles.content}>
+          <Skeleton style={styles.skelCard} />
+          <Skeleton style={styles.skelWell} />
+          <Skeleton style={styles.skelField} />
         </View>
-      </>
+      </View>
     )
   }
 
   if (!knute) {
     return (
-      <>
-        <Stack.Screen options={{ title: 'Knute' }} />
-        <View style={styles.center}>
-          <Text style={styles.errorTitle}>Fant ikke knuten</Text>
-          <Pressable
-            style={styles.backButton}
-            onPress={() => router.back()}
-            accessibilityRole="button"
-            accessibilityLabel="Tilbake"
-          >
-            <Text style={styles.backText}>Tilbake</Text>
-          </Pressable>
-        </View>
-      </>
+      <View style={styles.root}>
+        <Stack.Screen options={screenOptions} />
+        <CenterState
+          title="Fant ikke knuten"
+          body="Den kan ha blitt arkivert eller fjernet."
+          actionLabel="Tilbake"
+          onAction={() => router.back()}
+        />
+      </View>
+    )
+  }
+
+  if (submit.isSuccess) {
+    return (
+      <View style={styles.root}>
+        <Stack.Screen options={{ ...screenOptions, headerBackVisible: false }} />
+        <CenterState
+          icon={
+            <View style={styles.successCircle}>
+              <Check size={sticker.icon.lg} color={sticker.color.success} strokeWidth={3} />
+            </View>
+          }
+          title="Sendt til godkjenning!"
+          body={`Knutesjefen får «${knute.title}» til vurdering. Du får varsel når den er godkjent.`}
+          actionLabel="Ferdig"
+          actionVariant="accent"
+          onAction={() => router.back()}
+        />
+      </View>
     )
   }
 
@@ -152,361 +182,196 @@ export default function KnuteDetailScreen() {
   const canSubmit =
     (isText ? caption.trim().length > 0 : imageUri !== null) && lockReason === null && !busy
 
+  const submitLabel = lockReason
+    ? 'Allerede sendt inn'
+    : busy
+      ? 'Sender inn…'
+      : isText
+        ? caption.trim().length === 0
+          ? 'Skriv en beskrivelse'
+          : 'Send inn'
+        : !imageUri
+          ? 'Legg til et bilde'
+          : 'Send inn'
+
   return (
-    <>
-      <Stack.Screen options={{ title: 'Send inn' }} />
+    <View style={styles.root}>
+      <Stack.Screen options={screenOptions} />
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={{
-          padding: spacing.base,
-          paddingBottom: insets.bottom + spacing.lg,
-        }}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={[styles.knuteCard, knute.isGold && styles.knuteCardGold]}>
-          <Text style={styles.knuteTitle} accessibilityRole="header">
-            {knute.title}
-          </Text>
-          {knute.description ? <Text style={styles.knuteDesc}>{knute.description}</Text> : null}
-          <View style={styles.knuteMetaRow}>
-            <View style={[styles.pointsBadge, knute.isGold && styles.pointsBadgeGold]}>
-              <Text style={styles.pointsText}>{knute.points} p</Text>
-            </View>
-            <Text style={styles.difficulty}>{knute.difficulty}</Text>
-            {knute.isGold ? (
-              <View style={styles.goldPill} accessibilityLabel="Gullknute">
-                <Text style={styles.goldPillText}>★ Gull</Text>
-              </View>
-            ) : null}
-          </View>
+        <View style={styles.section}>
+          <Eyebrow>Valgt knute</Eyebrow>
+          <KnutePreviewCard knute={knute} />
         </View>
 
-        {lockReason && (
-          <View style={styles.lockBanner} accessibilityRole="alert">
-            <Text style={styles.lockBannerText}>{lockReason}</Text>
-          </View>
-        )}
-
-        {isText ? (
-          <View style={styles.textNote}>
-            <Text style={styles.textNoteText}>
-              Denne knuten sendes inn med tekst — ikke bilde. Skriv kort hva du gjorde i
-              beskrivelsen under.
-            </Text>
-          </View>
-        ) : imageUri ? (
-          <View style={styles.previewWrap}>
-            <Image
-              source={{ uri: imageUri }}
-              style={styles.preview}
-              contentFit="cover"
-              transition={150}
-              accessibilityRole="image"
-              accessibilityLabel="Valgt bilde"
-            />
-            {!lockReason ? (
-              <Pressable
-                style={styles.changeButton}
-                onPress={() => void pickImage('library')}
-                disabled={picking}
-                accessibilityRole="button"
-                accessibilityLabel="Bytt bilde"
-              >
-                <Text style={styles.changeText}>Bytt bilde</Text>
-              </Pressable>
-            ) : null}
-          </View>
-        ) : (
-          <View style={styles.pickRow}>
-            <Pressable
-              style={[styles.pickButton, (picking || lockReason !== null) && styles.buttonDisabled]}
-              onPress={() => void pickImage('camera')}
-              disabled={picking || lockReason !== null}
-              accessibilityRole="button"
-              accessibilityLabel="Ta bilde med kamera"
-              accessibilityHint="Åpner kameraet for å ta bilde av knuten."
-            >
-              <Text style={styles.pickIcon}>📷</Text>
-              <Text style={styles.pickText}>Ta bilde</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.pickButton, (picking || lockReason !== null) && styles.buttonDisabled]}
-              onPress={() => void pickImage('library')}
-              disabled={picking || lockReason !== null}
-              accessibilityRole="button"
-              accessibilityLabel="Velg bilde fra galleri"
-              accessibilityHint="Åpner bildegalleriet."
-            >
-              <Text style={styles.pickIcon}>🖼️</Text>
-              <Text style={styles.pickText}>Velg fra galleri</Text>
-            </Pressable>
-          </View>
-        )}
-        {picking ? (
-          <Text style={styles.pickingHint}>Behandler bilde…</Text>
+        {lockReason ? (
+          <StickerCard tone="soft" radius="md" shadow="sm" padding="md">
+            <View style={styles.lockRow}>
+              <Clock size={sticker.icon.md} color={sticker.color.warning} strokeWidth={2} />
+              <Text size="sm" weight="semibold" color={sticker.color.ink} style={styles.flex}>
+                {lockReason}
+              </Text>
+            </View>
+          </StickerCard>
         ) : null}
 
-        <Text style={styles.label}>
-          {isText ? 'Beskrivelse (påkrevd)' : 'Beskrivelse (valgfritt)'}
-        </Text>
-        <TextInput
-          style={[styles.input, lockReason && styles.inputDisabled]}
-          value={caption}
-          onChangeText={setCaption}
-          placeholder="Hva gjorde du? Hvem var med?"
-          placeholderTextColor={colors.text.muted}
-          multiline
-          maxLength={500}
-          editable={!lockReason}
-          accessibilityLabel="Skriv en beskrivelse"
-        />
-        <Text style={styles.charCount}>{caption.length}/500</Text>
+        <View style={styles.section}>
+          <Eyebrow>Bevis</Eyebrow>
+          {isText ? (
+            <StickerCard tone="soft" radius="md" shadow="sm" padding="base">
+              <Text size="sm" color={sticker.color.text}>
+                Denne knuten sendes inn med tekst — ikke bilde. Skriv kort hva du gjorde under.
+              </Text>
+            </StickerCard>
+          ) : (
+            <PhotoEvidence
+              imageUri={imageUri}
+              picking={picking}
+              disabled={lockReason !== null}
+              onPickCamera={() => void pickImage('camera')}
+              onPickLibrary={() => void pickImage('library')}
+              onRemove={() => setImageUri(null)}
+            />
+          )}
+        </View>
 
-        <Pressable
-          style={[styles.submitButton, !canSubmit && styles.buttonDisabled]}
-          onPress={() => submit.mutate()}
-          disabled={!canSubmit}
-          accessibilityRole="button"
-          accessibilityLabel={lockReason ? 'Send inn (låst)' : 'Send inn knute'}
-        >
-          <Text style={styles.submitText}>
-            {lockReason
-              ? 'Allerede sendt inn'
-              : busy
-                ? 'Sender inn…'
-                : isText
-                  ? caption.trim().length === 0
-                    ? 'Skriv en beskrivelse'
-                    : 'Send inn'
-                  : !imageUri
-                    ? 'Legg til et bilde'
-                    : 'Send inn'}
-          </Text>
-        </Pressable>
+        <View style={styles.section}>
+          <View style={styles.captionHeader}>
+            <Eyebrow>{isText ? 'Beskrivelse (påkrevd)' : 'Beskrivelse (valgfritt)'}</Eyebrow>
+            <Text size="xs" font="mono" color={sticker.color.textMuted}>
+              {caption.length}/{MAX_CAPTION}
+            </Text>
+          </View>
+          <TextInput
+            style={[styles.input, lockReason ? styles.inputDisabled : null]}
+            value={caption}
+            onChangeText={setCaption}
+            placeholder="Hva gjorde du? Hvem var med?"
+            placeholderTextColor={sticker.color.textMuted}
+            multiline
+            maxLength={MAX_CAPTION}
+            editable={!lockReason}
+            accessibilityLabel="Skriv en beskrivelse"
+          />
+        </View>
 
-        <Pressable
-          style={styles.cancelButton}
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Avbryt"
-          disabled={busy}
-        >
-          <Text style={styles.cancelText}>Avbryt</Text>
-        </Pressable>
+        <View style={styles.actions}>
+          <StickerButton
+            label={submitLabel}
+            variant="accent"
+            fullWidth
+            loading={busy}
+            disabled={!canSubmit}
+            icon={
+              canSubmit ? (
+                <Check size={sticker.icon.md} color={sticker.color.ink} strokeWidth={2.5} />
+              ) : undefined
+            }
+            onPress={() => submit.mutate()}
+          />
+          <StickerButton
+            label="Avbryt"
+            variant="ghost"
+            fullWidth
+            disabled={busy}
+            onPress={() => router.back()}
+          />
+        </View>
       </ScrollView>
-    </>
+      <Toast message={toast.message} bottomOffset={insets.bottom + spacing.lg} />
+    </View>
+  )
+}
+
+// Centered single-card state (not-found + post-submit success). Fades in for a
+// little polish; respects reduced motion.
+function CenterState({
+  icon,
+  title,
+  body,
+  actionLabel,
+  actionVariant = 'secondary',
+  onAction,
+}: {
+  icon?: ReactNode
+  title: string
+  body: string
+  actionLabel: string
+  actionVariant?: 'accent' | 'secondary'
+  onAction: () => void
+}) {
+  const reduceMotion = useReducedMotion()
+  return (
+    <View style={styles.centered}>
+      <Animated.View
+        entering={reduceMotion ? undefined : FadeInDown.duration(animation.duration.base)}
+        style={styles.centerCard}
+      >
+        <StickerCard tone="surface" radius="xl" shadow="lg">
+          <View style={styles.cardInner}>
+            {icon ? <View style={styles.iconWrap}>{icon}</View> : null}
+            <Text
+              font="display"
+              weight="bold"
+              size="2xl"
+              color={sticker.color.ink}
+              align="center"
+              accessibilityRole="header"
+            >
+              {title}
+            </Text>
+            <Text size="base" color={sticker.color.textMuted} align="center">
+              {body}
+            </Text>
+            <StickerButton label={actionLabel} variant={actionVariant} fullWidth onPress={onAction} />
+          </View>
+        </StickerCard>
+      </Animated.View>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: colors.background },
-  knuteCard: {
-    backgroundColor: colors.surface,
-    padding: spacing.base,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.base,
-  },
-  knuteCardGold: {
-    borderColor: colors.gold,
-    backgroundColor: colors.goldSoft,
-  },
-  pointsBadgeGold: {
-    backgroundColor: colors.gold,
-  },
-  goldPill: {
-    backgroundColor: colors.gold,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.sm,
-  },
-  goldPillText: {
-    color: colors.text.inverse,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-  },
-  knuteTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    color: colors.text.primary,
-    marginBottom: spacing.xs,
-  },
-  knuteDesc: {
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
-    marginBottom: spacing.sm,
-  },
-  knuteMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  pointsBadge: {
-    backgroundColor: colors.brand.primary,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.sm,
-  },
-  pointsText: {
-    fontSize: fontSize.xs,
-    color: colors.text.inverse,
-    fontWeight: fontWeight.semibold,
-  },
-  difficulty: {
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
-  },
-  pickRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.base,
-  },
-  pickButton: {
-    flex: 1,
-    height: size.emptyMinHeight / 1.6,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-  },
-  pickIcon: {
-    fontSize: fontSize['2xl'],
-  },
-  pickText: {
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
-    fontWeight: fontWeight.medium,
-  },
-  pickingHint: {
-    fontSize: fontSize.sm,
-    color: colors.text.muted,
-    textAlign: 'center',
-    marginBottom: spacing.base,
-  },
-  textNote: {
-    backgroundColor: colors.knuter.canvas,
-    borderRadius: radius.md,
-    padding: spacing.base,
-    marginBottom: spacing.base,
-  },
-  textNoteText: {
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
-  },
-  previewWrap: {
-    marginBottom: spacing.base,
-  },
-  preview: {
-    width: '100%',
-    height: size.emptyMinHeight,
-    borderRadius: radius.md,
-    backgroundColor: colors.knuter.divider,
-  },
-  changeButton: {
-    alignSelf: 'center',
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surface,
-  },
-  changeText: {
-    fontSize: fontSize.sm,
-    color: colors.ink,
-    fontWeight: fontWeight.semibold,
-  },
-  label: {
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
-    fontWeight: fontWeight.medium,
-    marginBottom: spacing.xs,
-  },
+  root: { flex: 1, backgroundColor: sticker.color.paper },
+  content: { padding: spacing.base, gap: spacing.lg },
+  section: { gap: spacing.sm },
+  flex: { flex: 1 },
+  lockRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  captionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   input: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.base,
+    backgroundColor: sticker.color.card,
+    borderWidth: sticker.borderWidth,
+    borderColor: sticker.color.ink,
+    borderRadius: sticker.radius.md,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md,
     fontSize: fontSize.base,
-    color: colors.text.primary,
+    fontFamily: 'Inter_400Regular',
+    color: sticker.color.text,
     minHeight: 100,
     textAlignVertical: 'top',
   },
-  charCount: {
-    fontSize: fontSize.xs,
-    color: colors.text.muted,
-    textAlign: 'right',
-    marginTop: spacing.xs,
-    marginBottom: spacing.base,
-  },
-  submitButton: {
-    backgroundColor: colors.brand.primary,
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
+  inputDisabled: { backgroundColor: sticker.color.surfaceSoft, color: sticker.color.textMuted },
+  actions: { gap: spacing.sm, marginTop: spacing.xs },
+  // Centered states
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
+  centerCard: { width: '100%' },
+  cardInner: { gap: spacing.base },
+  iconWrap: { alignItems: 'center' },
+  successCircle: {
+    width: size.profileAvatar,
+    height: size.profileAvatar,
+    borderRadius: sticker.radius.full,
+    borderWidth: sticker.borderWidth,
+    borderColor: sticker.color.ink,
+    backgroundColor: sticker.color.successBg,
     alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  submitText: {
-    color: colors.text.inverse,
-    fontWeight: fontWeight.semibold,
-    fontSize: fontSize.base,
-  },
-  cancelButton: {
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  cancelText: {
-    color: colors.text.secondary,
-    fontSize: fontSize.base,
-  },
-  buttonDisabled: { opacity: 0.5 },
-  center: {
-    flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.lg,
   },
-  errorTitle: {
-    fontSize: fontSize.lg,
-    color: colors.error,
-    fontWeight: fontWeight.semibold,
-    marginBottom: spacing.sm,
-  },
-  backButton: {
-    marginTop: spacing.base,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-  },
-  backText: {
-    color: colors.text.primary,
-    fontWeight: fontWeight.semibold,
-  },
-  lockBanner: {
-    backgroundColor: colors.status.pendingBg,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.warning,
-    padding: spacing.base,
-    borderRadius: radius.md,
-    marginBottom: spacing.base,
-  },
-  lockBannerText: {
-    color: colors.text.primary,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-  },
-  inputDisabled: {
-    backgroundColor: colors.background,
-    color: colors.text.muted,
-  },
+  // Loading skeletons
+  skelCard: { height: 96, borderRadius: sticker.radius.lg },
+  skelWell: { height: size.emptyMinHeight, borderRadius: sticker.radius.lg },
+  skelField: { height: 100, borderRadius: sticker.radius.md },
 })
