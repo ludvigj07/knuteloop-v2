@@ -17,7 +17,7 @@ import {
 } from '../primitives'
 import { GlyphTile } from '../knute/GlyphTile'
 import type { LibraryKnute } from '../../lib/api'
-import { difficultyTone, folderGlyph, isSensitiveFolder } from '../../lib/knute-ui'
+import { difficultyTone, folderGlyph, isSensitiveKnute } from '../../lib/knute-ui'
 import { formatNumber } from '../../lib/format'
 import { sticker, spacing } from '../../lib/theme'
 
@@ -77,7 +77,7 @@ function Body({
   importing: boolean
   onImport: () => void
 }) {
-  const sensitive = isSensitiveFolder(knute.suggestedFolder)
+  const sensitive = isSensitiveKnute(knute)
   const isText = knute.evidenceType === 'text'
 
   return (

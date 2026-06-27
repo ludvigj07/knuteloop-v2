@@ -33,7 +33,7 @@ import {
 } from '../../lib/api'
 import { formatNumber } from '../../lib/format'
 import { haptics } from '../../lib/haptics'
-import { isSensitiveFolder } from '../../lib/knute-ui'
+import { isSensitiveKnute } from '../../lib/knute-ui'
 import { sticker, spacing } from '../../lib/theme'
 
 const PAGE = 30
@@ -117,8 +117,9 @@ export default function BibliotekScreen() {
   })
 
   const onAddRow = (k: LibraryKnute) => {
-    // Sensitive knuter open the detail sheet first (context before adding).
-    if (isSensitiveFolder(k.suggestedFolder)) {
+    // Sensitive knuter (sensitive folder, 18+, or text-evidence) open the detail
+    // sheet first — context before adding.
+    if (isSensitiveKnute(k)) {
       setSelected(k)
       return
     }
