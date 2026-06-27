@@ -128,11 +128,9 @@ export default function BibliotekScreen() {
   })
 
   const onAddRow = (k: LibraryKnute) => {
-    // The "+" always adds directly so it works on every platform. Routing
-    // sensitive adds through the detail sheet broke adding on web, where
-    // @gorhom/bottom-sheet doesn't reliably present. Sensitivity is still clearly
-    // signalled inline (amber tint + 18+/Tekst badges); tapping the row opens the
-    // detail sheet with the full warning for anyone who wants context.
+    // The "+" is a direct quick-add (all knuter). Sensitivity is signalled inline
+    // (amber tint + 18+/Tekst badges); tapping the row opens the detail sheet with
+    // the full warning + context for anyone who wants it.
     importKnute.mutate(k.id)
   }
 

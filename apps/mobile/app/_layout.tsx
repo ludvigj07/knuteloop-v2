@@ -2,7 +2,6 @@ import { Stack } from 'expo-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { BottomSheetModalProvider } from '@gorhom/bottom-sheet'
 import { StatusBar } from 'expo-status-bar'
 import { useFonts } from 'expo-font'
 import {
@@ -56,19 +55,17 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <BottomSheetModalProvider>
-            <StatusBar style="dark" />
-            <Stack
-              screenOptions={{
-                headerStyle: { backgroundColor: colors.surface },
-                headerTintColor: colors.text.primary,
-                headerTitleStyle: { fontWeight: '600' },
-                contentStyle: { backgroundColor: colors.background },
-              }}
-            >
-              <Stack.Screen name="index" options={{ title: 'Knuter' }} />
-            </Stack>
-          </BottomSheetModalProvider>
+          <StatusBar style="dark" />
+          <Stack
+            screenOptions={{
+              headerStyle: { backgroundColor: colors.surface },
+              headerTintColor: colors.text.primary,
+              headerTitleStyle: { fontWeight: '600' },
+              contentStyle: { backgroundColor: colors.background },
+            }}
+          >
+            <Stack.Screen name="index" options={{ title: 'Knuter' }} />
+          </Stack>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
