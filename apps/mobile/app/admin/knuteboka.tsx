@@ -23,7 +23,9 @@ import {
   fetchFolders,
   type Folder as FolderType,
 } from '../../lib/api'
+import type { FolderIconKey } from '@knuteloop/shared'
 import { CreateFolderSheet } from '../../components/folder/CreateFolderSheet'
+import { folderIconFor } from '../../lib/folder-icons'
 import { formatNumber } from '../../lib/format'
 import { haptics } from '../../lib/haptics'
 import { sticker, spacing } from '../../lib/theme'
@@ -39,7 +41,7 @@ export default function KnutebokaScreen() {
   const folders = useQuery({ queryKey: ['folders'], queryFn: fetchFolders })
 
   const createFolderMutation = useMutation({
-    mutationFn: createFolder,
+    mutationFn: ({ name, icon }: { name: string; icon: FolderIconKey }) => createFolder(name, icon),
     onSuccess: () => {
       haptics.success()
       void qc.invalidateQueries({ queryKey: ['folders'] })
@@ -227,7 +229,7 @@ export default function KnutebokaScreen() {
         open={creatingFolder}
         creating={createFolderMutation.isPending}
         onClose={() => setCreatingFolder(false)}
-        onCreate={(name) => createFolderMutation.mutate(name)}
+        onCreate={(name, icon) => createFolderMutation.mutate({ name, icon })}
       />
       <Toast message={toast.message} bottomOffset={insets.bottom + spacing.lg} />
     </View>
@@ -237,6 +239,7 @@ export default function KnutebokaScreen() {
 function FolderRow({ folder, onPress }: { folder: FolderType; onPress: () => void }) {
   const count = folder.knuteCount
   const sub = count === 0 ? 'Tom mappe' : `${formatNumber(count)} knuter`
+  const FolderIcon = folderIconFor(folder.icon)
   return (
     <View style={styles.gutter}>
       <StickerCard
@@ -249,7 +252,7 @@ function FolderRow({ folder, onPress }: { folder: FolderType; onPress: () => voi
       >
         <View style={styles.row}>
           <GlyphTile size={44} tone="primary">
-            <Folder size={22} color={sticker.color.primary} strokeWidth={2} />
+            <FolderIcon size={22} color={sticker.color.primary} strokeWidth={2} />
           </GlyphTile>
           <View style={styles.rowText}>
             <Text font="display" weight="bold" size="base" color={sticker.color.ink} numberOfLines={1}>

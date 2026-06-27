@@ -127,6 +127,30 @@ describe('POST /api/folders', () => {
     const dup = await app.request('/api/folders', { method: 'POST', headers: authA, body: JSON.stringify({ name: 'Mat' }) })
     expect(dup.status).toBe(409)
   })
+
+  it('stores a valid icon and returns it from GET', async () => {
+    const res = await app.request('/api/folders', {
+      method: 'POST',
+      headers: authA,
+      body: JSON.stringify({ name: 'Trening', icon: 'dumbbell' }),
+    })
+    expect(res.status).toBe(201)
+    const createdBody = (await res.json()) as { folder: { icon: string | null } }
+    expect(createdBody.folder.icon).toBe('dumbbell')
+
+    const list = await app.request('/api/folders', { headers: authA })
+    const body = (await list.json()) as { folders: Array<{ name: string; icon: string | null }> }
+    expect(body.folders.find((f) => f.name === 'Trening')?.icon).toBe('dumbbell')
+  })
+
+  it('400 on an unknown icon key', async () => {
+    const res = await app.request('/api/folders', {
+      method: 'POST',
+      headers: authA,
+      body: JSON.stringify({ name: 'Rar', icon: 'not-a-real-icon' }),
+    })
+    expect(res.status).toBe(400)
+  })
 })
 
 describe('PATCH /api/folders/:id', () => {

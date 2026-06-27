@@ -2,6 +2,7 @@
 // the active dev identity (lib/auth) — EXPO_PUBLIC_DEV_TOKEN by default, or
 // whatever the dev-login screen switched to.
 
+import type { FolderIconKey } from '@knuteloop/shared'
 import { getActiveToken } from './auth'
 
 // The API base URL. In PRODUCTION builds it MUST be provided explicitly via
@@ -412,19 +413,28 @@ export function importLibraryPack(packId: string): Promise<ImportPackResponse> {
 
 // ── Knutemapper (folders) — the school's own organization of its knuter (ADR-0014).
 
-export type Folder = { id: string; name: string; sortOrder: number; knuteCount: number }
+export type Folder = {
+  id: string
+  name: string
+  /** Lucide icon key (FOLDER_ICON_KEYS) or null for the default folder icon. */
+  icon: FolderIconKey | null
+  sortOrder: number
+  knuteCount: number
+}
 export type FoldersResponse = { folders: Folder[] }
 
 export function fetchFolders(): Promise<FoldersResponse> {
   return apiFetch<FoldersResponse>('/api/folders')
 }
 
-export type CreatedFolder = { folder: { id: string; name: string; sortOrder: number } }
+export type CreatedFolder = {
+  folder: { id: string; name: string; icon: FolderIconKey | null; sortOrder: number }
+}
 
-export function createFolder(name: string): Promise<CreatedFolder> {
+export function createFolder(name: string, icon?: FolderIconKey): Promise<CreatedFolder> {
   return apiFetch<CreatedFolder>('/api/folders', {
     method: 'POST',
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, icon }),
   })
 }
 
