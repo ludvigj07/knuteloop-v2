@@ -187,6 +187,8 @@ export const size = {
   otherAvatar: 44,
   categoryRing: 60,
   progressBarHeight: 6,
+  // Review queue — height of the evidence photo / text-quote / placeholder well.
+  reviewEvidenceHeight: 220,
 } as const
 
 export const fontWeight = {
