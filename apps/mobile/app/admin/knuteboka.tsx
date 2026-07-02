@@ -3,10 +3,11 @@ import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useRouter } from 'expo-router'
-import { ChevronRight, Folder, FolderPlus, LibraryBig, Star } from 'lucide-react-native'
+import { ChevronRight, Folder, FolderPlus, Star } from 'lucide-react-native'
 import {
   Eyebrow,
   KnoteIcon,
+  Pressable,
   Skeleton,
   StatTile,
   StickerButton,
@@ -161,25 +162,29 @@ export default function KnutebokaScreen() {
         </View>
 
         <View style={styles.gutter}>
+          {/* The signature «Alle knuter»-tile (Ludvig's demo): visually distinct
+              from the folders — it is the implicit home, not a folder. */}
           <StickerCard
-            tone="surface"
-            radius="md"
+            tone="primary"
+            radius="xl"
             onPress={() => router.push('/admin/folder/alle')}
-            accessibilityLabel={`Alle knuter, ${formatNumber(active.length)} knuter`}
+            accessibilityLabel={`Alle knuter, ${formatNumber(active.length)} knuter — havner her uansett`}
           >
-            <View style={styles.row}>
-              <GlyphTile size={46} tone="accent">
-                <LibraryBig size={24} color={sticker.color.accentStrong} strokeWidth={2} />
-              </GlyphTile>
-              <View style={styles.rowText}>
-                <Text font="display" weight="bold" size="base" color={sticker.color.ink}>
-                  Alle knuter
-                </Text>
-                <Text size="sm" color={sticker.color.textMuted}>
-                  Hele knuteboka · {formatNumber(active.length)} knuter
-                </Text>
+            <View style={styles.heroWrap}>
+              <View style={styles.heroWatermark} pointerEvents="none">
+                <KnoteIcon name="knute" size={110} color={sticker.color.textInverse} />
               </View>
-              <ChevronRight size={sticker.icon.md} color={sticker.color.textMuted} strokeWidth={2} />
+              <View style={styles.row}>
+                <View style={styles.rowText}>
+                  <Text font="display" weight="bold" size="xl" color={sticker.color.textInverse}>
+                    Alle knuter
+                  </Text>
+                  <Text size="sm" color={sticker.color.textInverse} style={styles.heroSub}>
+                    {formatNumber(active.length)} knuter · havner her uansett
+                  </Text>
+                </View>
+                <ChevronRight size={sticker.icon.md} color={sticker.color.textInverse} strokeWidth={2.2} />
+              </View>
             </View>
           </StickerCard>
         </View>
@@ -200,19 +205,38 @@ export default function KnutebokaScreen() {
             </StickerCard>
           </View>
         ) : (
-          folderList.map((f) => (
-            <FolderRow key={f.id} folder={f} onPress={() => router.push(`/admin/folder/${f.id}`)} />
-          ))
+          <View style={styles.gutter}>
+            {/* One calm panel — folder rows with hairline dividers, not a
+                stack of shadowed cards (Ludvig's demo). */}
+            <StickerCard tone="surface" radius="lg" padding="none">
+              {folderList.map((f, i) => (
+                <FolderRow
+                  key={f.id}
+                  folder={f}
+                  isFirst={i === 0}
+                  onPress={() => router.push(`/admin/folder/${f.id}`)}
+                />
+              ))}
+            </StickerCard>
+          </View>
         )}
 
-        <View style={[styles.gutter, styles.actions]}>
-          <StickerButton
-            label="Ny mappe"
-            variant="secondary"
-            fullWidth
-            icon={<FolderPlus size={sticker.icon.sm} color={sticker.color.ink} strokeWidth={2} />}
+        <View style={styles.gutter}>
+          <Pressable
             onPress={() => setCreatingFolder(true)}
-          />
+            haptic="light"
+            accessibilityRole="button"
+            accessibilityLabel="Ny mappe"
+            style={styles.newFolderRow}
+          >
+            <FolderPlus size={sticker.icon.sm} color={sticker.color.textMuted} strokeWidth={2.2} />
+            <Text weight="semibold" color={sticker.color.textMuted}>
+              Ny mappe
+            </Text>
+          </Pressable>
+        </View>
+
+        <View style={[styles.gutter, styles.actions]}>
           <StickerButton
             label="Lag egen knute"
             variant="accent"
@@ -244,34 +268,38 @@ export default function KnutebokaScreen() {
   )
 }
 
-function FolderRow({ folder, onPress }: { folder: FolderType; onPress: () => void }) {
+function FolderRow({
+  folder,
+  isFirst,
+  onPress,
+}: {
+  folder: FolderType
+  isFirst: boolean
+  onPress: () => void
+}) {
   const count = folder.knuteCount
   const sub = count === 0 ? 'Tom mappe' : `${formatNumber(count)} knuter`
   const FolderIcon = folderIconFor(folder.icon)
   return (
-    <View style={styles.gutter}>
-      <StickerCard
-        tone="surface"
-        radius="md"
-        shadow="sm"
-        onPress={onPress}
-        style={styles.folderCard}
-        accessibilityLabel={`${folder.name}, ${sub}`}
-      >
-        <View style={styles.row}>
-          <GlyphTile size={44} tone="primary">
-            <FolderIcon size={22} color={sticker.color.primary} strokeWidth={2} />
-          </GlyphTile>
-          <View style={styles.rowText}>
-            <Text font="display" weight="bold" size="base" color={sticker.color.ink} numberOfLines={1}>
-              {folder.name}
-            </Text>
-            <Text size="sm" color={sticker.color.textMuted}>{sub}</Text>
-          </View>
-          <ChevronRight size={sticker.icon.md} color={sticker.color.textMuted} strokeWidth={2} />
-        </View>
-      </StickerCard>
-    </View>
+    <Pressable
+      onPress={onPress}
+      haptic="light"
+      accessibilityRole="link"
+      accessibilityLabel={`${folder.name}, ${sub}`}
+      accessibilityHint="Åpner mappa."
+      style={[styles.panelRow, !isFirst ? styles.panelRowDivider : null]}
+    >
+      <GlyphTile size={40} tone="primary">
+        <FolderIcon size={20} color={sticker.color.primary} strokeWidth={2} />
+      </GlyphTile>
+      <View style={styles.rowText}>
+        <Text weight="semibold" size="base" color={sticker.color.ink} numberOfLines={1}>
+          {folder.name}
+        </Text>
+        <Text size="sm" color={sticker.color.textMuted}>{sub}</Text>
+      </View>
+      <ChevronRight size={sticker.icon.md} color={sticker.color.textMuted} strokeWidth={2} />
+    </Pressable>
   )
 }
 
@@ -289,7 +317,37 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
     gap: spacing['2xs'],
   },
-  folderCard: { marginBottom: spacing.sm },
+  heroWrap: { position: 'relative', overflow: 'hidden' },
+  heroWatermark: {
+    position: 'absolute',
+    right: -spacing.lg,
+    top: -spacing.xl,
+    opacity: 0.16,
+  },
+  heroSub: { opacity: 0.85 },
+  panelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  panelRowDivider: {
+    borderTopWidth: 1,
+    borderTopColor: sticker.color.line,
+  },
+  newFolderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    minHeight: sticker.tap.min,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: sticker.color.lineStrong,
+    borderRadius: sticker.radius.md,
+  },
   actions: { marginTop: spacing.lg, gap: spacing.sm },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.base },
   errorCard: { gap: spacing.sm, alignItems: 'flex-start' },

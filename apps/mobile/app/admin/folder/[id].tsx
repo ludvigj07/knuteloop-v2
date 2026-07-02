@@ -76,11 +76,13 @@ export default function FolderViewScreen() {
   })
 
   const removeMutation = useMutation({
-    mutationFn: (knuteId: string) => removeKnuteFromFolder(folderId, knuteId),
-    onSuccess: () => {
+    mutationFn: ({ knuteId }: { knuteId: string; title: string }) =>
+      removeKnuteFromFolder(folderId, knuteId),
+    onSuccess: (_res, { title }) => {
       haptics.success()
       invalidate()
-      toast.show('Fjernet fra mappa')
+      // Reassure: removing from a folder never deletes the knute (demo copy).
+      toast.show(`«${title}» fjernet fra ${folderName} — ligger fortsatt i Alle`)
     },
     onError: (err) => toast.show((err as Error).message),
   })
@@ -117,13 +119,14 @@ export default function FolderViewScreen() {
     />
   )
 
-  // The workbench actions — ALWAYS rendered once the folder has loaded,
-  // empty or not (the screenshot bug: an empty folder had no actions at all).
+  // The workbench actions live at the TOP (Ludvig's demo) — filling the folder
+  // is the primary job, so it must never be a scroll away. Always rendered once
+  // the folder has loaded, empty or not.
   const actions = (
     <View style={[styles.gutter, styles.actions]}>
       <StickerButton
         label="Legg til fra biblioteket"
-        variant="secondary"
+        variant="accent"
         fullWidth
         onPress={() =>
           // From a folder the library opens in fill-this-folder mode: context
@@ -141,17 +144,19 @@ export default function FolderViewScreen() {
       ) : null}
       <StickerButton
         label="Lag egen knute her"
-        variant="accent"
+        variant="secondary"
         fullWidth
         onPress={() =>
           router.push(isAll ? '/admin/edit/new' : `/admin/edit/new?folderId=${folderId}`)
         }
       />
-      {!isAll ? (
-        <StickerButton label="Slett mappe" variant="ghost" fullWidth onPress={confirmDelete} />
-      ) : null}
     </View>
   )
+  const deleteFooter = !isAll ? (
+    <View style={[styles.gutter, styles.footer]}>
+      <StickerButton label="Slett mappe" variant="ghost" fullWidth onPress={confirmDelete} />
+    </View>
+  ) : null
   const showActions = !knuter.isLoading && !knuter.isError
 
   return (
@@ -162,6 +167,7 @@ export default function FolderViewScreen() {
         keyExtractor={(k) => k.id}
         estimatedItemSize={84}
         contentContainerStyle={{ paddingTop: spacing.base, paddingBottom: insets.bottom + spacing.xl }}
+        ListHeaderComponent={showActions ? actions : null}
         ListEmptyComponent={
           <EmptyOrLoading
             isLoading={knuter.isLoading}
@@ -171,14 +177,16 @@ export default function FolderViewScreen() {
             onRetry={() => void knuter.refetch()}
           />
         }
-        ListFooterComponent={showActions ? actions : null}
+        ListFooterComponent={showActions ? deleteFooter : null}
         renderItem={({ item }) => (
           <SchoolKnuteRow
             knute={item}
             inactive={!item.isActive}
             onPress={() => router.push(`/admin/edit/${item.id}`)}
-            onRemove={isAll ? undefined : () => removeMutation.mutate(item.id)}
-            removing={removeMutation.isPending && removeMutation.variables === item.id}
+            onRemove={
+              isAll ? undefined : () => removeMutation.mutate({ knuteId: item.id, title: item.title })
+            }
+            removing={removeMutation.isPending && removeMutation.variables?.knuteId === item.id}
           />
         )}
       />
@@ -248,7 +256,8 @@ function EmptyOrLoading({
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: sticker.color.paper },
   gutter: { paddingHorizontal: spacing.base },
-  actions: { marginTop: spacing.lg, gap: spacing.sm },
+  actions: { marginBottom: spacing.base, gap: spacing.sm },
+  footer: { marginTop: spacing.lg },
   loadingList: { gap: spacing.sm },
   skeletonRow: { height: 76, borderRadius: sticker.radius.md, marginBottom: spacing.sm },
   errorCard: { gap: spacing.sm, alignItems: 'flex-start' },
