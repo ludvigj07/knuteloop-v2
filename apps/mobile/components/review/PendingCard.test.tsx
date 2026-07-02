@@ -47,7 +47,7 @@ describe('PendingCard', () => {
     const onReject = jest.fn()
     renderCard({}, { onApprove, onReject })
     fireEvent.press(screen.getByLabelText('Godkjenn'))
-    expect(onApprove).toHaveBeenCalledTimes(1)
+    expect(onApprove).toHaveBeenCalledWith('s1')
     expect(onReject).not.toHaveBeenCalled()
   })
 
@@ -56,7 +56,7 @@ describe('PendingCard', () => {
     const onReject = jest.fn()
     renderCard({}, { onApprove, onReject })
     fireEvent.press(screen.getByLabelText('Avvis'))
-    expect(onReject).toHaveBeenCalledTimes(1)
+    expect(onReject).toHaveBeenCalledWith('s1')
     expect(onApprove).not.toHaveBeenCalled()
   })
 

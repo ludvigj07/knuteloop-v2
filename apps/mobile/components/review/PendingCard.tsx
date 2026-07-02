@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Image } from 'expo-image'
 import { Chip, KnoteIcon, StickerButton, StickerCard, Text } from '../primitives'
@@ -12,14 +13,26 @@ import { animation, size, spacing, sticker } from '../../lib/theme'
 
 export type PendingCardProps = {
   submission: PendingSubmission
-  onApprove: () => void
-  onReject: () => void
+  /** Called with the submission id. Passing the id (rather than a per-item
+   *  closure) lets the parent hand down a STABLE handler — approve.mutate /
+   *  reject.mutate — so `memo` below can skip re-rendering the idle cards when a
+   *  sibling is being reviewed. */
+  onApprove: (id: string) => void
+  onReject: (id: string) => void
   /** Which action is in flight for THIS card, or null. Drives the spinner +
    *  disables both buttons so a double-tap can't fire two reviews. */
   pendingAction: 'approve' | 'reject' | null
 }
 
-export function PendingCard({ submission, onApprove, onReject, pendingAction }: PendingCardProps) {
+// memo: with stable handlers + a primitive pendingAction, only the card being
+// reviewed re-renders on a tap — not the whole queue. (Reanimated press
+// animations make an unnecessary re-render measurably costlier on web.)
+export const PendingCard = memo(function PendingCard({
+  submission,
+  onApprove,
+  onReject,
+  pendingAction,
+}: PendingCardProps) {
   const isText = submission.evidenceType === 'text'
   const busy = pendingAction !== null
 
@@ -65,7 +78,7 @@ export function PendingCard({ submission, onApprove, onReject, pendingAction }: 
               fullWidth
               disabled={busy}
               loading={pendingAction === 'reject'}
-              onPress={onReject}
+              onPress={() => onReject(submission.id)}
               accessibilityHint={`Avviser innsendingen fra ${submission.russenavn}.`}
             />
           </View>
@@ -76,7 +89,7 @@ export function PendingCard({ submission, onApprove, onReject, pendingAction }: 
               fullWidth
               disabled={busy}
               loading={pendingAction === 'approve'}
-              onPress={onApprove}
+              onPress={() => onApprove(submission.id)}
               accessibilityHint={`Godkjenner og gir ${formatNumber(submission.knutePoints)} poeng.`}
             />
           </View>
@@ -84,7 +97,7 @@ export function PendingCard({ submission, onApprove, onReject, pendingAction }: 
       </View>
     </StickerCard>
   )
-}
+})
 
 // The evidence well: a real photo, the written caption (text-only knuter), or a
 // placeholder for media knuter whose upload hasn't landed (dev / legacy keys).

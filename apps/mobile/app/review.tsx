@@ -107,6 +107,12 @@ export default function ReviewScreen() {
   }
 
   const pending = data?.submissions ?? []
+  // Changes whenever a different card enters/leaves review. FlatList is a
+  // PureComponent, so without extraData it wouldn't re-render a row when this
+  // external mutation state flips (the tapped card's spinner would never show).
+  const activeReviewKey = `${approve.isPending ? (approve.variables ?? '') : ''}|${
+    reject.isPending ? (reject.variables ?? '') : ''
+  }`
 
   return (
     <View style={styles.root}>
@@ -125,11 +131,12 @@ export default function ReviewScreen() {
             <PendingCard
               submission={item}
               pendingAction={pendingAction}
-              onApprove={() => approve.mutate(item.id)}
-              onReject={() => reject.mutate(item.id)}
+              onApprove={approve.mutate}
+              onReject={reject.mutate}
             />
           )
         }}
+        extraData={activeReviewKey}
         ListHeaderComponent={
           pending.length > 0 ? (
             <View style={styles.header}>
