@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native'
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -13,7 +13,9 @@ import {
   useToast,
 } from '../../../components/primitives'
 import {
+  addKnuteToFolder,
   fetchAllKnuter,
+  fetchFolders,
   createKnute,
   updateKnute,
   type CreateKnuteInput,
@@ -26,7 +28,8 @@ type Difficulty = 'Lett' | 'Medium' | 'Hard' | 'Valgfri'
 const DIFFICULTIES: Difficulty[] = ['Lett', 'Medium', 'Hard', 'Valgfri']
 
 export default function EditKnuteScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>()
+  // folderId (optional) = "Lag egen knute her" from a folder — pre-selects it.
+  const { id, folderId: presetFolderId } = useLocalSearchParams<{ id: string; folderId?: string }>()
   const router = useRouter()
   const qc = useQueryClient()
   const insets = useSafeAreaInsets()
@@ -40,8 +43,14 @@ export default function EditKnuteScreen() {
   const [isGold, setIsGold] = useState(false)
   const [isActive, setIsActive] = useState(true)
   const [loaded, setLoaded] = useState(false)
+  // Folders the new knute is filed into ("Alle knuter" is implicit — folders
+  // are optional extra organization). Editing memberships of an EXISTING knute
+  // happens in the folder views for now (needs a per-knute folder read).
+  const [folderIds, setFolderIds] = useState<string[]>(presetFolderId ? [presetFolderId] : [])
 
   const list = useQuery({ queryKey: ['knuter', 'all'], queryFn: fetchAllKnuter, enabled: !isNew })
+  const foldersQuery = useQuery({ queryKey: ['folders'], queryFn: fetchFolders, enabled: isNew })
+  const folders = foldersQuery.data?.folders ?? []
 
   useEffect(() => {
     if (isNew || loaded) return
@@ -62,9 +71,21 @@ export default function EditKnuteScreen() {
   }
 
   const create = useMutation({
-    mutationFn: (input: CreateKnuteInput) => createKnute(input),
-    onSuccess: () => {
+    mutationFn: async (input: CreateKnuteInput) => {
+      const res = await createKnute(input)
+      // File the fresh knute into the chosen folders. allSettled: the knute
+      // exists either way — a failed membership must not read as "not saved".
+      const settled = await Promise.allSettled(
+        folderIds.map((f) => addKnuteToFolder(f, res.knute.id)),
+      )
+      return { failed: settled.filter((s) => s.status === 'rejected').length }
+    },
+    onSuccess: ({ failed }) => {
       invalidateAll()
+      if (failed > 0) {
+        // Alert survives the navigation below (toast would unmount with us).
+        Alert.alert('Knuten er laget', 'Men den kom ikke inn i alle mappene — legg den til fra mappa.')
+      }
       router.back()
     },
     onError: (err) => toast.show((err as Error).message),
@@ -199,6 +220,41 @@ export default function EditKnuteScreen() {
             })}
           </View>
         </Field>
+
+        {isNew && folders.length > 0 ? (
+          <Field label="Mapper (valgfritt)">
+            <View style={styles.diffRow}>
+              {folders.map((f) => {
+                const active = folderIds.includes(f.id)
+                return (
+                  <Pressable
+                    key={f.id}
+                    onPress={() =>
+                      setFolderIds((prev) =>
+                        prev.includes(f.id) ? prev.filter((x) => x !== f.id) : [...prev, f.id],
+                      )
+                    }
+                    haptic="selection"
+                    accessibilityLabel={`Mappe ${f.name}`}
+                    accessibilityState={{ selected: active }}
+                    style={[styles.diffChip, active ? styles.diffChipActive : styles.diffChipIdle]}
+                  >
+                    <Text
+                      size="sm"
+                      weight="semibold"
+                      color={active ? sticker.color.textInverse : sticker.color.text}
+                    >
+                      {f.name}
+                    </Text>
+                  </Pressable>
+                )
+              })}
+            </View>
+            <Text size="xs" color={sticker.color.textMuted}>
+              Knuten ligger alltid i «Alle knuter» — mapper er ekstra organisering.
+            </Text>
+          </Field>
+        ) : null}
 
         <ToggleCard
           label="Gullknute ★"
