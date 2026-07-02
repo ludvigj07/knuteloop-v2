@@ -1,9 +1,15 @@
 # ADR-0012: Video submissions in v2, with a bandwidth budget as a hard design constraint
 
-**Status:** Proposed
+**Status:** Superseded by [ADR-0019](./0019-per-knute-evidence-type.md)
 **Date:** 2026-06-13
 **Deciders:** Ludvig (+ Claude as advisor)
 **Supersedes:** [ADR-0009](./0009-no-video-photos-only.md)
+
+> **Superseded 2026-07-02.** This ADR was never moved past Proposed. Its decision (video via Bunny
+> Stream) and its **hard bandwidth/length/resolution caps are folded into the now-Accepted
+> [ADR-0019](./0019-per-knute-evidence-type.md)**, which is the single source of truth for the media
+> policy. Those caps still govern the video pipeline when it is built — read them here, decision-wise
+> read 0019.
 
 ## Context
 

@@ -126,7 +126,9 @@ Planned, not yet modeled: russenavn_allowlist, refresh_tokens, audit_log (auth e
 sponsor tables (sponsor epic).
 ```
 
-**The library model (ADR-0014): import = copy.** Importing snapshots the library fields into the school's own `knuter` row (provenance in `source_library_knute_id`), records the import in `school_library_imports`, and files the copy under a folder derived from `suggested_folder`. Copies are independent — schools edit them freely; library updates do NOT propagate. `evidence_type='text'` (legally sensitive knuter) and `min_age=18` are set by the library and cannot be relaxed by schools. The "Alle knuter" view is implicit (the unfiltered knute list), never a stored folder.
+**The library model (ADR-0014): import = copy.** Importing snapshots the library fields into the school's own `knuter` row (provenance in `source_library_knute_id`), records the import in `school_library_imports`, and files the copy under a folder derived from `suggested_folder`. Copies are independent — schools edit them freely; library updates do NOT propagate. `evidence_type` (legally sensitive knuter, e.g. `text`) and `min_age=18` are set by the library and cannot be relaxed by schools. The "Alle knuter" view is implicit (the unfiltered knute list), never a stored folder.
+
+> **Evidence type is moving to a three-value ladder** — `text_only` / `photo_only` / `photo_or_video` — per ADR-0019, so a knute can allow a photo but not a video. The current schema still uses the two-value `'media' | 'text'` enum; the migration is future work (not yet applied). The "library-set, unrelaxable for sensitive knuter" rule is unchanged.
 
 Every table with `school_id` has:
 - `enableRLS()`
@@ -200,8 +202,11 @@ Mobile builds go through EAS:
 - **No NoSQL.** Postgres covers all our access patterns. Adding a second data store would mean dual writes and consistency bugs.
 - **No serverless / edge functions.** Stateful connection pooling matters; cold starts matter; EU compliance matters. Long-running Node on Hetzner is simpler and cheaper at our scale.
 - **No real-time websockets** (yet). The feed refreshes on pull or on TanStack Query invalidation. If real-time becomes a clear need, add Server-Sent Events from the same Hono app — no new infrastructure.
-- **No video.** Photos only. See ADR-0009.
 - **No US infrastructure.** Period. See ADR-0001.
+
+(Removed: the old "no video / photos only" line. v2 now supports photo **and** video for normal
+knuter, with media restricted per-knute for sensitive content — see ADR-0019, which supersedes
+ADR-0009 and folds in ADR-0012's bandwidth caps. The video pipeline itself is not built yet.)
 
 ## 8. Where to look when something specific changes
 

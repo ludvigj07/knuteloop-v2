@@ -54,7 +54,7 @@ These are non-negotiable. If you find yourself about to violate one, **STOP and 
 
 10. **Never write a single file over 500 lines.** v1's `index.mjs` was 4167 lines and crippled iteration. At 400 lines, propose a split BEFORE adding more.
 
-11. **No video.** v2 is photos only. If asked to add video, push back.
+11. **Media evidence is per-knute, and sensitive knuter are restricted.** Normal knuter allow photo or video; sensitive knuter (sex-knuter, high-risk alcohol) are text-only or photo-only. A knute's evidence level is set by the library and is a legal/minor-safety floor — **never let a school loosen a knute's `evidence_type` to allow more than the library specifies.** See ADR-0019. (The video upload/compression pipeline is not built yet — don't implement it without an OK; ADR-0012's bandwidth caps apply when it is.)
 
 12. **Treat all users as potentially minors.** Some users are 17. GDPR + Datatilsynet guidance for minors applies. No third-party analytics that identify users. No marketing profiling. Ever.
 
