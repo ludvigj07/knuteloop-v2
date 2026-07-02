@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Alert, RefreshControl, StyleSheet, View } from 'react-native'
+import { RefreshControl, StyleSheet, View } from 'react-native'
 import { FlashList } from '@shopify/flash-list'
 import {
   keepPreviousData,
@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
 import { X } from 'lucide-react-native'
 import {
+  ConfirmSheet,
   Pressable,
   Skeleton,
   StickerButton,
@@ -216,12 +217,16 @@ export default function BibliotekScreen() {
   // «Fjern fra knuteboka» (manage-sheet): archive the copy — gone from the
   // student catalog instantly, submissions/history intact. The library row
   // flips back to + (imported = active copy only), and + revives the copy.
+  // Confirmed via ConfirmSheet, NOT Alert.alert — RN-web no-ops multi-button
+  // alerts, which made this a dead button in the browser.
+  const [removeConfirm, setRemoveConfirm] = useState<{ copyId: string; title: string } | null>(null)
+
   const removeCopy = useMutation({
     mutationFn: (copyId: string) => updateKnute(copyId, { isActive: false }),
     onSuccess: () => {
       haptics.success()
       invalidateAfterImport()
-      setManageTarget(null)
+      setRemoveConfirm(null)
       toast.show('Fjernet fra knuteboka — elevene ser den ikke lenger')
     },
     onError: (err) => toast.show((err as Error).message),
@@ -229,18 +234,9 @@ export default function BibliotekScreen() {
 
   const confirmRemoveCopy = () => {
     if (!manageCopy) return
-    Alert.alert(
-      `Fjerne «${manageCopy.title}»?`,
-      'Knuten forsvinner fra elevenes katalog og søk. Innsendinger og historikk beholdes, og du kan hente den inn igjen fra biblioteket.',
-      [
-        { text: 'Avbryt', style: 'cancel' },
-        {
-          text: 'Fjern fra knuteboka',
-          style: 'destructive',
-          onPress: () => removeCopy.mutate(manageCopy.id),
-        },
-      ],
-    )
+    // Close the manage-sheet first — sequential sheets, no modal stacking.
+    setManageTarget(null)
+    setRemoveConfirm({ copyId: manageCopy.id, title: manageCopy.title })
   }
 
   const onAddRow = (k: LibraryKnute) => {
@@ -396,6 +392,18 @@ export default function BibliotekScreen() {
             currentFolderIds: manageCopy.folderIds,
             payload,
           })
+        }}
+      />
+
+      <ConfirmSheet
+        open={removeConfirm !== null}
+        title={`Fjerne «${removeConfirm?.title ?? ''}»?`}
+        message="Knuten forsvinner fra elevenes katalog og søk. Innsendinger og historikk beholdes, og du kan hente den inn igjen fra biblioteket."
+        confirmLabel="Fjern fra knuteboka"
+        confirming={removeCopy.isPending}
+        onCancel={() => setRemoveConfirm(null)}
+        onConfirm={() => {
+          if (removeConfirm) removeCopy.mutate(removeConfirm.copyId)
         }}
       />
 
