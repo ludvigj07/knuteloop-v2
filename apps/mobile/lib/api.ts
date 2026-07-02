@@ -396,12 +396,24 @@ export function fetchLibraryPacks(): Promise<LibraryPacksResponse> {
   return apiFetch<LibraryPacksResponse>('/api/library/packs')
 }
 
-export type ImportKnuteResponse = { knute: Knute; folder: { id: string; name: string } }
+export type ImportKnuteResponse = {
+  /** The school's own copy (existing one reused if already imported). */
+  knuteId: string
+  /** True when the knute was already in the school — the call just added folders. */
+  alreadyImported: boolean
+  /** The folders the copy was filed into by this call (deduped). */
+  folderIds: string[]
+}
 
-export function importLibraryKnute(libraryKnuteId: string): Promise<ImportKnuteResponse> {
+// Import a library knute into the chosen folder(s) ("add to playlist"). Pass no folders
+// to import into the catalog only. Idempotent — safe to call again to add more folders.
+export function importLibraryKnute(
+  libraryKnuteId: string,
+  folderIds?: string[],
+): Promise<ImportKnuteResponse> {
   return apiFetch<ImportKnuteResponse>('/api/library/imports', {
     method: 'POST',
-    body: JSON.stringify({ libraryKnuteId }),
+    body: JSON.stringify({ libraryKnuteId, folderIds }),
   })
 }
 
@@ -451,6 +463,12 @@ export function removeKnuteFromFolder(folderId: string, knuteId: string): Promis
 // Knuter in a single folder (knutesjef view — all=1 includes inactive).
 export function fetchKnuterByFolder(folderId: string): Promise<KnuterResponse> {
   return apiFetch<KnuterResponse>(`/api/knuter?all=1&folderId=${encodeURIComponent(folderId)}`)
+}
+
+// Knuter in a single folder for the student catalog (no all=1 → active-only,
+// age-gated). Drives the folder chips on the "Knuter" tab.
+export function fetchKnuterInFolder(folderId: string): Promise<KnuterResponse> {
+  return apiFetch<KnuterResponse>(`/api/knuter?folderId=${encodeURIComponent(folderId)}`)
 }
 
 export { ApiError }

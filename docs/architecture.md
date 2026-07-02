@@ -6,7 +6,7 @@ This document is the **30-second flyover** of the entire system. If you're retur
 
 A native iOS+Android app for Norwegian russ that:
 
-1. Lists challenges ("knuter") — each school's knutesjef creates their own. A curated library of pre-made knuter that schools can browse and import is planned as a separate feature later, but is NOT modeled yet.
+1. Lists challenges ("knuter") — each school's knutesjef curates their own list: custom knuter they create, plus copies imported from the central curated knute library (browse → import = copy, ADR-0014), organized into per-school folders (knutemapper).
 2. Lets a russ submit a photo as proof of completing a knute.
 3. Sends the submission to the school's knutesjef for one-tap approval.
 4. Updates the russ's score, leaderboard position, and badges in real time.
@@ -36,14 +36,17 @@ Plus: sponsor-funded knuter (the revenue model), and an admin panel for knutesje
 │    timeout → [auth → tenantContext → rateLimit] → handler          │
 │                                                                    │
 │  Routes (one file per resource):                                   │
-│    /api/auth        login (Entra ID / Apple), refresh, logout      │
-│    /api/knuter      catalog + custom, list/detail                  │
-│    /api/submissions submit, list mine, list pending (knutesjef)    │
+│    /api/knuter      the school's own knuter — list, create, edit   │
+│    /api/library     central knute library: browse, import (=copy)  │
+│    /api/folders     per-school knutemapper, knute ↔ folder M2M     │
+│    /api/submissions submit, list mine, review queue (knutesjef)    │
 │    /api/feed        social feed, paginated                         │
-│    /api/leaderboard school ranking, cached                         │
-│    /api/sponsors    sponsor-knute analytics (admin only)           │
-│    /api/admin/*     knutesjef tools                                │
-│    /api/me          profile, settings, GDPR export/delete          │
+│    /api/leaderboard school ranking + rank titles                   │
+│    /api/me          profile, stats, streak                         │
+│    /healthz         liveness (DB ping)                             │
+│                                                                    │
+│  Planned: /api/auth (real login — today a dev-only stub identity), │
+│  /api/sponsors, /api/admin/*, GDPR export/delete on /api/me        │
 └─────────────┬───────────────────────────────┬──────────────────────┘
               │ postgres-js, prepare:false   │ HTTPS, signed URL
               ▼                              ▼
@@ -96,22 +99,34 @@ Every step has at least one rule attached to it in `.claude/rules/`.
 ## 4. Data model in one screen
 
 ```
-schools  (uuid id, name, entra_tenant_id, region, ...)
+schools  (uuid id, name)                          ← the tenant boundary itself
    │
-   ├──< users  (uuid id, school_id, russenavn, role, points, token_version, deleted_at)
+   ├──< users     (school_id, russenavn, email, role, russ_type, quote, points,
+   │      │        is_adult, token_version, deleted_at)
    │      │
-   │      └──< submissions  (uuid id, school_id, user_id, knute_id, image_key, status, ...)
+   │      └──< submissions  (school_id, user_id, knute_id, image_key — NULL for
+   │                         text-only evidence, caption, status, reviewed_by/at)
    │
-   ├──< russenavn_allowlist  (school_id, russenavn, email, claimed_by_user_id)
+   ├──< knuter    (school_id, title, points, difficulty, is_gold, evidence_type,
+   │               min_age, source_library_knute_id, is_active,
+   │               category — legacy, removal planned per ADR-0014)
    │
-   ├──< knuter               (school_id, title, points, difficulty, is_active, ...)  ← tenant-scoped
+   ├──< knute_folders            (school_id, name, icon, sort_order)
+   ├──< knute_folder_memberships (school_id, knute_id, folder_id)   knute ↔ folder M2M
    │
-   └──< refresh_tokens       (school_id, user_id, device_id, token_hash, ...)
+   └──< school_library_imports   (school_id, library_knute_id, knute_id, imported_by)
 
-audit_log  (school_id, actor_id, action, target_type, target_id, payload, ts)
+Shared across ALL schools — no school_id, no RLS, READ-ONLY for app_role (ADR-0014):
+
+library_knuter   (title, points, difficulty, evidence_type, min_age,
+                  suggested_folder = theme axis, region = discovery filter)
+library_packs ──< library_pack_memberships >── library_knuter
+
+Planned, not yet modeled: russenavn_allowlist, refresh_tokens, audit_log (auth epic);
+sponsor tables (sponsor epic).
 ```
 
-**Future (not yet modeled):** a curated library — separate `library_folders`, `library_knuter`, and a `school_library_imports` linking table — would let schools browse pre-made knuter and adopt them into their own `knuter` table. Designed when real curated content exists, not before.
+**The library model (ADR-0014): import = copy.** Importing snapshots the library fields into the school's own `knuter` row (provenance in `source_library_knute_id`), records the import in `school_library_imports`, and files the copy under a folder derived from `suggested_folder`. Copies are independent — schools edit them freely; library updates do NOT propagate. `evidence_type='text'` (legally sensitive knuter) and `min_age=18` are set by the library and cannot be relaxed by schools. The "Alle knuter" view is implicit (the unfiltered knute list), never a stored folder.
 
 Every table with `school_id` has:
 - `enableRLS()`
