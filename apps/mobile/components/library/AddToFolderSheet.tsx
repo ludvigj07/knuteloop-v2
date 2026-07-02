@@ -1,31 +1,52 @@
 import { useEffect, useState } from 'react'
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, FolderPlus, TriangleAlert, X } from 'lucide-react-native'
+import { Check, FolderPlus, Lock, Pencil, TriangleAlert, X } from 'lucide-react-native'
 import type { FolderIconKey } from '@knuteloop/shared'
 import { Eyebrow, Pressable, Sheet, StickerButton, StickerCard, Text } from '../primitives'
 import { createFolder, fetchFolders, type Folder, type LibraryKnute } from '../../lib/api'
 import { folderIconFor, folderIconKeys } from '../../lib/folder-icons'
 import { isSensitiveKnute } from '../../lib/knute-ui'
+import { formatNumber } from '../../lib/format'
 import { haptics } from '../../lib/haptics'
-import { fontSize, sticker, spacing } from '../../lib/theme'
+import { fontSize, size, sticker, spacing } from '../../lib/theme'
 
-// "Legg til i …" sheet — the "+" on a library knute opens this to choose which of the
-// school's folders the knute lands in ("add to playlist"). Multi-select + an inline
-// "Ny mappe" form (reuses the createFolder API). Built on the cross-platform Sheet so
-// it works in the browser too. Confirm → onConfirm(knute, folderIds); an empty array
-// imports into the catalog only (the backend import is idempotent + folder-agnostic).
+// "Legg til i …" — the "+" on a library knute opens this sheet (Ludvig's demo,
+// locked 2026-07-02):
+//   • The theme folder comes PRE-CHECKED with a «Foreslått»-badge; if the school
+//     has no folder with that name, a synthetic «Ny mappe: <tema>» row is
+//     pre-checked instead (created on confirm).
+//   • Browsing from a folder (contextFolderId) pre-checks THAT folder instead.
+//   • MINST ÉN mappe — the CTA is locked at zero (ADR-0018 allows folderless
+//     imports at the API level; the product does not).
+//   • A locked «Alle knuter»-row explains the implicit membership.
+//   • ✏️ toggles inline editing of title/points/description — the school's COPY
+//     is saved with the edits ("biblioteket er bare et forslag").
+
+export type AddToFolderPayload = {
+  /** Existing school folders to file the copy into. */
+  folderIds: string[]
+  /** Names for the toast (includes newFolderName when set). */
+  folderNames: string[]
+  /** Create this folder first and include it (the suggested theme folder). */
+  newFolderName: string | null
+  /** Edited copy fields; null = saved as-is. */
+  overrides: { title?: string; description?: string | null; points?: number } | null
+}
 
 export function AddToFolderSheet({
   knute,
+  contextFolderId,
   confirming,
   onClose,
   onConfirm,
 }: {
   knute: LibraryKnute | null
+  /** Set when browsing the library FROM a folder — pre-checks that folder. */
+  contextFolderId?: string | null
   confirming: boolean
   onClose: () => void
-  onConfirm: (knute: LibraryKnute, folderIds: string[]) => void
+  onConfirm: (knute: LibraryKnute, payload: AddToFolderPayload) => void
 }) {
   // Keep the last knute rendered through the close animation.
   const [shown, setShown] = useState<LibraryKnute | null>(knute)
@@ -36,12 +57,13 @@ export function AddToFolderSheet({
   return (
     <Sheet open={knute !== null} onClose={onClose}>
       {shown ? (
-        // key resets the picker's selection when a different knute opens.
+        // key resets selection + edit state when a different knute opens.
         <Picker
           key={shown.id}
           knute={shown}
+          contextFolderId={contextFolderId ?? null}
           confirming={confirming}
-          onConfirm={(folderIds) => onConfirm(shown, folderIds)}
+          onConfirm={(payload) => onConfirm(shown, payload)}
         />
       ) : null}
     </Sheet>
@@ -50,17 +72,47 @@ export function AddToFolderSheet({
 
 function Picker({
   knute,
+  contextFolderId,
   confirming,
   onConfirm,
 }: {
   knute: LibraryKnute
+  contextFolderId: string | null
   confirming: boolean
-  onConfirm: (folderIds: string[]) => void
+  onConfirm: (payload: AddToFolderPayload) => void
 }) {
   const qc = useQueryClient()
   const folders = useQuery({ queryKey: ['folders'], queryFn: fetchFolders })
   const [selected, setSelected] = useState<string[]>([])
+  const [suggestNewOn, setSuggestNewOn] = useState(false)
+  const [initialized, setInitialized] = useState(false)
   const [showNew, setShowNew] = useState(false)
+
+  // Inline edit of the copy-to-be ("rediger før lagring").
+  const [editing, setEditing] = useState(false)
+  const [title, setTitle] = useState(knute.title)
+  const [pointsText, setPointsText] = useState(String(knute.points))
+  const [description, setDescription] = useState(knute.description ?? '')
+
+  const list = folders.data?.folders ?? []
+  const themeName = knute.suggestedFolder
+  const themeMatch = list.find(
+    (f) => f.name.toLocaleLowerCase('nb-NO') === themeName.toLocaleLowerCase('nb-NO'),
+  )
+
+  // Pre-check once folders have loaded: context folder wins, else the theme
+  // folder, else the synthetic «Ny mappe: <tema>» row.
+  useEffect(() => {
+    if (initialized || folders.isLoading) return
+    if (contextFolderId && list.some((f) => f.id === contextFolderId)) {
+      setSelected([contextFolderId])
+    } else if (themeMatch) {
+      setSelected([themeMatch.id])
+    } else {
+      setSuggestNewOn(true)
+    }
+    setInitialized(true)
+  }, [initialized, folders.isLoading, list, contextFolderId, themeMatch])
 
   const toggle = (id: string) =>
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
@@ -75,24 +127,125 @@ function Picker({
     },
   })
 
-  const list = folders.data?.folders ?? []
-  const count = selected.length
-  const confirmLabel =
-    count === 0
-      ? 'Legg til uten mappe'
-      : count === 1
-        ? 'Legg til i 1 mappe'
-        : `Legg til i ${count} mapper`
+  const points = Number.parseInt(pointsText, 10)
+  const titleTrim = title.trim()
+  const descTrim = description.trim()
+  const edited =
+    titleTrim !== knute.title ||
+    (Number.isFinite(points) && points !== knute.points) ||
+    descTrim !== (knute.description ?? '')
+  const editValid = titleTrim.length > 0 && Number.isFinite(points) && points >= 0 && points <= 1000
+
+  const count = selected.length + (suggestNewOn ? 1 : 0)
+  const canConfirm = count > 0 && !editing && editValid
+
+  const handleConfirm = () => {
+    const overrides = edited
+      ? {
+          ...(titleTrim !== knute.title ? { title: titleTrim } : {}),
+          ...(Number.isFinite(points) && points !== knute.points ? { points } : {}),
+          ...(descTrim !== (knute.description ?? '') ? { description: descTrim || null } : {}),
+        }
+      : null
+    onConfirm({
+      folderIds: selected,
+      folderNames: [
+        ...selected.map((id) => list.find((f) => f.id === id)?.name ?? ''),
+        ...(suggestNewOn ? [themeName] : []),
+      ].filter(Boolean),
+      newFolderName: suggestNewOn ? themeName : null,
+      overrides,
+    })
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Eyebrow>Legg til</Eyebrow>
-      <Text font="display" weight="bold" size="xl" color={sticker.color.ink} numberOfLines={2}>
-        {knute.title}
-      </Text>
-      <Text size="sm" color={sticker.color.textMuted}>
-        Velg hvilke mapper knuten skal ligge i. Du kan endre det senere.
-      </Text>
+      <View style={styles.headRow}>
+        <View style={styles.headText}>
+          <Eyebrow>Legg til</Eyebrow>
+          {editing ? null : (
+            <Text font="display" weight="bold" size="xl" color={sticker.color.ink} numberOfLines={2}>
+              {titleTrim || knute.title}
+            </Text>
+          )}
+        </View>
+        <Pressable
+          onPress={() => {
+            if (editing && !editValid) return
+            setEditing((v) => !v)
+          }}
+          haptic="light"
+          accessibilityRole="button"
+          accessibilityLabel={editing ? 'Ferdig med redigering' : 'Rediger knuten før lagring'}
+          accessibilityState={{ selected: editing }}
+          style={[styles.pen, editing ? styles.penOn : null]}
+        >
+          {editing ? (
+            <Check size={sticker.icon.sm} color={sticker.color.textInverse} strokeWidth={2.5} />
+          ) : (
+            <Pencil size={sticker.icon.sm} color={sticker.color.ink} strokeWidth={2.2} />
+          )}
+        </Pressable>
+      </View>
+
+      {editing ? (
+        <View style={styles.editForm}>
+          <Text size="xs" weight="bold" color={sticker.color.textMuted}>
+            NAVN
+          </Text>
+          <TextInput
+            style={styles.input}
+            value={title}
+            onChangeText={setTitle}
+            maxLength={200}
+            accessibilityLabel="Navn på knuten"
+          />
+          <Text size="xs" weight="bold" color={sticker.color.textMuted}>
+            POENG
+          </Text>
+          <TextInput
+            style={[styles.input, styles.inputSmall]}
+            value={pointsText}
+            onChangeText={(v) => setPointsText(v.replace(/[^0-9]/g, '').slice(0, 4))}
+            keyboardType="number-pad"
+            accessibilityLabel="Poeng"
+          />
+          <Text size="xs" weight="bold" color={sticker.color.textMuted}>
+            BESKRIVELSE
+          </Text>
+          <TextInput
+            style={[styles.input, styles.inputMulti]}
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            maxLength={2000}
+            accessibilityLabel="Beskrivelse"
+          />
+          <Text size="xs" color={sticker.color.textMuted}>
+            Endringene lagres på skolens kopi — biblioteket er bare et forslag.
+          </Text>
+        </View>
+      ) : (
+        <>
+          <View style={styles.metaRow}>
+            <View style={styles.pill}>
+              <Text size="xs" weight="semibold" font="mono" color={sticker.color.ink}>
+                {formatNumber(Number.isFinite(points) ? points : knute.points)} P
+              </Text>
+            </View>
+            {edited ? (
+              <Text size="xs" weight="semibold" color={sticker.color.primary}>
+                Redigert
+              </Text>
+            ) : null}
+          </View>
+          {descTrim ? (
+            <Text size="sm" color={sticker.color.textMuted} numberOfLines={3}>
+              {descTrim}
+            </Text>
+          ) : null}
+        </>
+      )}
 
       {isSensitiveKnute(knute) ? (
         <StickerCard tone="accent" shadow="none" radius="md" padding="md">
@@ -107,18 +260,50 @@ function Picker({
         </StickerCard>
       ) : null}
 
+      {/* The implicit membership, made visible (Ludvig's demo). */}
+      <View style={styles.alleRow} accessible accessibilityLabel="Alle knuter — havner her uansett">
+        <View style={[styles.folderIcon, styles.alleTile]}>
+          <Lock size={sticker.icon.sm} color={sticker.color.textInverse} strokeWidth={2.2} />
+        </View>
+        <View style={styles.folderText}>
+          <Text weight="semibold" color={sticker.color.ink}>
+            Alle knuter
+          </Text>
+          <Text size="xs" color={sticker.color.textMuted}>
+            Havner her uansett
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.pickHead}>
+        <Text size="xs" weight="bold" color={sticker.color.textMuted}>
+          VELG MAPPE
+        </Text>
+        <Text size="xs" color={sticker.color.textMuted}>
+          Minst én
+        </Text>
+      </View>
+
       <View style={styles.folders}>
+        {!themeMatch && initialized ? (
+          <SuggestedNewRow
+            name={themeName}
+            selected={suggestNewOn}
+            onToggle={() => setSuggestNewOn((v) => !v)}
+          />
+        ) : null}
         {list.map((f) => (
           <FolderToggle
             key={f.id}
             folder={f}
+            suggested={themeMatch?.id === f.id}
             selected={selected.includes(f.id)}
             onToggle={() => toggle(f.id)}
           />
         ))}
-        {list.length === 0 && !folders.isLoading ? (
+        {list.length === 0 && !folders.isLoading && themeMatch ? (
           <Text size="sm" color={sticker.color.textMuted}>
-            Ingen mapper ennå. Lag en under, eller legg til uten mappe.
+            Ingen mapper ennå. Lag en under.
           </Text>
         ) : null}
       </View>
@@ -146,23 +331,83 @@ function Picker({
 
       <View style={styles.action}>
         <StickerButton
-          label={confirmLabel}
-          variant={count === 0 ? 'secondary' : 'accent'}
+          label={count <= 1 ? 'Legg til i 1 mappe' : `Legg til i ${count} mapper`}
+          variant="accent"
           fullWidth
+          disabled={!canConfirm}
           loading={confirming}
-          onPress={() => onConfirm(selected)}
+          onPress={handleConfirm}
+          accessibilityHint={
+            editing ? 'Fullfør redigeringen med haken først.' : 'Kopierer knuten inn i valgte mapper.'
+          }
         />
       </View>
     </ScrollView>
   )
 }
 
+function SuggestedNewRow({
+  name,
+  selected,
+  onToggle,
+}: {
+  name: string
+  selected: boolean
+  onToggle: () => void
+}) {
+  return (
+    <Pressable
+      onPress={onToggle}
+      haptic="selection"
+      accessibilityRole="button"
+      accessibilityLabel={`Ny mappe: ${name}`}
+      accessibilityHint="Mappa opprettes når du legger til."
+      accessibilityState={{ selected }}
+      style={[styles.folderRow, selected ? styles.folderRowOn : styles.folderRowOff]}
+    >
+      <View style={[styles.folderIcon, selected ? styles.tileOn : styles.tileOff]}>
+        <FolderPlus
+          size={sticker.icon.sm}
+          color={selected ? sticker.color.textInverse : sticker.color.ink}
+          strokeWidth={2}
+        />
+      </View>
+      <View style={styles.folderText}>
+        <Text weight="semibold" color={sticker.color.ink} numberOfLines={1}>
+          Ny mappe: {name}
+        </Text>
+        <Text size="xs" color={sticker.color.textMuted}>
+          Opprettes når du legger til
+        </Text>
+      </View>
+      <SuggestBadge />
+      <View style={[styles.checkbox, selected ? styles.tileOn : styles.checkboxOff]}>
+        {selected ? (
+          <Check size={sticker.icon.sm} color={sticker.color.textInverse} strokeWidth={3} />
+        ) : null}
+      </View>
+    </Pressable>
+  )
+}
+
+function SuggestBadge() {
+  return (
+    <View style={styles.sugg}>
+      <Text size="xs" weight="bold" color={sticker.color.primary}>
+        Foreslått
+      </Text>
+    </View>
+  )
+}
+
 function FolderToggle({
   folder,
+  suggested,
   selected,
   onToggle,
 }: {
   folder: Folder
+  suggested: boolean
   selected: boolean
   onToggle: () => void
 }) {
@@ -172,7 +417,7 @@ function FolderToggle({
       onPress={onToggle}
       haptic="selection"
       accessibilityRole="button"
-      accessibilityLabel={`${folder.name}, ${folder.knuteCount} ${folder.knuteCount === 1 ? 'knute' : 'knuter'}`}
+      accessibilityLabel={`${folder.name}, ${folder.knuteCount} ${folder.knuteCount === 1 ? 'knute' : 'knuter'}${suggested ? ', foreslått' : ''}`}
       accessibilityState={{ selected }}
       style={[styles.folderRow, selected ? styles.folderRowOn : styles.folderRowOff]}
     >
@@ -191,6 +436,7 @@ function FolderToggle({
           {folder.knuteCount} {folder.knuteCount === 1 ? 'knute' : 'knuter'}
         </Text>
       </View>
+      {suggested ? <SuggestBadge /> : null}
       <View style={[styles.checkbox, selected ? styles.tileOn : styles.checkboxOff]}>
         {selected ? (
           <Check size={sticker.icon.sm} color={sticker.color.textInverse} strokeWidth={3} />
@@ -284,9 +530,50 @@ const tile = {
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.sm },
+  headRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  headText: { flex: 1, gap: spacing['2xs'] },
+  pen: {
+    width: size.actionMinHeight,
+    height: size.actionMinHeight,
+    borderRadius: sticker.radius.full,
+    borderWidth: sticker.borderWidth,
+    borderColor: sticker.color.ink,
+    backgroundColor: sticker.color.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  penOn: { backgroundColor: sticker.color.ink },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  pill: {
+    backgroundColor: sticker.color.accent,
+    borderRadius: sticker.radius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing['2xs'],
+  },
+  editForm: { gap: spacing.xs },
+  inputSmall: { width: 110 },
+  inputMulti: { minHeight: 72, textAlignVertical: 'top' },
   warnRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },
   warnText: { flex: 1, lineHeight: 20 },
-  folders: { gap: spacing.sm, marginTop: spacing.xs },
+  alleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.sm,
+    borderRadius: sticker.radius.md,
+    borderWidth: sticker.borderWidth,
+    borderColor: sticker.color.line,
+    backgroundColor: sticker.color.surfaceSoft,
+    marginTop: spacing.xs,
+  },
+  alleTile: { backgroundColor: sticker.color.ink, borderColor: sticker.color.ink },
+  pickHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.xs,
+  },
+  folders: { gap: spacing.sm },
   folderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -303,6 +590,13 @@ const styles = StyleSheet.create({
   checkboxOff: { backgroundColor: sticker.color.card, borderColor: sticker.color.line },
   tileOn: { backgroundColor: sticker.color.ink, borderColor: sticker.color.ink },
   tileOff: { backgroundColor: sticker.color.card, borderColor: sticker.color.ink },
+  sugg: {
+    borderWidth: 1.5,
+    borderColor: sticker.color.primary,
+    borderRadius: sticker.radius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing['2xs'],
+  },
   newRow: {
     flexDirection: 'row',
     alignItems: 'center',
