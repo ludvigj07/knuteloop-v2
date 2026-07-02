@@ -32,11 +32,11 @@ All glosses are short — for cultural depth, this is not the right document.
 | Term | Gloss | Role in the product |
 |---|---|---|
 | **knute** | "Knot" — a challenge/dare that earns the russ a real knot tied into the tassel of their russelue (russ cap). The product's central activity. | Modeled as the `knuter` table. Sponsored knuter are a row with `is_sponsored = true`. |
-| **knutebok** | "Knot book" — the traditional booklet listing all challenges available. Each school has variations. | Approximately = our `knuter` table + the school's subscribed folders + their `custom_knuter`. |
+| **knutebok** | "Knot book" — the traditional booklet listing all challenges available. Each school has variations. | Approximately = the school's `knuter` table (library imports + custom knuter), organized by their `knute_folders`. In the app: the "Knuteboka" admin screen. |
 | **russelue** | The traditional cap russ wear during russetid — typically red, with a tassel into which the knots are tied. | Not modeled. Cultural context only. |
 | **dusk** | The tassel on the russelue, where knots are tied. | Not modeled. Cultural context only. |
-| **knutemappe** | "Knote folder" — a thematic grouping of knuter (e.g., "Drikkeknuter", "Akademisk", "Sex"). | Modeled as `knute_folders`. Schools subscribe to folders via `school_folder_subscriptions`. |
-| **innsending** | "Submission" — the photo + caption a russ sends to prove they completed a knute. | Modeled as the `submissions` table. |
+| **knutemappe** | "Knote folder" — a thematic grouping of knuter (e.g., "Drikkeknuter", "Akademisk", "Sex"). | Modeled as per-school `knute_folders` + `knute_folder_memberships` (M2M — a knute can sit in several folders; "Alle knuter" is implicit). The library's theme axis is `library_knuter.suggested_folder`. ADR-0014. |
+| **innsending** | "Submission" — the photo + caption (or text only, for `evidence_type='text'` knuter) a russ sends to prove they completed a knute. | Modeled as the `submissions` table (`image_key` is NULL for text-only). |
 | **godkjenning** | "Approval" — the knutesjef confirming a submission counts. | Modeled as `submissions.status = 'approved'` + `reviewed_by` + `reviewed_at`. |
 | **avvist** | "Rejected" — the knutesjef rejecting a submission (didn't actually complete the knute). | `submissions.status = 'rejected'`. |
 | **poeng** | Points earned per knute. | The `knuter.points` column. Custom knuter have their own. |
