@@ -127,6 +127,10 @@ export default function KnuteDetailScreen() {
       void qc.invalidateQueries({ queryKey: ['me'] })
       void qc.invalidateQueries({ queryKey: ['submissions', 'pending'] })
       void qc.invalidateQueries({ queryKey: ['submissions', 'pending', 'count'] })
+      // The catalog carries myStatus (Tilgjengelige/Fullført) — refresh it so the
+      // knute moves to «Fullført» the moment you land back, no manual refresh.
+      // Prefix match also covers the per-folder entries ['knuter', 'folder', id].
+      void qc.invalidateQueries({ queryKey: ['knuter'] })
     },
     onError: (err) => toast.show((err as Error).message),
   })
