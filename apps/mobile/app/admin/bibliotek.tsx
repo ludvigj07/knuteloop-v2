@@ -24,12 +24,17 @@ import { FilterBar } from '../../components/library/FilterBar'
 import { PackHero } from '../../components/library/PackHero'
 import { LibraryCatalogRow } from '../../components/library/LibraryCatalogRow'
 import { KnuteDetailSheet } from '../../components/library/KnuteDetailSheet'
-import { AddToFolderSheet } from '../../components/library/AddToFolderSheet'
 import {
+  AddToFolderSheet,
+  type AddToFolderPayload,
+} from '../../components/library/AddToFolderSheet'
+import {
+  createFolder,
   fetchLibraryKnuter,
   fetchLibraryPacks,
   importLibraryKnute,
   importLibraryPack,
+  updateKnute,
   type LibraryKnute,
   type LibraryKnuterResponse,
 } from '../../lib/api'
@@ -97,9 +102,20 @@ export default function BibliotekScreen() {
   }
 
   const importKnute = useMutation({
-    mutationFn: ({ id, folderIds }: { id: string; folderIds: string[] }) =>
-      importLibraryKnute(id, folderIds),
-    onSuccess: (_res, { id }) => {
+    // The whole add-flow in one mutation: create the suggested theme folder if
+    // the sheet asked for it, import the copy into the chosen folders, then save
+    // any inline edits onto the copy (the library stays untouched — ADR-0014).
+    mutationFn: async ({ id, payload }: { id: string; payload: AddToFolderPayload }) => {
+      const folderIds = [...payload.folderIds]
+      if (payload.newFolderName) {
+        const created = await createFolder(payload.newFolderName, 'folder')
+        folderIds.push(created.folder.id)
+      }
+      const res = await importLibraryKnute(id, folderIds)
+      if (payload.overrides) await updateKnute(res.knuteId, payload.overrides)
+      return res
+    },
+    onSuccess: (_res, { id, payload }) => {
       haptics.success()
       // Optimistically flip the row to "added" so the "+" turns into a check, then reconcile.
       qc.setQueryData<InfiniteData<LibraryKnuterResponse>>(knuterKey, (old) =>
@@ -115,7 +131,10 @@ export default function BibliotekScreen() {
       )
       invalidateAfterImport()
       setAddTarget(null)
-      toast.show('Lagt til i knuteboka ✓')
+      const names = payload.folderNames.join(', ')
+      toast.show(
+        `Lagt til i ${names}${payload.overrides ? ' (redigert)' : ''} ✓`,
+      )
     },
     onError: (err) => toast.show((err as Error).message),
   })
@@ -248,7 +267,7 @@ export default function BibliotekScreen() {
         knute={addTarget}
         confirming={importKnute.isPending}
         onClose={() => setAddTarget(null)}
-        onConfirm={(k, folderIds) => importKnute.mutate({ id: k.id, folderIds })}
+        onConfirm={(k, payload) => importKnute.mutate({ id: k.id, payload })}
       />
 
       <Toast
