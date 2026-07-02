@@ -138,22 +138,35 @@ export const libraryRoutes = new Hono<{ Variables: Variables }>()
     return c.json({ packs: rows })
   })
 
-  // POST /api/library/imports — import ONE library knute into this school (copy +
-  // file in its folder + record). 404 if missing/inactive, 409 if already imported.
+  // POST /api/library/imports — import ONE library knute into this school and file it in
+  // the chosen folder(s) ("add to playlist"). 404 if the knute is missing/inactive or a
+  // folderId is not this school's. Idempotent: re-importing reuses the existing copy and
+  // just adds the new folder memberships (201 + alreadyImported: true), never 409.
   .post(
     '/imports',
-    zValidator('json', z.object({ libraryKnuteId: z.string().uuid() }), (result, c) => {
-      if (!result.success) {
-        return c.json({ error: { message: 'Invalid input', issues: result.error.flatten() } }, 400)
-      }
-      return undefined
-    }),
+    zValidator(
+      'json',
+      z.object({
+        libraryKnuteId: z.string().uuid(),
+        // The folders to file the copy into. Omit/[] = import into the catalog only.
+        folderIds: z.array(z.string().uuid()).max(50).optional(),
+      }),
+      (result, c) => {
+        if (!result.success) {
+          return c.json({ error: { message: 'Invalid input', issues: result.error.flatten() } }, 400)
+        }
+        return undefined
+      },
+    ),
     async (c) => {
       const tx = c.get('tx')
-      const result = await importLibraryKnute(tx, c.req.valid('json').libraryKnuteId, {
-        schoolId: c.get('schoolId'),
-        userId: c.get('userId'),
-      })
+      const { libraryKnuteId, folderIds } = c.req.valid('json')
+      const result = await importLibraryKnute(
+        tx,
+        libraryKnuteId,
+        { schoolId: c.get('schoolId'), userId: c.get('userId') },
+        folderIds ?? [],
+      )
       return c.json(result, 201)
     },
   )

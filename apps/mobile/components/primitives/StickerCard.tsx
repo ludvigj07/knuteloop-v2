@@ -50,6 +50,8 @@ export type StickerCardProps = {
   accessibilityLabel?: string
   accessibilityHint?: string
   accessibilityRole?: 'button' | 'link'
+  /** For toggle/filter cards (folder chips): announces selected state to screen readers. */
+  accessibilitySelected?: boolean
   /** Styles the OUTER box (margins, width, alignSelf). */
   style?: StyleProp<ViewStyle>
   children: ReactNode
@@ -66,6 +68,7 @@ export function StickerCard({
   accessibilityLabel,
   accessibilityHint,
   accessibilityRole = 'button',
+  accessibilitySelected,
   style,
   children,
 }: StickerCardProps) {
@@ -123,7 +126,7 @@ export function StickerCard({
         accessibilityRole={accessibilityRole}
         accessibilityLabel={accessibilityLabel}
         accessibilityHint={accessibilityHint}
-        accessibilityState={{ disabled }}
+        accessibilityState={{ disabled, selected: accessibilitySelected }}
         // hitSlop gives a little forgiveness near the edges; the surface itself
         // never moves, so taps register reliably.
         hitSlop={6}
