@@ -194,7 +194,14 @@ function Picker({
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    // Scrollable content + a PINNED footer: the CTA (and «Fjern») must never
+    // scroll out of view — Ludvig's feedback from the floating web-sheet.
+    <View style={styles.sheetBody}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
       <View style={styles.headRow}>
         <View style={styles.headText}>
           <Eyebrow>{mode === 'manage' ? 'Endre kopien' : 'Legg til'}</Eyebrow>
@@ -366,7 +373,9 @@ function Picker({
         </Pressable>
       )}
 
-      <View style={styles.action}>
+      </ScrollView>
+
+      <View style={styles.footer}>
         <StickerButton
           label={
             mode === 'manage'
@@ -403,7 +412,7 @@ function Picker({
           </Pressable>
         ) : null}
       </View>
-    </ScrollView>
+    </View>
   )
 }
 
@@ -590,7 +599,16 @@ const tile = {
 } as const
 
 const styles = StyleSheet.create({
+  // Shrinks inside the Sheet panel's maxHeight; the footer below never scrolls away.
+  sheetBody: { flexShrink: 1 },
+  scroll: { flexGrow: 0, flexShrink: 1 },
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.sm },
+  footer: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: sticker.color.line,
+  },
   headRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   headText: { flex: 1, gap: spacing['2xs'] },
   pen: {
@@ -679,7 +697,6 @@ const styles = StyleSheet.create({
   },
   iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   iconTile: { ...tile },
-  action: { marginTop: spacing.sm },
   removeRow: {
     alignItems: 'center',
     justifyContent: 'center',

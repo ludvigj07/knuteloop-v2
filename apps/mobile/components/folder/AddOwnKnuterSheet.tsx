@@ -108,9 +108,9 @@ export function AddOwnKnuterSheet({
 }
 
 const styles = StyleSheet.create({
-  body: { gap: spacing.sm },
+  body: { gap: spacing.sm, flexShrink: 1 },
   empty: { paddingVertical: spacing.lg },
-  list: { maxHeight: 340, marginVertical: spacing.xs },
+  list: { flexGrow: 0, flexShrink: 1, maxHeight: 340, marginVertical: spacing.xs },
   row: {
     minHeight: size.actionMinHeight,
     flexDirection: 'row',

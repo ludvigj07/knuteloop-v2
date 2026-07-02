@@ -38,7 +38,16 @@ export function Sheet({ open, onClose, children }: SheetProps) {
           accessibilityRole="button"
           accessibilityLabel="Lukk"
         />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {/* The KAV spans the FULL viewport (flex:1) so the panel's %-maxHeight
+            resolves against the screen on web too — with an auto-height parent
+            RN-web ignored it, the panel outgrew the viewport and the CTA ended
+            up below the fold. box-none lets taps outside the panel reach the
+            backdrop. */}
+        <KeyboardAvoidingView
+          style={styles.kav}
+          pointerEvents="box-none"
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
           <View style={[styles.panel, { paddingBottom: insets.bottom + spacing.lg }]}>
             <View style={styles.handle} />
             {children}
@@ -55,8 +64,10 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(15, 26, 46, 0.45)',
   },
+  kav: { flex: 1, justifyContent: 'flex-end' },
   panel: {
-    maxHeight: '90%',
+    maxHeight: '92%',
+    flexDirection: 'column',
     backgroundColor: sticker.color.card,
     borderTopWidth: sticker.borderWidth,
     borderLeftWidth: sticker.borderWidth,
