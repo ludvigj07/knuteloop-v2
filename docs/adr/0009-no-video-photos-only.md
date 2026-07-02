@@ -1,8 +1,12 @@
 # ADR-0009: Photos only — no video uploads in v2
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0019](./0019-per-knute-evidence-type.md)
 **Date:** 2026-05-28
 **Deciders:** Ludvig (+ Claude as advisor)
+
+> **Superseded 2026-07-02.** v2 now supports photo **and** video for normal knuter, with media
+> restricted per-knute for sensitive content. See [ADR-0019](./0019-per-knute-evidence-type.md).
+> The cost/bandwidth reasoning that this ADR worried about is addressed there (via ADR-0012's caps).
 
 ## Context
 
