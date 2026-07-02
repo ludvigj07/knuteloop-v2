@@ -457,3 +457,36 @@ describe('GET /api/library/knuter — importedKnuteId (the school copy id)', () 
     expect(bodyB.knuter.find((k) => k.id === solibatId)?.importedKnuteId ?? null).toBeNull()
   })
 })
+
+describe('GET /api/library/packs/:id — pack contents with per-school imported flags', () => {
+  it('401 without auth', async () => {
+    const res = await app.request(`/api/library/packs/${starterPackId}`)
+    expect(res.status).toBe(401)
+  })
+
+  it('lists active members with imported flags scoped to the caller school', async () => {
+    // School B pack-imported earlier in this suite; school A only took Sølibat.
+    const resA = await app.request(`/api/library/packs/${starterPackId}`, { headers: authA })
+    expect(resA.status).toBe(200)
+    const bodyA = (await resA.json()) as {
+      pack: { id: string; name: string }
+      knuter: { id: string; imported: boolean }[]
+    }
+    expect(bodyA.pack.id).toBe(starterPackId)
+    // The inactive member never shows up.
+    expect(bodyA.knuter.some((k) => k.id === inaktivId)).toBe(false)
+    const solibatA = bodyA.knuter.find((k) => k.id === solibatId)
+    if (solibatA) expect(solibatA.imported).toBe(true)
+    // Every member carries a per-school boolean (never null/undefined).
+    expect(bodyA.knuter.every((k) => typeof k.imported === 'boolean')).toBe(true)
+  })
+
+  it('404 for a nonexistent pack, 400 for a non-uuid id', async () => {
+    const miss = await app.request('/api/library/packs/00000000-0000-4000-8000-000000000000', {
+      headers: authA,
+    })
+    expect(miss.status).toBe(404)
+    const bad = await app.request('/api/library/packs/ikke-uuid', { headers: authA })
+    expect(bad.status).toBe(400)
+  })
+})

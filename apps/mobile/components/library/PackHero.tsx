@@ -5,19 +5,11 @@ import type { LibraryPack } from '../../lib/api'
 import { formatNumber } from '../../lib/format'
 import { sticker, spacing } from '../../lib/theme'
 
-// The recommended-pack promo: a royal-blue sticker card with the golden hero CTA
-// to bulk-import the whole pack. Feedback after import is a toast (the screen
-// owns it) — no permanent banner that hides the button.
+// The recommended-pack promo: a royal-blue sticker card whose CTA opens the
+// see-before-you-add PackSheet (contents + «Legg til N nye») — never a blind
+// bulk import (Ludvig's demo).
 
-export function PackHero({
-  pack,
-  importing,
-  onImport,
-}: {
-  pack: LibraryPack
-  importing: boolean
-  onImport: () => void
-}) {
+export function PackHero({ pack, onOpen }: { pack: LibraryPack; onOpen: () => void }) {
   return (
     <StickerCard tone="primary" radius="lg" style={styles.card}>
       <Eyebrow color={sticker.color.accent}>Pakke · {formatNumber(pack.knuteCount)} knuter</Eyebrow>
@@ -31,13 +23,12 @@ export function PackHero({
       ) : null}
       <View style={styles.action}>
         <StickerButton
-          label={`Legg til alle (${formatNumber(pack.knuteCount)})`}
+          label={`Åpne pakka (${formatNumber(pack.knuteCount)})`}
           variant="accent"
-          onPress={onImport}
-          loading={importing}
+          onPress={onOpen}
           fullWidth
           icon={<PackagePlus size={sticker.icon.sm} color={sticker.color.ink} strokeWidth={2} />}
-          accessibilityHint="Legger alle knutene i pakka til skolen din, sortert i mapper."
+          accessibilityHint="Viser innholdet i pakka før du legger til."
         />
       </View>
     </StickerCard>

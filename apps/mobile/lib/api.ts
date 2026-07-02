@@ -402,6 +402,26 @@ export function fetchLibraryPacks(): Promise<LibraryPacksResponse> {
   return apiFetch<LibraryPacksResponse>('/api/library/packs')
 }
 
+// One pack's contents with a per-school imported flag per member — powers the
+// see-before-you-add pack sheet («Legg til N nye»).
+export type LibraryPackKnute = {
+  id: string
+  title: string
+  points: number
+  suggestedFolder: string
+  evidenceType: 'media' | 'text'
+  minAge: number
+  imported: boolean
+}
+export type LibraryPackDetail = {
+  pack: { id: string; name: string; description: string | null }
+  knuter: LibraryPackKnute[]
+}
+
+export function fetchLibraryPack(id: string): Promise<LibraryPackDetail> {
+  return apiFetch<LibraryPackDetail>(`/api/library/packs/${id}`)
+}
+
 export type ImportKnuteResponse = {
   /** The school's own copy (existing one reused if already imported). */
   knuteId: string

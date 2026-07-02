@@ -12,6 +12,7 @@ import {
   schoolLibraryImports,
 } from '../db/schema/index.js'
 import { importLibraryKnute, importLibraryPack } from '../lib/library-import.js'
+import { NotFoundError } from '../lib/errors.js'
 import type { db } from '../db/client.js'
 
 type Variables = AuthVariables & {
@@ -139,6 +140,55 @@ export const libraryRoutes = new Hono<{ Variables: Variables }>()
       .orderBy(libraryPacks.sortOrder, libraryPacks.name)
 
     return c.json({ packs: rows })
+  })
+
+  // GET /api/library/packs/:id — the pack's CONTENTS with a per-school imported
+  // flag per member. Powers the see-before-you-add pack sheet: the knutesjef
+  // previews all members, sees what is already in the book, and the CTA counts
+  // only the new ones ("Legg til N nye").
+  .get('/packs/:id', zValidator('param', z.object({ id: z.string().uuid() })), async (c) => {
+    const tx = c.get('tx')
+    const schoolId = c.get('schoolId')
+    const { id } = c.req.valid('param')
+
+    const [pack] = await tx
+      .select({ id: libraryPacks.id, name: libraryPacks.name, description: libraryPacks.description })
+      .from(libraryPacks)
+      .where(and(eq(libraryPacks.id, id), eq(libraryPacks.isActive, true)))
+      .limit(1)
+    if (!pack) throw new NotFoundError('Pack')
+
+    const members = await tx
+      .select({
+        id: libraryKnuter.id,
+        title: libraryKnuter.title,
+        points: libraryKnuter.points,
+        suggestedFolder: libraryKnuter.suggestedFolder,
+        evidenceType: libraryKnuter.evidenceType,
+        minAge: libraryKnuter.minAge,
+        // Defense in depth: explicit school_id on the join AND RLS scope this
+        // flag to the caller's own school.
+        imported: sql<boolean>`${schoolLibraryImports.id} is not null`,
+      })
+      .from(libraryPackMemberships)
+      .innerJoin(
+        libraryKnuter,
+        and(
+          eq(libraryKnuter.id, libraryPackMemberships.libraryKnuteId),
+          eq(libraryKnuter.isActive, true),
+        ),
+      )
+      .leftJoin(
+        schoolLibraryImports,
+        and(
+          eq(schoolLibraryImports.libraryKnuteId, libraryKnuter.id),
+          eq(schoolLibraryImports.schoolId, schoolId),
+        ),
+      )
+      .where(eq(libraryPackMemberships.packId, id))
+      .orderBy(libraryPackMemberships.sortOrder, libraryKnuter.title)
+
+    return c.json({ pack, knuter: members })
   })
 
   // POST /api/library/imports — import ONE library knute into this school and file it in
