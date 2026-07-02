@@ -12,7 +12,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack } from 'expo-router'
 import {
-  Eyebrow,
   Skeleton,
   StickerButton,
   StickerCard,
@@ -22,7 +21,7 @@ import {
 } from '../../components/primitives'
 import { FilterBar } from '../../components/library/FilterBar'
 import { PackHero } from '../../components/library/PackHero'
-import { LibraryRow } from '../../components/library/LibraryRow'
+import { LibraryCatalogRow } from '../../components/library/LibraryCatalogRow'
 import { KnuteDetailSheet } from '../../components/library/KnuteDetailSheet'
 import {
   fetchLibraryKnuter,
@@ -38,6 +37,10 @@ import { sticker, spacing } from '../../lib/theme'
 
 const PAGE = 30
 
+// The knutesjef's browse-and-import surface ("Spotify for knuter"). Layout:
+// search + folder chips stay PINNED (fast triage while scrolling 500 knuter);
+// the pack promo scrolls with the list; the knuter render as one dense,
+// continuous catalog panel (LibraryCatalogRow) — not a stack of cards.
 export default function BibliotekScreen() {
   const insets = useSafeAreaInsets()
   const qc = useQueryClient()
@@ -135,62 +138,57 @@ export default function BibliotekScreen() {
   }
 
   const showPacks = q === '' && folder === null && region === null
-  const header = (
-    <View>
-      <View style={styles.headerBlock}>
-        <Eyebrow>Knutebibliotek</Eyebrow>
-        <Text font="display" weight="bold" size="3xl" color={sticker.color.ink}>
-          Biblioteket
-        </Text>
-        <Text color={sticker.color.textMuted}>
-          Bla i ferdige knuter og legg dem til skolen. Kopiene blir dine — rediger fritt.
-        </Text>
-      </View>
-
-      {showPacks
-        ? packs.data?.packs.map((pack) => (
-            <PackHero
-              key={pack.id}
-              pack={pack}
-              importing={importPack.isPending && importPack.variables === pack.id}
-              onImport={() => importPack.mutate(pack.id)}
-            />
-          ))
-        : null}
-
-      <FilterBar
-        folder={folder}
-        onFolder={setFolder}
-        region={region}
-        onRegion={setRegion}
-        search={search}
-        onSearch={setSearch}
-      />
+  const listHeader = showPacks ? (
+    <View style={styles.packBlock}>
+      {packs.data?.packs.map((pack) => (
+        <PackHero
+          key={pack.id}
+          pack={pack}
+          importing={importPack.isPending && importPack.variables === pack.id}
+          onImport={() => importPack.mutate(pack.id)}
+        />
+      ))}
     </View>
+  ) : (
+    <View style={styles.listTopSpacer} />
   )
 
   return (
     <>
       <Stack.Screen
         options={{
-          title: 'Bibliotek',
+          title: 'Biblioteket',
           headerStyle: { backgroundColor: sticker.color.paper },
           headerTintColor: sticker.color.ink,
           headerShadowVisible: false,
         }}
       />
       <View style={styles.root}>
+        <View style={styles.pinned}>
+          <FilterBar
+            folder={folder}
+            onFolder={setFolder}
+            region={region}
+            onRegion={setRegion}
+            search={search}
+            onSearch={setSearch}
+          />
+        </View>
+
         <FlashList
           data={items}
           keyExtractor={(k) => k.id}
-          estimatedItemSize={88}
+          estimatedItemSize={96}
           keyboardDismissMode="on-drag"
           contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}
-          ListHeaderComponent={header}
-          renderItem={({ item }) => (
-            <LibraryRow
+          ListHeaderComponent={listHeader}
+          extraData={`${items.length}:${importKnute.isPending ? String(importKnute.variables) : ''}`}
+          renderItem={({ item, index }) => (
+            <LibraryCatalogRow
               knute={item}
               importing={importKnute.isPending && importKnute.variables === item.id}
+              isFirst={index === 0}
+              isLast={index === items.length - 1}
               onOpen={() => setSelected(item)}
               onAdd={() => onAddRow(item)}
             />
@@ -283,9 +281,11 @@ function EmptyState({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: sticker.color.paper },
+  pinned: { paddingTop: spacing.sm },
   gutter: { paddingHorizontal: spacing.base },
-  headerBlock: { paddingHorizontal: spacing.base, paddingTop: spacing.base, paddingBottom: spacing.base, gap: spacing['2xs'] },
+  packBlock: { paddingTop: spacing.xs },
+  listTopSpacer: { height: spacing.xs },
   skeletonList: { gap: spacing.sm },
-  skeletonRow: { height: 76, borderRadius: sticker.radius.md, marginBottom: spacing.sm },
+  skeletonRow: { height: 88, borderRadius: sticker.radius.md, marginBottom: spacing.sm },
   errorCard: { gap: spacing.sm, alignItems: 'flex-start' },
 })
