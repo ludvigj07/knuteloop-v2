@@ -13,8 +13,15 @@ import { ConflictError, NotFoundError, isUniqueViolation } from './errors.js'
 
 // Import = COPY (ADR-0014). Importing a library knute snapshots it into the school's
 // own `knuter` (so the school then edits freely; library updates do NOT propagate),
-// files it under a school folder named after its suggested_folder (created on demand),
 // and records the import for dedupe + the per-school "imported" badge.
+//
+// Two flows, two folder behaviours ("Spotify for knuter"):
+//   • Single import (importLibraryKnute) = "add to playlist". The knutesjef picks which
+//     of their own folders the knute lands in (folderIds, possibly none). No auto-theme
+//     archiving. Re-importing is IDEMPOTENT: the existing copy is reused and the call
+//     just adds it to the newly-chosen folders (so "+" with new folders always works).
+//   • Pack import (importLibraryPack) = onboarding. Bulk-imports a bundle and AUTO-CREATES
+//     a theme folder per suggested_folder. Left untouched.
 //
 // All functions take the request's `tx` (opened by tenantContext, with app.school_id
 // set) so every write goes through RLS WITH CHECK and the whole import is one transaction.
@@ -22,16 +29,16 @@ import { ConflictError, NotFoundError, isUniqueViolation } from './errors.js'
 // CONCURRENCY: each import takes a per-school, transaction-scoped advisory lock FIRST
 // (lockSchoolForImport), so concurrent imports within a school are serialized and the
 // check-then-insert dedupe below is authoritative — a racing import sees the committed
-// row and returns a clean 409 BEFORE any write. This removes the duplicate-insert race
-// that, under CI timing, let a raw Postgres 23505 escape to the error handler as a 500.
+// row and reuses it (idempotent) BEFORE any duplicate copy is written. This removes the
+// duplicate-insert race that, under CI timing, let a raw Postgres 23505 escape as a 500.
 //
 // LOAD-BEARING ORDERING (still upheld): every `throw` happens BEFORE the first write,
 // because tenantContext currently COMMITs the transaction even when a handler throws an
 // HTTPException (it only rolls back on a raw DB error that aborts the PG transaction). So
-// a NotFound/Conflict thrown after a write would commit a partial import — keep throws
-// before writes until the tenant-context rollback hardening lands (tracked follow-up).
-// The post-insert 23505 catch below is now an unreachable backstop (the lock prevents the
-// race); it stays as defense in depth.
+// a NotFound thrown after a write would commit a partial import — validate the source AND
+// the target folders before writing, until the tenant-context rollback hardening lands
+// (tracked follow-up). The post-insert 23505 catch below is an unreachable backstop (the
+// lock prevents the race); it stays as defense in depth.
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
 type ImportCtx = { schoolId: string; userId: string }
@@ -61,10 +68,20 @@ async function lockSchoolForImport(tx: Tx, schoolId: string) {
   )
 }
 
-// Import ONE library knute. Throws NotFoundError if the source is missing/inactive,
-// ConflictError if this school already imported it (fast path + race backstop).
-export async function importLibraryKnute(tx: Tx, libraryKnuteId: string, { schoolId, userId }: ImportCtx) {
+// Import ONE library knute into the chosen folders ("add to playlist"). Throws
+// NotFoundError if the source is missing/inactive or any target folder is not this
+// school's. Idempotent: re-importing reuses the existing copy and just adds it to the
+// newly-chosen folders (alreadyImported: true) instead of 409-ing.
+export async function importLibraryKnute(
+  tx: Tx,
+  libraryKnuteId: string,
+  { schoolId, userId }: ImportCtx,
+  folderIds: string[] = [],
+) {
   await lockSchoolForImport(tx, schoolId)
+
+  // Dedupe the requested folders so the existence check + membership insert are clean.
+  const wantedFolderIds = [...new Set(folderIds)]
 
   const [src] = await tx
     .select()
@@ -73,10 +90,22 @@ export async function importLibraryKnute(tx: Tx, libraryKnuteId: string, { schoo
     .limit(1)
   if (!src) throw new NotFoundError('Library knute')
 
-  // Fast-path dedupe (clean 409 for the common case). The unique(school_id,
-  // library_knute_id) constraint is the backstop for the check-then-insert race below.
-  const [dup] = await tx
-    .select({ id: schoolLibraryImports.id })
+  // LOAD-BEARING: validate every target folder belongs to this school BEFORE any write.
+  // RLS already scopes the read to app.school_id; the explicit school_id filter is
+  // defense in depth. A folder from another school (or a stale id) → 404, no partial write.
+  if (wantedFolderIds.length > 0) {
+    const found = await tx
+      .select({ id: knuteFolders.id })
+      .from(knuteFolders)
+      .where(and(eq(knuteFolders.schoolId, schoolId), inArray(knuteFolders.id, wantedFolderIds)))
+    if (found.length !== wantedFolderIds.length) throw new NotFoundError('Folder')
+  }
+
+  // Idempotent dedupe: if this school already imported this library knute, reuse the
+  // existing copy (no second snapshot). The unique(school_id, library_knute_id)
+  // constraint is the backstop for the check-then-insert race below.
+  const [existing] = await tx
+    .select({ knuteId: schoolLibraryImports.knuteId })
     .from(schoolLibraryImports)
     .where(
       and(
@@ -85,48 +114,62 @@ export async function importLibraryKnute(tx: Tx, libraryKnuteId: string, { schoo
       ),
     )
     .limit(1)
-  if (dup) throw new ConflictError('Knuten er allerede importert')
 
-  // Snapshot copy. evidence_type + min_age are copied and stay unrelaxable by the school
-  // (the knuter PATCH endpoint exposes neither). is_gold/is_active default.
-  const [created] = await tx
-    .insert(knuter)
-    .values({
-      schoolId,
-      title: src.title,
-      description: src.description,
-      points: src.points,
-      difficulty: src.difficulty,
-      category: categoryForFolder(src.suggestedFolder),
-      evidenceType: src.evidenceType,
-      minAge: src.minAge,
-      sourceLibraryKnuteId: src.id,
-    })
-    .returning()
-  const knute = created!
+  let knuteId: string
+  let alreadyImported: boolean
 
-  const existingFolderCount = (
-    await tx.select({ id: knuteFolders.id }).from(knuteFolders).where(eq(knuteFolders.schoolId, schoolId))
-  ).length
-  const folderId = await findOrCreateFolder(tx, schoolId, src.suggestedFolder, existingFolderCount)
-  await tx.insert(knuteFolderMemberships).values({ schoolId, knuteId: knute.id, folderId })
+  if (existing) {
+    knuteId = existing.knuteId
+    alreadyImported = true
+  } else {
+    // Snapshot copy. evidence_type + min_age are copied and stay unrelaxable by the
+    // school (the knuter PATCH endpoint exposes neither). category is carried from
+    // suggested_folder for the legacy profile rings / badges. is_gold/is_active default.
+    const [created] = await tx
+      .insert(knuter)
+      .values({
+        schoolId,
+        title: src.title,
+        description: src.description,
+        points: src.points,
+        difficulty: src.difficulty,
+        category: categoryForFolder(src.suggestedFolder),
+        evidenceType: src.evidenceType,
+        minAge: src.minAge,
+        sourceLibraryKnuteId: src.id,
+      })
+      .returning({ id: knuter.id })
+    knuteId = created!.id
+    alreadyImported = false
 
-  // Race backstop: if a concurrent import won, the unique constraint fires 23505 here,
-  // aborting the PG transaction. Translate it to a clean 409; the aborted tx then rolls
-  // back the copy + membership above (the later COMMIT degrades to ROLLBACK).
-  try {
-    await tx.insert(schoolLibraryImports).values({
-      schoolId,
-      libraryKnuteId: src.id,
-      knuteId: knute.id,
-      importedByUserId: userId,
-    })
-  } catch (err) {
-    if (isUniqueViolation(err)) throw new ConflictError('Knuten er allerede importert')
-    throw err
+    // Race backstop: if a concurrent import won, the unique constraint fires 23505 here,
+    // aborting the PG transaction. The lock makes this unreachable; kept as defense in
+    // depth — the aborted tx rolls back the copy above (the later COMMIT degrades to ROLLBACK).
+    try {
+      await tx.insert(schoolLibraryImports).values({
+        schoolId,
+        libraryKnuteId: src.id,
+        knuteId,
+        importedByUserId: userId,
+      })
+    } catch (err) {
+      if (isUniqueViolation(err)) throw new ConflictError('Knuten er allerede importert')
+      throw err
+    }
   }
 
-  return { knute, folder: { id: folderId, name: src.suggestedFolder } }
+  // Add the knute to the chosen folders. onConflictDoNothing makes re-adding to a folder
+  // it is already in a silent no-op, so "+" twice never errors.
+  if (wantedFolderIds.length > 0) {
+    await tx
+      .insert(knuteFolderMemberships)
+      .values(wantedFolderIds.map((folderId) => ({ schoolId, knuteId, folderId })))
+      .onConflictDoNothing({
+        target: [knuteFolderMemberships.knuteId, knuteFolderMemberships.folderId],
+      })
+  }
+
+  return { knuteId, alreadyImported, folderIds: wantedFolderIds }
 }
 
 // Import a whole pack: every ACTIVE member not already imported by this school. Bulk
@@ -232,34 +275,4 @@ export async function importLibraryPack(tx: Tx, packId: string, { schoolId, user
   )
 
   return { imported: toImport.length, skipped: members.length - toImport.length, folders: neededNames }
-}
-
-// Return an existing school folder's id by name, or create it. Idempotent against the
-// unique(school_id, name) constraint so a concurrent create is a silent reuse, not a 500.
-async function findOrCreateFolder(
-  tx: Tx,
-  schoolId: string,
-  name: string,
-  nextSortOrder: number,
-): Promise<string> {
-  const [existing] = await tx
-    .select({ id: knuteFolders.id })
-    .from(knuteFolders)
-    .where(and(eq(knuteFolders.schoolId, schoolId), eq(knuteFolders.name, name)))
-    .limit(1)
-  if (existing) return existing.id
-  const [created] = await tx
-    .insert(knuteFolders)
-    .values({ schoolId, name, sortOrder: nextSortOrder })
-    .onConflictDoNothing({ target: [knuteFolders.schoolId, knuteFolders.name] })
-    .returning({ id: knuteFolders.id })
-  if (created) return created.id
-  // Lost a concurrent create race — the other transaction made it (no 23505 was raised,
-  // so this transaction is still alive); read it back.
-  const [now] = await tx
-    .select({ id: knuteFolders.id })
-    .from(knuteFolders)
-    .where(and(eq(knuteFolders.schoolId, schoolId), eq(knuteFolders.name, name)))
-    .limit(1)
-  return now!.id
 }

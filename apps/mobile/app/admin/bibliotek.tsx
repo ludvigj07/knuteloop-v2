@@ -24,6 +24,7 @@ import { FilterBar } from '../../components/library/FilterBar'
 import { PackHero } from '../../components/library/PackHero'
 import { LibraryRow } from '../../components/library/LibraryRow'
 import { KnuteDetailSheet } from '../../components/library/KnuteDetailSheet'
+import { AddToFolderSheet } from '../../components/library/AddToFolderSheet'
 import {
   fetchLibraryKnuter,
   fetchLibraryPacks,
@@ -47,6 +48,8 @@ export default function BibliotekScreen() {
   const [region, setRegion] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<LibraryKnute | null>(null)
+  // The knute whose "Legg til i …" folder picker is open (null = closed).
+  const [addTarget, setAddTarget] = useState<LibraryKnute | null>(null)
 
   // Debounce the term that drives the query key so each keystroke doesn't spawn a
   // new request + cache entry. The TextInput stays controlled by `search`.
@@ -90,24 +93,24 @@ export default function BibliotekScreen() {
   }
 
   const importKnute = useMutation({
-    mutationFn: importLibraryKnute,
-    onSuccess: (_res, libId) => {
+    mutationFn: ({ id, folderIds }: { id: string; folderIds: string[] }) =>
+      importLibraryKnute(id, folderIds),
+    onSuccess: (_res, { id }) => {
       haptics.success()
-      // Optimistically flip the row to "added" so it can't be tapped again
-      // (kills the double-tap → spurious 409 window), then reconcile.
+      // Optimistically flip the row to "added" so the "+" turns into a check, then reconcile.
       qc.setQueryData<InfiniteData<LibraryKnuterResponse>>(knuterKey, (old) =>
         old
           ? {
               ...old,
               pages: old.pages.map((p) => ({
                 ...p,
-                knuter: p.knuter.map((k) => (k.id === libId ? { ...k, imported: true } : k)),
+                knuter: p.knuter.map((k) => (k.id === id ? { ...k, imported: true } : k)),
               })),
             }
           : old,
       )
       invalidateAfterImport()
-      setSelected(null)
+      setAddTarget(null)
       toast.show('Lagt til i knuteboka ✓')
     },
     onError: (err) => toast.show((err as Error).message),
@@ -128,10 +131,10 @@ export default function BibliotekScreen() {
   })
 
   const onAddRow = (k: LibraryKnute) => {
-    // The "+" is a direct quick-add (all knuter). Sensitivity is signalled inline
-    // (amber tint + 18+/Tekst badges); tapping the row opens the detail sheet with
-    // the full warning + context for anyone who wants it.
-    importKnute.mutate(k.id)
+    // The "+" opens the "Legg til i …" folder picker ("add to playlist"). Sensitivity
+    // is signalled inline (amber tint + 18+/Tekst badges) and again in the picker;
+    // tapping the row body still opens the detail sheet with the full context.
+    setAddTarget(k)
   }
 
   const showPacks = q === '' && folder === null && region === null
@@ -190,7 +193,7 @@ export default function BibliotekScreen() {
           renderItem={({ item }) => (
             <LibraryRow
               knute={item}
-              importing={importKnute.isPending && importKnute.variables === item.id}
+              importing={importKnute.isPending && importKnute.variables?.id === item.id}
               onOpen={() => setSelected(item)}
               onAdd={() => onAddRow(item)}
             />
@@ -229,9 +232,21 @@ export default function BibliotekScreen() {
 
       <KnuteDetailSheet
         knute={selected}
-        importing={importKnute.isPending && importKnute.variables === selected?.id}
+        importing={false}
         onClose={() => setSelected(null)}
-        onImport={(k) => importKnute.mutate(k.id)}
+        onImport={(k) => {
+          // Hand off to the folder picker (close the detail sheet first so only one
+          // sheet is mounted at a time).
+          setSelected(null)
+          setAddTarget(k)
+        }}
+      />
+
+      <AddToFolderSheet
+        knute={addTarget}
+        confirming={importKnute.isPending}
+        onClose={() => setAddTarget(null)}
+        onConfirm={(k, folderIds) => importKnute.mutate({ id: k.id, folderIds })}
       />
 
       <Toast message={toast.message} bottomOffset={insets.bottom + spacing.lg} />
