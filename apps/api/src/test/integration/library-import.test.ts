@@ -490,3 +490,57 @@ describe('GET /api/library/packs/:id — pack contents with per-school imported 
     expect(bad.status).toBe(400)
   })
 })
+
+describe('«Fjern fra knuteboka» — archive + revive cycle', () => {
+  it('an archived copy reads as NOT imported, and + re-imports by waking it', async () => {
+    // School A's Sølibat copy → archive it (what «Fjern fra knuteboka» does).
+    const [copy] = await h.superDb
+      .select()
+      .from(knuter)
+      .where(and(eq(knuter.schoolId, schoolAId), eq(knuter.sourceLibraryKnuteId, solibatId)))
+    await h.superDb.update(knuter).set({ isActive: false }).where(eq(knuter.id, copy!.id))
+
+    // Browse: shows as new again (imported=false, no copy id).
+    const browse = await app.request('/api/library/knuter?q=S%C3%B8libat', { headers: authA })
+    const row = ((await browse.json()) as {
+      knuter: { id: string; imported: boolean; importedKnuteId: string | null }[]
+    }).knuter.find((k) => k.id === solibatId)!
+    expect(row.imported).toBe(false)
+    expect(row.importedKnuteId).toBeNull()
+
+    // Re-import: idempotent reuse + the copy WAKES (visible to students again).
+    const res = await app.request('/api/library/imports', {
+      method: 'POST',
+      headers: { ...authA, 'content-type': 'application/json' },
+      body: JSON.stringify({ libraryKnuteId: solibatId }),
+    })
+    expect(res.status).toBe(201)
+    const body = (await res.json()) as ImportResponse
+    expect(body.alreadyImported).toBe(true)
+    expect(body.knuteId).toBe(copy!.id)
+
+    const [after] = await h.superDb.select().from(knuter).where(eq(knuter.id, copy!.id))
+    expect(after?.isActive).toBe(true)
+  })
+
+  it('pack import revives archived member copies and counts them as imported', async () => {
+    // School B pack-imported earlier — archive one member copy.
+    const [copyB] = await h.superDb
+      .select()
+      .from(knuter)
+      .where(and(eq(knuter.schoolId, schoolBId), eq(knuter.sourceLibraryKnuteId, bikkjaId)))
+    if (!copyB) return // fixture drift guard: pack composition changed upstream
+    await h.superDb.update(knuter).set({ isActive: false }).where(eq(knuter.id, copyB.id))
+
+    const res = await app.request(`/api/library/packs/${starterPackId}/import`, {
+      method: 'POST',
+      headers: authB,
+    })
+    expect(res.status).toBe(201)
+    const body = (await res.json()) as PackImportResponse
+    expect(body.imported).toBeGreaterThanOrEqual(1)
+
+    const [after] = await h.superDb.select().from(knuter).where(eq(knuter.id, copyB.id))
+    expect(after?.isActive).toBe(true)
+  })
+})

@@ -121,6 +121,16 @@ export async function importLibraryKnute(
   if (existing) {
     knuteId = existing.knuteId
     alreadyImported = true
+    // «Fjern fra knuteboka» archives the copy (is_active=false) so it vanishes
+    // from the student catalog but submissions stay intact. Re-importing must
+    // therefore WAKE the copy — otherwise + would silently add folders to an
+    // invisible knute.
+    await tx
+      .update(knuter)
+      .set({ isActive: true, updatedAt: new Date() })
+      .where(
+        and(eq(knuter.id, knuteId), eq(knuter.schoolId, schoolId), eq(knuter.isActive, false)),
+      )
   } else {
     // Snapshot copy. evidence_type + min_age are copied and stay unrelaxable by the
     // school (the knuter PATCH endpoint exposes neither). category is carried from
@@ -206,8 +216,30 @@ export async function importLibraryPack(tx: Tx, packId: string, { schoolId, user
   const importedSet = new Set(already.map((r) => r.libraryKnuteId))
   const toImport = members.filter((m) => !importedSet.has(m.id))
 
+  // Wake archived copies of pack members («Fjern fra knuteboka» → pack import
+  // counts and revives them; old folder memberships are kept). Counted as
+  // imported in the summary since they become visible to students again.
+  const memberIds = members.map((m) => m.id)
+  const revived = memberIds.length
+    ? await tx
+        .update(knuter)
+        .set({ isActive: true, updatedAt: new Date() })
+        .where(
+          and(
+            eq(knuter.schoolId, schoolId),
+            eq(knuter.isActive, false),
+            inArray(knuter.sourceLibraryKnuteId, memberIds),
+          ),
+        )
+        .returning({ id: knuter.id })
+    : []
+
   if (toImport.length === 0) {
-    return { imported: 0, skipped: members.length, folders: [] as string[] }
+    return {
+      imported: revived.length,
+      skipped: members.length - revived.length,
+      folders: [] as string[],
+    }
   }
 
   // Resolve every needed folder up front (existing + create the missing ones). Folder
@@ -274,5 +306,9 @@ export async function importLibraryPack(tx: Tx, packId: string, { schoolId, user
     })),
   )
 
-  return { imported: toImport.length, skipped: members.length - toImport.length, folders: neededNames }
+  return {
+    imported: toImport.length + revived.length,
+    skipped: members.length - toImport.length - revived.length,
+    folders: neededNames,
+  }
 }
