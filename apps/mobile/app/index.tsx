@@ -4,13 +4,14 @@ import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useRouter } from 'expo-router'
-import { EyeOff, Shuffle } from 'lucide-react-native'
+import { Shuffle } from 'lucide-react-native'
 import { AppTabBar } from '../components/AppTabBar'
 import { FolderChips } from '../components/knute/FolderChips'
 import { KnuteListCard } from '../components/knute/KnuteListCard'
 import {
   CountUp,
   Eyebrow,
+  Pressable,
   Skeleton,
   StickerButton,
   StickerCard,
@@ -41,9 +42,11 @@ export default function KnuterScreen() {
   const [search, setSearch] = useState('')
   // null = "Alle" (the whole catalog); otherwise the selected folder's id.
   const [folderId, setFolderId] = useState<string | null>(null)
-  // Tatt/ikke tatt: hide the knuter the student already has an active
-  // (pending/approved) submission for — "what can I still do?"
-  const [hideTaken, setHideTaken] = useState(false)
+  // Tilgjengelige/Fullført: the catalog is a TO-DO list by default — only
+  // knuter without an active (pending/approved) submission. The segmented
+  // control flips to «Fullført» (sent in / approved). Two views, never a
+  // combined list; the ACTIVE segment always names what you are looking at.
+  const [view, setView] = useState<'available' | 'completed'>('available')
 
   const foldersQuery = useQuery({ queryKey: ['folders'], queryFn: fetchFolders })
 
@@ -60,8 +63,12 @@ export default function KnuterScreen() {
   const selectedFolder = folders.find((f) => f.id === folderId) ?? null
   const knuter = data?.knuter ?? []
   const searchTerm = search.trim().toLocaleLowerCase('nb-NO')
+  const availableCount = knuter.filter((k) => k.myStatus === null).length
+  const completedCount = knuter.length - availableCount
   const visibleKnuter = useMemo(() => {
-    const pool = hideTaken ? knuter.filter((k) => k.myStatus === null) : knuter
+    const pool = knuter.filter((k) =>
+      view === 'available' ? k.myStatus === null : k.myStatus !== null,
+    )
     if (!searchTerm) return pool
 
     return pool.filter((knute) => {
@@ -76,7 +83,7 @@ export default function KnuterScreen() {
 
       return haystack.includes(searchTerm)
     })
-  }, [knuter, searchTerm, hideTaken])
+  }, [knuter, searchTerm, view])
 
   if (isLoading) return <LoadingState />
   // Only take over the whole screen when we have nothing to show. With keepPreviousData,
@@ -87,17 +94,30 @@ export default function KnuterScreen() {
 
   const bottomPadding = insets.bottom + size.bottomNavMinHeight + spacing.xl
 
-  // Distinguish: everything taken (celebrate!), a genuinely empty folder, or
-  // a search that matched nothing.
+  // Distinguish: everything completed (celebrate!), nothing completed yet
+  // (invite!), a genuinely empty folder, or a search that matched nothing.
   const isEmptyFolder = folderId !== null && !searchTerm && knuter.length === spacing.none
-  const emptyBecauseTaken =
-    hideTaken && !searchTerm && knuter.length > spacing.none && visibleKnuter.length === spacing.none
-  const emptyTitle = emptyBecauseTaken ? 'Alt tatt ✓' : isEmptyFolder ? 'Tom mappe' : 'Ingen treff'
-  const emptyText = emptyBecauseTaken
-    ? 'Du har tatt alt som vises her. Sterkt! Slå av «Skjul tatte» for å se dem igjen.'
-    : isEmptyFolder
-      ? `Ingen knuter i «${selectedFolder?.name ?? 'mappa'}» ennå. Velg «Alle» for hele knuteboka.`
-      : 'Prøv et annet søk, eller trykk Tilfeldig når listen har knuter igjen.'
+  const allCompleted =
+    view === 'available' &&
+    !searchTerm &&
+    knuter.length > spacing.none &&
+    visibleKnuter.length === spacing.none
+  const noneCompleted =
+    view === 'completed' && !searchTerm && visibleKnuter.length === spacing.none && !isEmptyFolder
+  const emptyTitle = allCompleted
+    ? 'Alt fullført ✓'
+    : noneCompleted
+      ? 'Ingenting fullført ennå'
+      : isEmptyFolder
+        ? 'Tom mappe'
+        : 'Ingen treff'
+  const emptyText = allCompleted
+    ? 'Du har fullført alt her. Sterkt! Se samlingen under «Fullført».'
+    : noneCompleted
+      ? 'Knutene du fullfører havner her. Gå til «Tilgjengelige» og sett i gang!'
+      : isEmptyFolder
+        ? `Ingen knuter i «${selectedFolder?.name ?? 'mappa'}» ennå. Velg «Alle» for hele knuteboka.`
+        : 'Prøv et annet søk, eller trykk Tilfeldig når listen har knuter igjen.'
 
   const openRandomKnute = () => {
     const randomKnute = visibleKnuter[Math.floor(Math.random() * visibleKnuter.length)]
@@ -155,12 +175,30 @@ export default function KnuterScreen() {
           <FolderChips folders={folders} selected={folderId} onSelect={setFolderId} />
         ) : null}
 
+        <View style={styles.segmented} accessibilityRole="tablist">
+          <ViewSegment
+            label="Tilgjengelige"
+            count={availableCount}
+            active={view === 'available'}
+            onPress={() => setView('available')}
+            hint="Viser knutene du kan ta nå."
+          />
+          <ViewSegment
+            label="Fullført"
+            count={completedCount}
+            active={view === 'completed'}
+            onPress={() => setView('completed')}
+            hint="Viser knutene du har sendt inn eller fått godkjent."
+          />
+        </View>
+
         <View style={styles.sectionHeader}>
           <Text weight="semibold" size="lg" color={sticker.color.ink}>
             {selectedFolder?.name ?? 'Alle knuter'}
           </Text>
           <Text size="sm" color={sticker.color.textMuted}>
-            {formatNumber(visibleKnuter.length)}/{formatNumber(knuter.length)} synlig
+            {formatNumber(visibleKnuter.length)}/
+            {formatNumber(view === 'available' ? availableCount : completedCount)} synlig
           </Text>
         </View>
 
@@ -174,33 +212,6 @@ export default function KnuterScreen() {
             disabled={visibleKnuter.length === spacing.none}
             accessibilityHint="Åpner en tilfeldig knute fra listen som vises."
           />
-          <StickerCard
-            tone={hideTaken ? 'primary' : 'surface'}
-            radius="full"
-            shadow="sm"
-            padding="none"
-            onPress={() => setHideTaken((v) => !v)}
-            haptic="selection"
-            accessibilityRole="button"
-            accessibilityLabel="Skjul tatte"
-            accessibilityHint="Skjuler knutene du allerede har tatt eller venter på."
-            accessibilitySelected={hideTaken}
-          >
-            <View style={styles.toggleContent}>
-              <EyeOff
-                size={sticker.icon.sm}
-                color={hideTaken ? sticker.color.textInverse : sticker.color.ink}
-                strokeWidth={2.5}
-              />
-              <Text
-                size="sm"
-                weight="semibold"
-                color={hideTaken ? sticker.color.textInverse : sticker.color.ink}
-              >
-                Skjul tatte
-              </Text>
-            </View>
-          </StickerCard>
         </View>
 
         {visibleKnuter.length === spacing.none ? (
@@ -239,6 +250,51 @@ export default function KnuterScreen() {
       </ScrollView>
       <AppTabBar active="knuter" />
     </View>
+  )
+}
+
+// One segment of the Tilgjengelige/Fullført control. The ACTIVE segment names
+// what is on screen right now; both stay visible so the alternative is always
+// one tap away (never a label that flips meaning under your finger).
+function ViewSegment({
+  label,
+  count,
+  active,
+  onPress,
+  hint,
+}: {
+  label: string
+  count: number
+  active: boolean
+  onPress: () => void
+  hint: string
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      haptic="selection"
+      accessibilityRole="tab"
+      accessibilityLabel={`${label}, ${formatNumber(count)} knuter`}
+      accessibilityHint={hint}
+      accessibilityState={{ selected: active }}
+      style={[styles.segment, active ? styles.segmentActive : null]}
+    >
+      <Text
+        size="sm"
+        weight="bold"
+        color={active ? sticker.color.textInverse : sticker.color.textSoft}
+      >
+        {label}
+      </Text>
+      <Text
+        size="xs"
+        weight="semibold"
+        font="mono"
+        color={active ? sticker.color.textInverse : sticker.color.textMuted}
+      >
+        {formatNumber(count)}
+      </Text>
+    </Pressable>
   )
 }
 
@@ -338,12 +394,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  toggleContent: {
+  segmented: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    padding: spacing.xs,
+    borderRadius: sticker.radius.full,
+    borderWidth: sticker.borderWidth,
+    borderColor: sticker.color.ink,
+    backgroundColor: sticker.color.surfaceSoft,
+  },
+  segment: {
+    flex: 1,
     minHeight: size.actionMinHeight,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.xs,
-    paddingHorizontal: spacing.md,
+    borderRadius: sticker.radius.full,
+  },
+  segmentActive: {
+    backgroundColor: sticker.color.primary,
   },
   list: {
     gap: spacing.md,

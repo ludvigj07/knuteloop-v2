@@ -28,18 +28,22 @@ export default function ReviewScreen() {
     onSuccess: () => {
       // Approval moves the submission into the feed and awards points, so refresh
       // the queue, its count, the feed and the leaderboard — not just the queue.
+      // ['knuter'] carries myStatus (Venter → Godkjent in the catalog).
       void qc.invalidateQueries({ queryKey: ['submissions', 'pending'] })
       void qc.invalidateQueries({ queryKey: ['submissions', 'pending', 'count'] })
       void qc.invalidateQueries({ queryKey: ['feed'] })
       void qc.invalidateQueries({ queryKey: ['leaderboard'] })
+      void qc.invalidateQueries({ queryKey: ['knuter'] })
     },
   })
 
   const reject = useMutation({
     mutationFn: rejectSubmission,
     onSuccess: () => {
+      // A rejected knute becomes available again (myStatus → null in the catalog).
       void qc.invalidateQueries({ queryKey: ['submissions', 'pending'] })
       void qc.invalidateQueries({ queryKey: ['submissions', 'pending', 'count'] })
+      void qc.invalidateQueries({ queryKey: ['knuter'] })
     },
   })
 
