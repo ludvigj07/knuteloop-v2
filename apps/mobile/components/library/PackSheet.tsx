@@ -112,10 +112,10 @@ export function PackSheet({
 }
 
 const styles = StyleSheet.create({
-  body: { gap: spacing.sm },
+  body: { gap: spacing.sm, flexShrink: 1 },
   loading: { gap: spacing.sm, marginVertical: spacing.sm },
   skeletonRow: { height: 52, borderRadius: sticker.radius.md },
-  list: { maxHeight: 360, marginVertical: spacing.xs },
+  list: { flexGrow: 0, flexShrink: 1, maxHeight: 360, marginVertical: spacing.xs },
   row: {
     minHeight: size.actionMinHeight,
     flexDirection: 'row',
