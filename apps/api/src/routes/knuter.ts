@@ -119,7 +119,34 @@ export const knuterRoutes = new Hono<{ Variables: Variables }>()
         )
         .where(and(...conditions))
 
-      return c.json({ knuter: rows })
+      // folderIds per knute (which knutemapper it sits in) — one batched query
+      // + an in-memory group, NOT a per-row lookup. Powers the folder chips in
+      // the Alle-view and the manage-sheet's pre-checked state.
+      const knuteIds = rows.map((r) => r.id)
+      const memberships = knuteIds.length
+        ? await tx
+            .select({
+              knuteId: knuteFolderMemberships.knuteId,
+              folderId: knuteFolderMemberships.folderId,
+            })
+            .from(knuteFolderMemberships)
+            .where(
+              and(
+                eq(knuteFolderMemberships.schoolId, schoolId),
+                inArray(knuteFolderMemberships.knuteId, knuteIds),
+              ),
+            )
+        : []
+      const foldersByKnute = new Map<string, string[]>()
+      for (const m of memberships) {
+        const list = foldersByKnute.get(m.knuteId)
+        if (list) list.push(m.folderId)
+        else foldersByKnute.set(m.knuteId, [m.folderId])
+      }
+
+      return c.json({
+        knuter: rows.map((r) => ({ ...r, folderIds: foldersByKnute.get(r.id) ?? [] })),
+      })
     },
   )
 

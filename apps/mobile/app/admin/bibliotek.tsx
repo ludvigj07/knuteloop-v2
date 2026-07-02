@@ -31,12 +31,15 @@ import {
   type AddToFolderPayload,
 } from '../../components/library/AddToFolderSheet'
 import {
+  addKnuteToFolder,
   createFolder,
+  fetchAllKnuter,
   fetchFolders,
   fetchLibraryKnuter,
   fetchLibraryPacks,
   importLibraryKnute,
   importLibraryPack,
+  removeKnuteFromFolder,
   updateKnute,
   type LibraryKnute,
   type LibraryKnuterResponse,
@@ -70,6 +73,13 @@ export default function BibliotekScreen() {
   const [selected, setSelected] = useState<LibraryKnute | null>(null)
   // The knute whose "Legg til i …" folder picker is open (null = closed).
   const [addTarget, setAddTarget] = useState<LibraryKnute | null>(null)
+  // The ✓-flow: manage the already-imported COPY (folders + text).
+  const [manageTarget, setManageTarget] = useState<LibraryKnute | null>(null)
+  // The school's own knuter — resolves the copy behind a ✓ (folderIds + current text).
+  const schoolKnuter = useQuery({ queryKey: ['knuter', 'all'], queryFn: fetchAllKnuter })
+  const manageCopy = manageTarget?.importedKnuteId
+    ? (schoolKnuter.data?.knuter.find((k) => k.id === manageTarget.importedKnuteId) ?? null)
+    : null
 
   // Debounce the term that drives the query key so each keystroke doesn't spawn a
   // new request + cache entry. The TextInput stays controlled by `search`.
@@ -164,6 +174,39 @@ export default function BibliotekScreen() {
     onError: (err) => toast.show((err as Error).message),
   })
 
+  // The ✓-flow: change folders / edit text on the school's existing copy.
+  const manageKnute = useMutation({
+    mutationFn: async ({
+      copyId,
+      currentFolderIds,
+      payload,
+    }: {
+      copyId: string
+      currentFolderIds: string[]
+      payload: AddToFolderPayload
+    }) => {
+      const wanted = [...payload.folderIds]
+      if (payload.newFolderName) {
+        const created = await createFolder(payload.newFolderName, 'folder')
+        wanted.push(created.folder.id)
+      }
+      const toAdd = wanted.filter((id) => !currentFolderIds.includes(id))
+      const toRemove = currentFolderIds.filter((id) => !wanted.includes(id))
+      await Promise.all([
+        ...toAdd.map((folderId) => addKnuteToFolder(folderId, copyId)),
+        ...toRemove.map((folderId) => removeKnuteFromFolder(folderId, copyId)),
+      ])
+      if (payload.overrides) await updateKnute(copyId, payload.overrides)
+    },
+    onSuccess: () => {
+      haptics.success()
+      invalidateAfterImport()
+      setManageTarget(null)
+      toast.show('Kopien er oppdatert ✓')
+    },
+    onError: (err) => toast.show((err as Error).message),
+  })
+
   const onAddRow = (k: LibraryKnute) => {
     // The "+" opens the "Legg til i …" folder picker ("add to playlist"). Sensitivity
     // is signalled inline (amber tint + 18+/Tekst badges) and again in the picker;
@@ -244,6 +287,7 @@ export default function BibliotekScreen() {
               isLast={index === items.length - 1}
               onOpen={() => setSelected(item)}
               onAdd={() => onAddRow(item)}
+              onManage={() => setManageTarget(item)}
             />
           )}
           ListEmptyComponent={
@@ -297,6 +341,23 @@ export default function BibliotekScreen() {
         confirming={importKnute.isPending}
         onClose={() => setAddTarget(null)}
         onConfirm={(k, payload) => importKnute.mutate({ id: k.id, payload })}
+      />
+
+      <AddToFolderSheet
+        knute={manageCopy ? manageTarget : null}
+        mode="manage"
+        copy={manageCopy}
+        initialFolderIds={manageCopy?.folderIds ?? []}
+        confirming={manageKnute.isPending}
+        onClose={() => setManageTarget(null)}
+        onConfirm={(_k, payload) => {
+          if (!manageCopy) return
+          manageKnute.mutate({
+            copyId: manageCopy.id,
+            currentFolderIds: manageCopy.folderIds,
+            payload,
+          })
+        }}
       />
 
       <Toast

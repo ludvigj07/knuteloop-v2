@@ -28,6 +28,7 @@ const KNUTE: LibraryKnute = {
   suggestedFolder: 'Alkohol',
   region: null,
   imported: false,
+  importedKnuteId: null,
 }
 
 function renderSheet(

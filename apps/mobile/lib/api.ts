@@ -44,6 +44,8 @@ export type Knute = {
   createdAt: string
   /** The CALLER's active submission for this knute — tatt/ikke tatt. Rejected → null (can retry). */
   myStatus: 'pending' | 'approved' | null
+  /** Which knutemapper the knute sits in ([] = only the implicit «Alle knuter»). */
+  folderIds: string[]
 }
 
 export type KnuterResponse = { knuter: Knute[] }
@@ -359,6 +361,8 @@ export type LibraryKnute = {
   region: string | null
   /** Whether THIS school has already imported it. */
   imported: boolean
+  /** The school's own copy in `knuter` (null until imported) — drives the ✓ manage-sheet. */
+  importedKnuteId: string | null
 }
 export type LibraryKnuterResponse = { knuter: LibraryKnute[] }
 

@@ -34,7 +34,9 @@ export default function FolderViewScreen() {
   const toast = useToast()
   const [addOpen, setAddOpen] = useState(false)
 
-  const folders = useQuery({ queryKey: ['folders'], queryFn: fetchFolders, enabled: !isAll })
+  // Folder names are needed in BOTH views: the header title, and the
+  // per-knute folder chips in the Alle-view (D4).
+  const folders = useQuery({ queryKey: ['folders'], queryFn: fetchFolders })
   const knuter = useQuery({
     queryKey: isAll ? ['knuter', 'all'] : ['knuter', 'folder', folderId],
     queryFn: isAll ? fetchAllKnuter : () => fetchKnuterByFolder(folderId),
@@ -182,6 +184,13 @@ export default function FolderViewScreen() {
           <SchoolKnuteRow
             knute={item}
             inactive={!item.isActive}
+            folderNames={
+              isAll
+                ? item.folderIds
+                    .map((id) => folders.data?.folders.find((f) => f.id === id)?.name)
+                    .filter((n): n is string => Boolean(n))
+                : undefined
+            }
             onPress={() => router.push(`/admin/edit/${item.id}`)}
             onRemove={
               isAll ? undefined : () => removeMutation.mutate({ knuteId: item.id, title: item.title })
