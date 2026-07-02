@@ -43,6 +43,7 @@ export function AddToFolderSheet({
   confirming,
   onClose,
   onConfirm,
+  onRemove,
 }: {
   knute: LibraryKnute | null
   /** 'add' = import flow; 'manage' = the ✓ — edit the existing copy's folders/text. */
@@ -56,6 +57,8 @@ export function AddToFolderSheet({
   confirming: boolean
   onClose: () => void
   onConfirm: (knute: LibraryKnute, payload: AddToFolderPayload) => void
+  /** Manage mode: «Fjern fra knuteboka» — archives the copy (students stop seeing it). */
+  onRemove?: () => void
 }) {
   // Keep the last knute rendered through the close animation.
   const [shown, setShown] = useState<LibraryKnute | null>(knute)
@@ -76,6 +79,7 @@ export function AddToFolderSheet({
           contextFolderId={contextFolderId ?? null}
           confirming={confirming}
           onConfirm={(payload) => onConfirm(shown, payload)}
+          onRemove={onRemove ?? null}
         />
       ) : null}
     </Sheet>
@@ -90,6 +94,7 @@ function Picker({
   contextFolderId,
   confirming,
   onConfirm,
+  onRemove,
 }: {
   knute: LibraryKnute
   mode: 'add' | 'manage'
@@ -98,6 +103,7 @@ function Picker({
   contextFolderId: string | null
   confirming: boolean
   onConfirm: (payload: AddToFolderPayload) => void
+  onRemove: (() => void) | null
 }) {
   const qc = useQueryClient()
   const folders = useQuery({ queryKey: ['folders'], queryFn: fetchFolders })
@@ -382,6 +388,20 @@ function Picker({
                 : 'Kopierer knuten inn i valgte mapper.'
           }
         />
+        {mode === 'manage' && onRemove ? (
+          <Pressable
+            onPress={onRemove}
+            haptic="medium"
+            accessibilityRole="button"
+            accessibilityLabel="Fjern fra knuteboka"
+            accessibilityHint="Knuten forsvinner fra elevenes katalog. Innsendinger beholdes."
+            style={styles.removeRow}
+          >
+            <Text weight="semibold" color={sticker.color.danger}>
+              Fjern fra knuteboka
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
     </ScrollView>
   )
@@ -660,4 +680,10 @@ const styles = StyleSheet.create({
   iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   iconTile: { ...tile },
   action: { marginTop: spacing.sm },
+  removeRow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: sticker.tap.min,
+    marginTop: spacing.xs,
+  },
 })

@@ -17,6 +17,7 @@ export function SchoolKnuteRow({
   folderNames,
   onPress,
   onRemove,
+  removeLabel,
   removing,
 }: {
   knute: Knute
@@ -25,6 +26,9 @@ export function SchoolKnuteRow({
   folderNames?: string[]
   onPress: () => void
   onRemove?: () => void
+  /** A11y for the remove button — folder view removes from the folder, the
+      Alle-view removes from the whole book. Default: folder semantics. */
+  removeLabel?: string
   removing?: boolean
 }) {
   return (
@@ -66,7 +70,7 @@ export function SchoolKnuteRow({
             onPress={onRemove}
             disabled={removing}
             haptic="medium"
-            accessibilityLabel={`Fjern ${knute.title} fra mappa`}
+            accessibilityLabel={removeLabel ?? `Fjern ${knute.title} fra mappa`}
             hitSlop={8}
             style={styles.removeBtn}
           >

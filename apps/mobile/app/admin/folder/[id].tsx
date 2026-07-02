@@ -14,6 +14,7 @@ import {
   fetchFolders,
   fetchKnuterByFolder,
   removeKnuteFromFolder,
+  updateKnute,
 } from '../../../lib/api'
 import { formatNumber } from '../../../lib/format'
 import { haptics } from '../../../lib/haptics'
@@ -88,6 +89,35 @@ export default function FolderViewScreen() {
     },
     onError: (err) => toast.show((err as Error).message),
   })
+
+  // «Fjern fra knuteboka» (the Alle-view X): archive — instantly gone from
+  // the student catalog/search; submissions and history stay intact.
+  const archiveMutation = useMutation({
+    mutationFn: ({ knuteId }: { knuteId: string; title: string }) =>
+      updateKnute(knuteId, { isActive: false }),
+    onSuccess: (_res, { title }) => {
+      haptics.success()
+      invalidate()
+      void qc.invalidateQueries({ queryKey: ['library'] })
+      toast.show(`«${title}» fjernet fra knuteboka`)
+    },
+    onError: (err) => toast.show((err as Error).message),
+  })
+
+  const confirmArchive = (knuteId: string, title: string) => {
+    Alert.alert(
+      `Fjerne «${title}»?`,
+      'Knuten forsvinner fra elevenes katalog og søk. Innsendinger og historikk beholdes.',
+      [
+        { text: 'Avbryt', style: 'cancel' },
+        {
+          text: 'Fjern fra knuteboka',
+          style: 'destructive',
+          onPress: () => archiveMutation.mutate({ knuteId, title }),
+        },
+      ],
+    )
+  }
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteFolder(folderId),
@@ -193,9 +223,17 @@ export default function FolderViewScreen() {
             }
             onPress={() => router.push(`/admin/edit/${item.id}`)}
             onRemove={
-              isAll ? undefined : () => removeMutation.mutate({ knuteId: item.id, title: item.title })
+              isAll
+                ? item.isActive
+                  ? () => confirmArchive(item.id, item.title)
+                  : undefined
+                : () => removeMutation.mutate({ knuteId: item.id, title: item.title })
             }
-            removing={removeMutation.isPending && removeMutation.variables?.knuteId === item.id}
+            removeLabel={isAll ? `Fjern ${item.title} fra knuteboka` : undefined}
+            removing={
+              (removeMutation.isPending && removeMutation.variables?.knuteId === item.id) ||
+              (archiveMutation.isPending && archiveMutation.variables?.knuteId === item.id)
+            }
           />
         )}
       />

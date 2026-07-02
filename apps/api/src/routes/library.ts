@@ -6,6 +6,7 @@ import { auth, type AuthVariables } from '../middleware/auth.js'
 import { tenantContext } from '../middleware/tenant-context.js'
 import { requireRole } from '../middleware/require-role.js'
 import {
+  knuter,
   libraryKnuter,
   libraryPacks,
   libraryPackMemberships,
@@ -87,12 +88,13 @@ export const libraryRoutes = new Hono<{ Variables: Variables }>()
         minAge: libraryKnuter.minAge,
         suggestedFolder: libraryKnuter.suggestedFolder,
         region: libraryKnuter.region,
-        // Defense in depth: explicit school_id filter on the join AND RLS on the
-        // imports table both scope "imported" to the caller's own school.
-        imported: sql<boolean>`${schoolLibraryImports.id} is not null`,
-        // The school's own COPY (null until imported) — lets the ✓ open the
-        // manage-sheet (change folders / edit the copy) without a second lookup.
-        importedKnuteId: schoolLibraryImports.knuteId,
+        // "Imported" = the school has an ACTIVE copy. An archived copy («Fjern
+        // fra knuteboka») shows as NOT added, so + re-imports and reactivates.
+        // Defense in depth: explicit school_id filters on both joins AND RLS.
+        imported: sql<boolean>`${knuter.id} is not null`,
+        // The school's own ACTIVE copy (null until imported / after removal) —
+        // lets the ✓ open the manage-sheet without a second lookup.
+        importedKnuteId: knuter.id,
       })
       .from(libraryKnuter)
       .leftJoin(
@@ -100,6 +102,14 @@ export const libraryRoutes = new Hono<{ Variables: Variables }>()
         and(
           eq(schoolLibraryImports.libraryKnuteId, libraryKnuter.id),
           eq(schoolLibraryImports.schoolId, schoolId),
+        ),
+      )
+      .leftJoin(
+        knuter,
+        and(
+          eq(knuter.id, schoolLibraryImports.knuteId),
+          eq(knuter.schoolId, schoolId),
+          eq(knuter.isActive, true),
         ),
       )
       .where(and(...conditions))
@@ -166,9 +176,9 @@ export const libraryRoutes = new Hono<{ Variables: Variables }>()
         suggestedFolder: libraryKnuter.suggestedFolder,
         evidenceType: libraryKnuter.evidenceType,
         minAge: libraryKnuter.minAge,
-        // Defense in depth: explicit school_id on the join AND RLS scope this
-        // flag to the caller's own school.
-        imported: sql<boolean>`${schoolLibraryImports.id} is not null`,
+        // "Imported" = an ACTIVE copy exists (archived = counts as new again,
+        // and pack import reactivates it). Explicit school_id filters + RLS.
+        imported: sql<boolean>`${knuter.id} is not null`,
       })
       .from(libraryPackMemberships)
       .innerJoin(
@@ -183,6 +193,14 @@ export const libraryRoutes = new Hono<{ Variables: Variables }>()
         and(
           eq(schoolLibraryImports.libraryKnuteId, libraryKnuter.id),
           eq(schoolLibraryImports.schoolId, schoolId),
+        ),
+      )
+      .leftJoin(
+        knuter,
+        and(
+          eq(knuter.id, schoolLibraryImports.knuteId),
+          eq(knuter.schoolId, schoolId),
+          eq(knuter.isActive, true),
         ),
       )
       .where(eq(libraryPackMemberships.packId, id))

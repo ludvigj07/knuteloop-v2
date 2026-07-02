@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { RefreshControl, StyleSheet, View } from 'react-native'
+import { Alert, RefreshControl, StyleSheet, View } from 'react-native'
 import { FlashList } from '@shopify/flash-list'
 import {
   keepPreviousData,
@@ -213,6 +213,36 @@ export default function BibliotekScreen() {
     onError: (err) => toast.show((err as Error).message),
   })
 
+  // «Fjern fra knuteboka» (manage-sheet): archive the copy — gone from the
+  // student catalog instantly, submissions/history intact. The library row
+  // flips back to + (imported = active copy only), and + revives the copy.
+  const removeCopy = useMutation({
+    mutationFn: (copyId: string) => updateKnute(copyId, { isActive: false }),
+    onSuccess: () => {
+      haptics.success()
+      invalidateAfterImport()
+      setManageTarget(null)
+      toast.show('Fjernet fra knuteboka — elevene ser den ikke lenger')
+    },
+    onError: (err) => toast.show((err as Error).message),
+  })
+
+  const confirmRemoveCopy = () => {
+    if (!manageCopy) return
+    Alert.alert(
+      `Fjerne «${manageCopy.title}»?`,
+      'Knuten forsvinner fra elevenes katalog og søk. Innsendinger og historikk beholdes, og du kan hente den inn igjen fra biblioteket.',
+      [
+        { text: 'Avbryt', style: 'cancel' },
+        {
+          text: 'Fjern fra knuteboka',
+          style: 'destructive',
+          onPress: () => removeCopy.mutate(manageCopy.id),
+        },
+      ],
+    )
+  }
+
   const onAddRow = (k: LibraryKnute) => {
     // The "+" opens the "Legg til i …" folder picker ("add to playlist"). Sensitivity
     // is signalled inline (amber tint + 18+/Tekst badges) and again in the picker;
@@ -357,6 +387,7 @@ export default function BibliotekScreen() {
         copy={manageCopy}
         initialFolderIds={manageCopy?.folderIds ?? []}
         confirming={manageKnute.isPending}
+        onRemove={confirmRemoveCopy}
         onClose={() => setManageTarget(null)}
         onConfirm={(_k, payload) => {
           if (!manageCopy) return
