@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { schools, users, knuter, submissions } from '../../db/schema/index.js'
+import { schools, users, knuter, knuteFolders, knuteFolderMemberships, submissions } from '../../db/schema/index.js'
 import { setupTestDb, type TestHandles } from '../helpers/test-db.js'
 import { signDevToken } from '../../lib/auth-dev.js'
 import { buildApp } from '../../app.js'
@@ -479,5 +479,33 @@ describe('GET /api/knuter — myStatus (tatt/ikke tatt)', () => {
     const body = (await res.json()) as { knuter: (KnuteRow & { myStatus: string | null })[] }
     expect(body.knuter.find((k) => k.id === klassebildeId)?.myStatus).toBe('pending')
     expect(body.knuter.find((k) => k.id === frokostId)?.myStatus).toBeNull()
+  })
+})
+
+describe('GET /api/knuter — folderIds per knute', () => {
+  it('lists which knutemapper each knute sits in (empty when none)', async () => {
+    const list = await app.request('/api/knuter', {
+      headers: { Authorization: `Bearer ${knutesjefTokenA}` },
+    })
+    const before = (await list.json()) as { knuter: { id: string; title: string }[] }
+    const frokost = before.knuter.find((k) => k.title === 'A: Spis frokost under pulten')!
+
+    const [mappe] = await h.superDb
+      .insert(knuteFolders)
+      .values({ schoolId: schoolAId, name: 'Chipstest' })
+      .returning()
+    await h.superDb.insert(knuteFolderMemberships).values({
+      schoolId: schoolAId,
+      knuteId: frokost.id,
+      folderId: mappe!.id,
+    })
+
+    const res = await app.request('/api/knuter', {
+      headers: { Authorization: `Bearer ${knutesjefTokenA}` },
+    })
+    const body = (await res.json()) as { knuter: { id: string; folderIds: string[] }[] }
+    expect(body.knuter.find((k) => k.id === frokost.id)?.folderIds).toContain(mappe!.id)
+    const other = body.knuter.find((k) => k.id !== frokost.id)
+    expect(other?.folderIds).toEqual([])
   })
 })

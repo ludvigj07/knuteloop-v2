@@ -14,12 +14,15 @@ import { size, sticker, spacing } from '../../lib/theme'
 export function SchoolKnuteRow({
   knute,
   inactive,
+  folderNames,
   onPress,
   onRemove,
   removing,
 }: {
   knute: Knute
   inactive?: boolean
+  /** Shown as folder chips (the Alle-view): [] renders «kun i Alle». Omit to hide. */
+  folderNames?: string[]
   onPress: () => void
   onRemove?: () => void
   removing?: boolean
@@ -46,6 +49,15 @@ export function SchoolKnuteRow({
               <Chip label={knute.difficulty} tone={difficultyTone(knute.difficulty)} />
               {inactive ? <Badge label="Arkivert" /> : null}
             </View>
+            {folderNames ? (
+              <View style={styles.meta}>
+                {folderNames.length > 0 ? (
+                  folderNames.map((name) => <Chip key={name} label={name} tone="primary" />)
+                ) : (
+                  <Chip label="kun i Alle" tone="neutral" />
+                )}
+              </View>
+            ) : null}
           </View>
         </Pressable>
 

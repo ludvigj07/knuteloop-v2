@@ -13,9 +13,10 @@ const KNUTE: LibraryKnute = {
   suggestedFolder: 'Generelle',
   region: null,
   imported: false,
+  importedKnuteId: null,
 }
 
-function renderRow(overrides: Partial<LibraryKnute> = {}, props: { onOpen?: () => void; onAdd?: () => void } = {}) {
+function renderRow(overrides: Partial<LibraryKnute> = {}, props: { onOpen?: () => void; onAdd?: () => void; onManage?: () => void } = {}) {
   return render(
     <LibraryCatalogRow
       knute={{ ...KNUTE, ...overrides }}
@@ -24,6 +25,7 @@ function renderRow(overrides: Partial<LibraryKnute> = {}, props: { onOpen?: () =
       isLast
       onOpen={props.onOpen ?? jest.fn()}
       onAdd={props.onAdd ?? jest.fn()}
+      onManage={props.onManage ?? jest.fn()}
     />,
   )
 }
@@ -51,11 +53,14 @@ describe('LibraryCatalogRow', () => {
     expect(onOpen).not.toHaveBeenCalled()
   })
 
-  it('shows a passive check instead of + once imported', () => {
+  it('turns + into a ✓ that opens the manage-sheet once imported', () => {
     const onAdd = jest.fn()
-    renderRow({ imported: true }, { onAdd })
-    expect(screen.getByLabelText(`${KNUTE.title} er lagt til`)).toBeTruthy()
+    const onManage = jest.fn()
+    renderRow({ imported: true, importedKnuteId: 'copy-1' }, { onAdd, onManage })
     expect(screen.queryByLabelText(`Legg ${KNUTE.title} til i knuteboka`)).toBeNull()
+    fireEvent.press(screen.getByLabelText(`${KNUTE.title} er lagt til — endre mapper eller tekst`))
+    expect(onManage).toHaveBeenCalledTimes(1)
+    expect(onAdd).not.toHaveBeenCalled()
   })
 
   it('flags sensitive knuter with the 18+ and Tekst badges', () => {

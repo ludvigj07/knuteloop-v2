@@ -17,6 +17,7 @@ const knute = (id: string, title: string): Knute => ({
   isActive: true,
   createdAt: '2026-07-01T00:00:00Z',
   myStatus: null,
+  folderIds: [],
 })
 
 const CANDIDATES = [knute('k1', 'Syng i kantina'), knute('k2', 'Lag en russelåt')]

@@ -430,3 +430,30 @@ describe('pack import with partial overlap (school C)', () => {
     expect(body.skipped).toBe(1) // Bikkjå
   })
 })
+
+describe('GET /api/library/knuter — importedKnuteId (the school copy id)', () => {
+  it('carries the copy id after import, null before — per school', async () => {
+    // School A imported Sølibat earlier in this suite; School B did not.
+    const resA = await app.request('/api/library/knuter?q=S%C3%B8libat', { headers: authA })
+    const bodyA = (await resA.json()) as {
+      knuter: { id: string; imported: boolean; importedKnuteId: string | null }[]
+    }
+    const rowA = bodyA.knuter.find((k) => k.id === solibatId)!
+    expect(rowA.imported).toBe(true)
+    expect(rowA.importedKnuteId).toBeTruthy()
+
+    // The id points at school A's own copy in `knuter`.
+    const [copy] = await h.superDb
+      .select()
+      .from(knuter)
+      .where(eq(knuter.id, rowA.importedKnuteId!))
+    expect(copy?.schoolId).toBe(schoolAId)
+    expect(copy?.sourceLibraryKnuteId).toBe(solibatId)
+
+    const resB = await app.request('/api/library/knuter?q=S%C3%B8libat', { headers: authB })
+    const bodyB = (await resB.json()) as {
+      knuter: { id: string; importedKnuteId: string | null }[]
+    }
+    expect(bodyB.knuter.find((k) => k.id === solibatId)?.importedKnuteId ?? null).toBeNull()
+  })
+})

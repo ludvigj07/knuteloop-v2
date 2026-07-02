@@ -36,12 +36,21 @@ export type AddToFolderPayload = {
 
 export function AddToFolderSheet({
   knute,
+  mode = 'add',
+  copy,
+  initialFolderIds,
   contextFolderId,
   confirming,
   onClose,
   onConfirm,
 }: {
   knute: LibraryKnute | null
+  /** 'add' = import flow; 'manage' = the ✓ — edit the existing copy's folders/text. */
+  mode?: 'add' | 'manage'
+  /** Manage mode: the school's copy (its CURRENT title/points/description). */
+  copy?: { title: string; description: string | null; points: number } | null
+  /** Manage mode: the copy's current folder memberships (pre-checked). */
+  initialFolderIds?: string[]
   /** Set when browsing the library FROM a folder — pre-checks that folder. */
   contextFolderId?: string | null
   confirming: boolean
@@ -59,8 +68,11 @@ export function AddToFolderSheet({
       {shown ? (
         // key resets selection + edit state when a different knute opens.
         <Picker
-          key={shown.id}
+          key={`${mode}-${shown.id}`}
           knute={shown}
+          mode={mode}
+          copy={copy ?? null}
+          initialFolderIds={initialFolderIds ?? null}
           contextFolderId={contextFolderId ?? null}
           confirming={confirming}
           onConfirm={(payload) => onConfirm(shown, payload)}
@@ -72,11 +84,17 @@ export function AddToFolderSheet({
 
 function Picker({
   knute,
+  mode,
+  copy,
+  initialFolderIds,
   contextFolderId,
   confirming,
   onConfirm,
 }: {
   knute: LibraryKnute
+  mode: 'add' | 'manage'
+  copy: { title: string; description: string | null; points: number } | null
+  initialFolderIds: string[] | null
   contextFolderId: string | null
   confirming: boolean
   onConfirm: (payload: AddToFolderPayload) => void
@@ -88,11 +106,17 @@ function Picker({
   const [initialized, setInitialized] = useState(false)
   const [showNew, setShowNew] = useState(false)
 
-  // Inline edit of the copy-to-be ("rediger før lagring").
+  // Inline edit ("rediger før lagring" / manage: edit the copy). Baseline =
+  // the copy in manage mode, else the library values.
+  const base = {
+    title: copy?.title ?? knute.title,
+    points: copy?.points ?? knute.points,
+    description: (copy ? copy.description : knute.description) ?? '',
+  }
   const [editing, setEditing] = useState(false)
-  const [title, setTitle] = useState(knute.title)
-  const [pointsText, setPointsText] = useState(String(knute.points))
-  const [description, setDescription] = useState(knute.description ?? '')
+  const [title, setTitle] = useState(base.title)
+  const [pointsText, setPointsText] = useState(String(base.points))
+  const [description, setDescription] = useState(base.description)
 
   const list = folders.data?.folders ?? []
   const themeName = knute.suggestedFolder
@@ -100,11 +124,14 @@ function Picker({
     (f) => f.name.toLocaleLowerCase('nb-NO') === themeName.toLocaleLowerCase('nb-NO'),
   )
 
-  // Pre-check once folders have loaded: context folder wins, else the theme
-  // folder, else the synthetic «Ny mappe: <tema>» row.
+  // Pre-check once folders have loaded. Add: context folder wins, else the
+  // theme folder, else the synthetic «Ny mappe: <tema>» row. Manage: the
+  // copy's CURRENT memberships.
   useEffect(() => {
     if (initialized || folders.isLoading) return
-    if (contextFolderId && list.some((f) => f.id === contextFolderId)) {
+    if (mode === 'manage') {
+      setSelected(initialFolderIds ?? [])
+    } else if (contextFolderId && list.some((f) => f.id === contextFolderId)) {
       setSelected([contextFolderId])
     } else if (themeMatch) {
       setSelected([themeMatch.id])
@@ -112,7 +139,7 @@ function Picker({
       setSuggestNewOn(true)
     }
     setInitialized(true)
-  }, [initialized, folders.isLoading, list, contextFolderId, themeMatch])
+  }, [initialized, folders.isLoading, list, mode, initialFolderIds, contextFolderId, themeMatch])
 
   const toggle = (id: string) =>
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
@@ -131,20 +158,22 @@ function Picker({
   const titleTrim = title.trim()
   const descTrim = description.trim()
   const edited =
-    titleTrim !== knute.title ||
-    (Number.isFinite(points) && points !== knute.points) ||
-    descTrim !== (knute.description ?? '')
+    titleTrim !== base.title ||
+    (Number.isFinite(points) && points !== base.points) ||
+    descTrim !== base.description
   const editValid = titleTrim.length > 0 && Number.isFinite(points) && points >= 0 && points <= 1000
 
   const count = selected.length + (suggestNewOn ? 1 : 0)
-  const canConfirm = count > 0 && !editing && editValid
+  // Add: minst én mappe. Manage: zero is legal — the knute then lives only in
+  // «Alle knuter» (matching the folder-view's remove semantics).
+  const canConfirm = (mode === 'manage' || count > 0) && !editing && editValid
 
   const handleConfirm = () => {
     const overrides = edited
       ? {
-          ...(titleTrim !== knute.title ? { title: titleTrim } : {}),
-          ...(Number.isFinite(points) && points !== knute.points ? { points } : {}),
-          ...(descTrim !== (knute.description ?? '') ? { description: descTrim || null } : {}),
+          ...(titleTrim !== base.title ? { title: titleTrim } : {}),
+          ...(Number.isFinite(points) && points !== base.points ? { points } : {}),
+          ...(descTrim !== base.description ? { description: descTrim || null } : {}),
         }
       : null
     onConfirm({
@@ -162,7 +191,7 @@ function Picker({
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.headRow}>
         <View style={styles.headText}>
-          <Eyebrow>Legg til</Eyebrow>
+          <Eyebrow>{mode === 'manage' ? 'Endre kopien' : 'Legg til'}</Eyebrow>
           {editing ? null : (
             <Text font="display" weight="bold" size="xl" color={sticker.color.ink} numberOfLines={2}>
               {titleTrim || knute.title}
@@ -230,7 +259,7 @@ function Picker({
           <View style={styles.metaRow}>
             <View style={styles.pill}>
               <Text size="xs" weight="semibold" font="mono" color={sticker.color.ink}>
-                {formatNumber(Number.isFinite(points) ? points : knute.points)} P
+                {formatNumber(Number.isFinite(points) ? points : base.points)} P
               </Text>
             </View>
             {edited ? (
@@ -279,13 +308,15 @@ function Picker({
         <Text size="xs" weight="bold" color={sticker.color.textMuted}>
           VELG MAPPE
         </Text>
-        <Text size="xs" color={sticker.color.textMuted}>
-          Minst én
-        </Text>
+        {mode === 'add' ? (
+          <Text size="xs" color={sticker.color.textMuted}>
+            Minst én
+          </Text>
+        ) : null}
       </View>
 
       <View style={styles.folders}>
-        {!themeMatch && initialized ? (
+        {mode === 'add' && !themeMatch && initialized ? (
           <SuggestedNewRow
             name={themeName}
             selected={suggestNewOn}
@@ -296,7 +327,7 @@ function Picker({
           <FolderToggle
             key={f.id}
             folder={f}
-            suggested={themeMatch?.id === f.id}
+            suggested={mode === 'add' && themeMatch?.id === f.id}
             selected={selected.includes(f.id)}
             onToggle={() => toggle(f.id)}
           />
@@ -331,14 +362,24 @@ function Picker({
 
       <View style={styles.action}>
         <StickerButton
-          label={count <= 1 ? 'Legg til i 1 mappe' : `Legg til i ${count} mapper`}
+          label={
+            mode === 'manage'
+              ? 'Lagre'
+              : count <= 1
+                ? 'Legg til i 1 mappe'
+                : `Legg til i ${count} mapper`
+          }
           variant="accent"
           fullWidth
           disabled={!canConfirm}
           loading={confirming}
           onPress={handleConfirm}
           accessibilityHint={
-            editing ? 'Fullfør redigeringen med haken først.' : 'Kopierer knuten inn i valgte mapper.'
+            editing
+              ? 'Fullfør redigeringen med haken først.'
+              : mode === 'manage'
+                ? 'Lagrer mappevalg og tekst på skolens kopi.'
+                : 'Kopierer knuten inn i valgte mapper.'
           }
         />
       </View>

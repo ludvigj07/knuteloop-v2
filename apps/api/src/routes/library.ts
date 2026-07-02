@@ -89,6 +89,9 @@ export const libraryRoutes = new Hono<{ Variables: Variables }>()
         // Defense in depth: explicit school_id filter on the join AND RLS on the
         // imports table both scope "imported" to the caller's own school.
         imported: sql<boolean>`${schoolLibraryImports.id} is not null`,
+        // The school's own COPY (null until imported) — lets the ✓ open the
+        // manage-sheet (change folders / edit the copy) without a second lookup.
+        importedKnuteId: schoolLibraryImports.knuteId,
       })
       .from(libraryKnuter)
       .leftJoin(

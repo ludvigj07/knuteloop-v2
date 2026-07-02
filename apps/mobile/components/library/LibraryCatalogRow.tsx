@@ -22,6 +22,7 @@ export function LibraryCatalogRow({
   isLast,
   onOpen,
   onAdd,
+  onManage,
 }: {
   knute: LibraryKnute
   importing: boolean
@@ -29,6 +30,8 @@ export function LibraryCatalogRow({
   isLast: boolean
   onOpen: () => void
   onAdd: () => void
+  /** Tapping the ✓ opens the manage-sheet ("alt skal kunne gjøres fra alt"). */
+  onManage: () => void
 }) {
   const sensitive = isSensitiveKnute(knute)
   const isText = knute.evidenceType === 'text'
@@ -76,7 +79,13 @@ export function LibraryCatalogRow({
             </View>
           </Pressable>
 
-          <AddToggle imported={knute.imported} importing={importing} onAdd={onAdd} title={knute.title} />
+          <AddToggle
+            imported={knute.imported}
+            importing={importing}
+            onAdd={onAdd}
+            onManage={onManage}
+            title={knute.title}
+          />
         </View>
       </View>
     </View>
@@ -87,22 +96,28 @@ function AddToggle({
   imported,
   importing,
   onAdd,
+  onManage,
   title,
 }: {
   imported: boolean
   importing: boolean
   onAdd: () => void
+  onManage: () => void
   title: string
 }) {
   if (imported) {
     return (
-      <View
+      <Pressable
+        onPress={onManage}
+        haptic="light"
+        accessibilityRole="button"
+        accessibilityLabel={`${title} er lagt til — endre mapper eller tekst`}
+        accessibilityHint="Åpner endring av skolens kopi."
+        hitSlop={8}
         style={[styles.toggle, styles.toggleAdded]}
-        accessible
-        accessibilityLabel={`${title} er lagt til`}
       >
         <Check size={sticker.icon.sm} color={sticker.color.textInverse} strokeWidth={2.5} />
-      </View>
+      </Pressable>
     )
   }
   return (
