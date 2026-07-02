@@ -453,4 +453,10 @@ export function fetchKnuterByFolder(folderId: string): Promise<KnuterResponse> {
   return apiFetch<KnuterResponse>(`/api/knuter?all=1&folderId=${encodeURIComponent(folderId)}`)
 }
 
+// Knuter in a single folder for the student catalog (no all=1 → active-only,
+// age-gated). Drives the folder chips on the "Knuter" tab.
+export function fetchKnuterInFolder(folderId: string): Promise<KnuterResponse> {
+  return apiFetch<KnuterResponse>(`/api/knuter?folderId=${encodeURIComponent(folderId)}`)
+}
+
 export { ApiError }
