@@ -3,6 +3,7 @@ import { Image } from 'expo-image'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack } from 'expo-router'
+import { KnutesjefTabBar } from '../components/KnutesjefTabBar'
 import { Pressable, Text } from '../components/primitives'
 import {
   fetchPendingSubmissions,
@@ -11,7 +12,7 @@ import {
   ApiError,
   type PendingSubmission,
 } from '../lib/api'
-import { colors, spacing, radius, fontSize, fontWeight } from '../lib/theme'
+import { colors, size, spacing, radius, fontSize, fontWeight } from '../lib/theme'
 
 export default function ReviewScreen() {
   const insets = useSafeAreaInsets()
@@ -49,22 +50,22 @@ export default function ReviewScreen() {
         <View style={styles.center}>
           <ActivityIndicator color={colors.brand.primary} />
         </View>
+        <KnutesjefTabBar active="ko" />
       </>
     )
   }
 
   if (error) {
+    const forbidden = error instanceof ApiError && error.status === 403
     return (
       <>
         <Stack.Screen options={{ title: 'Til godkjenning' }} />
         <ErrorState
-          message={
-            error instanceof ApiError && error.status === 403
-              ? 'Du må være knutesjef for å se denne siden.'
-              : (error as Error).message
-          }
-          onRetry={error instanceof ApiError && error.status === 403 ? undefined : () => void refetch()}
+          message={forbidden ? 'Du må være knutesjef for å se denne siden.' : (error as Error).message}
+          onRetry={forbidden ? undefined : () => void refetch()}
         />
+        {/* No knutesjef bar for non-knutesjefer — its Kø query would 403 too. */}
+        {!forbidden ? <KnutesjefTabBar active="ko" /> : null}
       </>
     )
   }
@@ -76,7 +77,9 @@ export default function ReviewScreen() {
       <Stack.Screen options={{ title: 'Til godkjenning' }} />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={{ paddingBottom: insets.bottom + spacing.lg }}
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + size.bottomNavMinHeight + spacing.lg,
+        }}
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}
@@ -110,6 +113,7 @@ export default function ReviewScreen() {
           ))
         )}
       </ScrollView>
+      <KnutesjefTabBar active="ko" />
     </>
   )
 }
