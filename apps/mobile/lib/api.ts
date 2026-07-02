@@ -448,6 +448,14 @@ export function removeKnuteFromFolder(folderId: string, knuteId: string): Promis
   })
 }
 
+// Add an EXISTING school knute to a folder (409 if it is already in it).
+export function addKnuteToFolder(folderId: string, knuteId: string): Promise<unknown> {
+  return apiFetch<unknown>(`/api/folders/${folderId}/knuter`, {
+    method: 'POST',
+    body: JSON.stringify({ knuteId }),
+  })
+}
+
 // Knuter in a single folder (knutesjef view — all=1 includes inactive).
 export function fetchKnuterByFolder(folderId: string): Promise<KnuterResponse> {
   return apiFetch<KnuterResponse>(`/api/knuter?all=1&folderId=${encodeURIComponent(folderId)}`)

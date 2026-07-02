@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Alert, StyleSheet, View } from 'react-native'
 import { FlashList } from '@shopify/flash-list'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -5,15 +6,23 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
 import { Skeleton, StickerButton, StickerCard, Text, Toast, useToast } from '../../../components/primitives'
 import { SchoolKnuteRow } from '../../../components/knute/SchoolKnuteRow'
+import { AddOwnKnuterSheet } from '../../../components/folder/AddOwnKnuterSheet'
 import {
+  addKnuteToFolder,
   deleteFolder,
   fetchAllKnuter,
   fetchFolders,
   fetchKnuterByFolder,
   removeKnuteFromFolder,
 } from '../../../lib/api'
+import { formatNumber } from '../../../lib/format'
 import { haptics } from '../../../lib/haptics'
 import { sticker, spacing } from '../../../lib/theme'
+
+// A folder is a WORKBENCH, not just a list ("alt skal kunne gjøres fra alt"):
+// from here the knutesjef fills it from the library, from the school's own
+// knuter, or by writing a new knute directly into it. The actions are always
+// visible — an empty folder is an invitation, never a dead end.
 
 export default function FolderViewScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -23,23 +32,54 @@ export default function FolderViewScreen() {
   const router = useRouter()
   const qc = useQueryClient()
   const toast = useToast()
+  const [addOpen, setAddOpen] = useState(false)
 
   const folders = useQuery({ queryKey: ['folders'], queryFn: fetchFolders, enabled: !isAll })
   const knuter = useQuery({
     queryKey: isAll ? ['knuter', 'all'] : ['knuter', 'folder', folderId],
     queryFn: isAll ? fetchAllKnuter : () => fetchKnuterByFolder(folderId),
   })
+  // Candidates for "Legg til egne knuter": every school knute minus the folder's.
+  const allKnuter = useQuery({
+    queryKey: ['knuter', 'all'],
+    queryFn: fetchAllKnuter,
+    enabled: !isAll,
+  })
 
   const folderName = isAll
     ? 'Alle knuter'
     : (folders.data?.folders.find((f) => f.id === folderId)?.name ?? 'Mappe')
 
+  const items = knuter.data?.knuter ?? []
+  const inFolder = new Set(items.map((k) => k.id))
+  const candidates = (allKnuter.data?.knuter ?? []).filter(
+    (k) => k.isActive && !inFolder.has(k.id),
+  )
+
+  const invalidate = () => {
+    void qc.invalidateQueries({ queryKey: ['knuter'] })
+    void qc.invalidateQueries({ queryKey: ['folders'] })
+  }
+
+  const addMutation = useMutation({
+    mutationFn: async (knuteIds: string[]) => {
+      await Promise.all(knuteIds.map((knuteId) => addKnuteToFolder(folderId, knuteId)))
+      return knuteIds.length
+    },
+    onSuccess: (count) => {
+      haptics.success()
+      invalidate()
+      setAddOpen(false)
+      toast.show(`La til ${formatNumber(count)} i «${folderName}» ✓`)
+    },
+    onError: (err) => toast.show((err as Error).message),
+  })
+
   const removeMutation = useMutation({
     mutationFn: (knuteId: string) => removeKnuteFromFolder(folderId, knuteId),
     onSuccess: () => {
       haptics.success()
-      void qc.invalidateQueries({ queryKey: ['knuter'] })
-      void qc.invalidateQueries({ queryKey: ['folders'] })
+      invalidate()
       toast.show('Fjernet fra mappa')
     },
     onError: (err) => toast.show((err as Error).message),
@@ -49,8 +89,7 @@ export default function FolderViewScreen() {
     mutationFn: () => deleteFolder(folderId),
     onSuccess: () => {
       haptics.success()
-      void qc.invalidateQueries({ queryKey: ['folders'] })
-      void qc.invalidateQueries({ queryKey: ['knuter'] })
+      invalidate()
       router.back()
     },
     onError: (err) => toast.show((err as Error).message),
@@ -78,21 +117,38 @@ export default function FolderViewScreen() {
     />
   )
 
-  const items = knuter.data?.knuter ?? []
-
-  const footer = (
+  // The workbench actions — ALWAYS rendered once the folder has loaded,
+  // empty or not (the screenshot bug: an empty folder had no actions at all).
+  const actions = (
     <View style={[styles.gutter, styles.actions]}>
       <StickerButton
-        label="Legg til flere fra biblioteket"
+        label="Legg til fra biblioteket"
         variant="secondary"
         fullWidth
         onPress={() => router.push('/admin/bibliotek')}
+      />
+      {!isAll ? (
+        <StickerButton
+          label="Legg til egne knuter"
+          variant="secondary"
+          fullWidth
+          onPress={() => setAddOpen(true)}
+        />
+      ) : null}
+      <StickerButton
+        label="Lag egen knute her"
+        variant="accent"
+        fullWidth
+        onPress={() =>
+          router.push(isAll ? '/admin/edit/new' : `/admin/edit/new?folderId=${folderId}`)
+        }
       />
       {!isAll ? (
         <StickerButton label="Slett mappe" variant="ghost" fullWidth onPress={confirmDelete} />
       ) : null}
     </View>
   )
+  const showActions = !knuter.isLoading && !knuter.isError
 
   return (
     <View style={styles.root}>
@@ -111,7 +167,7 @@ export default function FolderViewScreen() {
             onRetry={() => void knuter.refetch()}
           />
         }
-        ListFooterComponent={items.length > 0 ? footer : null}
+        ListFooterComponent={showActions ? actions : null}
         renderItem={({ item }) => (
           <SchoolKnuteRow
             knute={item}
@@ -122,6 +178,16 @@ export default function FolderViewScreen() {
           />
         )}
       />
+
+      <AddOwnKnuterSheet
+        open={addOpen}
+        folderName={folderName}
+        candidates={candidates}
+        adding={addMutation.isPending}
+        onClose={() => setAddOpen(false)}
+        onConfirm={(ids) => addMutation.mutate(ids)}
+      />
+
       <Toast message={toast.message} bottomOffset={insets.bottom + spacing.lg} />
     </View>
   )
@@ -167,8 +233,8 @@ function EmptyOrLoading({
       <StickerCard tone="soft" shadow="sm">
         <Text color={sticker.color.textMuted}>
           {isAll
-            ? 'Ingen knuter ennå. Lag en egen eller importer fra biblioteket.'
-            : 'Tom mappe. Legg til knuter fra biblioteket.'}
+            ? 'Ingen knuter ennå. Fyll boka fra biblioteket, eller lag en egen.'
+            : 'Tom mappe — fyll den! Hent fra biblioteket, plukk blant egne knuter, eller skriv en ny rett inn her.'}
         </Text>
       </StickerCard>
     </View>
