@@ -11,6 +11,8 @@ import { spacing, sticker } from '../../lib/theme'
 // submit screen (/knute/[id]). Sibling of SchoolKnuteRow (the knutesjef's
 // row, which opens the editor) — student cards never expose admin actions.
 
+const STATUS_LABEL = { approved: 'Godkjent', pending: 'Venter' } as const
+
 export function KnuteListCard({
   knute,
   difficultyLabel,
@@ -21,6 +23,7 @@ export function KnuteListCard({
   difficultyLabel: string
   onPress: () => void
 }) {
+  const statusLabel = knute.myStatus ? STATUS_LABEL[knute.myStatus] : null
   return (
     <StickerCard
       radius="md"
@@ -29,7 +32,7 @@ export function KnuteListCard({
       onPress={onPress}
       haptic="light"
       accessibilityRole="link"
-      accessibilityLabel={`${knute.isGold ? 'Gullknute' : 'Knute'}: ${knute.title}, ${formatNumber(knute.points)} poeng, ${difficultyLabel}`}
+      accessibilityLabel={`${knute.isGold ? 'Gullknute' : 'Knute'}: ${knute.title}, ${formatNumber(knute.points)} poeng, ${difficultyLabel}${statusLabel ? `, ${statusLabel.toLocaleLowerCase('nb-NO')}` : ''}`}
       accessibilityHint="Åpner innsending for denne knuten."
     >
       <View style={styles.row}>
@@ -48,6 +51,8 @@ export function KnuteListCard({
           <View style={styles.meta}>
             <Chip label={`${formatNumber(knute.points)} P`} tone="accent" mono />
             <Chip label={difficultyLabel} tone={difficultyTone(knute.difficulty)} />
+            {knute.myStatus === 'approved' ? <Chip label="Godkjent ✓" tone="success" /> : null}
+            {knute.myStatus === 'pending' ? <Chip label="Venter" tone="warning" /> : null}
           </View>
         </View>
         <ChevronRight size={sticker.icon.md} color={sticker.color.textMuted} strokeWidth={2} />

@@ -5,7 +5,7 @@ import { zValidator } from '@hono/zod-validator'
 import { auth, type AuthVariables } from '../middleware/auth.js'
 import { tenantContext } from '../middleware/tenant-context.js'
 import { requireRole } from '../middleware/require-role.js'
-import { knuter, knuteFolderMemberships, users } from '../db/schema/index.js'
+import { knuter, knuteFolderMemberships, submissions, users } from '../db/schema/index.js'
 import { NotFoundError, ValidationError } from '../lib/errors.js'
 import type { db } from '../db/client.js'
 
@@ -87,6 +87,12 @@ export const knuterRoutes = new Hono<{ Variables: Variables }>()
         if (!me?.isAdult) conditions.push(lte(knuter.minAge, 17))
       }
 
+      // myStatus = the CALLER's active submission for each knute ('pending' |
+      // 'approved' | null). Drives the tatt/ikke-tatt marking in the student
+      // catalog. The partial unique index (school, user, knute) WHERE status IN
+      // ('pending','approved') guarantees at most ONE such row per knute, so
+      // this LEFT JOIN can never fan out. Rejected does not count as taken —
+      // the student can retry, so the knute reads as available again.
       const rows = await tx
         .select({
           id: knuter.id,
@@ -99,8 +105,18 @@ export const knuterRoutes = new Hono<{ Variables: Variables }>()
           isGold: knuter.isGold,
           isActive: knuter.isActive,
           createdAt: knuter.createdAt,
+          myStatus: submissions.status,
         })
         .from(knuter)
+        .leftJoin(
+          submissions,
+          and(
+            eq(submissions.knuteId, knuter.id),
+            eq(submissions.schoolId, schoolId),
+            eq(submissions.userId, userId),
+            inArray(submissions.status, ['pending', 'approved']),
+          ),
+        )
         .where(and(...conditions))
 
       return c.json({ knuter: rows })

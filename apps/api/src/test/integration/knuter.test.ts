@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { schools, users, knuter } from '../../db/schema/index.js'
+import { schools, users, knuter, submissions } from '../../db/schema/index.js'
 import { setupTestDb, type TestHandles } from '../helpers/test-db.js'
 import { signDevToken } from '../../lib/auth-dev.js'
 import { buildApp } from '../../app.js'
@@ -430,5 +430,54 @@ describe('GET /api/knuter — age gate (ADR-0015)', () => {
     const res = await app.request('/api/knuter', { headers: { Authorization: `Bearer ${adultTokenA}` } })
     const body = (await res.json()) as ListResponse
     expect(body.knuter.some((row) => row.title === age18Title)).toBe(true)
+  })
+})
+
+describe('GET /api/knuter — myStatus (tatt/ikke tatt)', () => {
+  let frokostId: string
+  let klassebildeId: string
+  let fridaId: string
+  let lokeId: string
+
+  beforeAll(async () => {
+    // Resolve ids via the API (same shape the app consumes).
+    const res = await app.request('/api/knuter', {
+      headers: { Authorization: `Bearer ${knutesjefTokenA}` },
+    })
+    const body = (await res.json()) as ListResponse
+    frokostId = body.knuter.find((k) => k.title === 'A: Spis frokost under pulten')!.id
+    klassebildeId = body.knuter.find((k) => k.title === 'A: Klassebilde med solbriller')!.id
+
+    const rows = await h.superDb.select().from(users)
+    fridaId = rows.find((u) => u.russenavn === 'FridaA')!.id
+    lokeId = rows.find((u) => u.russenavn === 'LokeA')!.id
+
+    // Frida: approved on frokost, REJECTED on klassebilde (rejected ≠ taken).
+    // Loke: pending on klassebilde — must never leak into Frida's myStatus.
+    await h.superDb.insert(submissions).values([
+      { schoolId: schoolAId, userId: fridaId, knuteId: frokostId, imageKey: 'img-1', status: 'approved' },
+      { schoolId: schoolAId, userId: fridaId, knuteId: klassebildeId, imageKey: 'img-2', status: 'rejected' },
+      { schoolId: schoolAId, userId: lokeId, knuteId: klassebildeId, imageKey: 'img-3', status: 'pending' },
+    ])
+  })
+
+  it("shows the caller's own approved/pending, and null otherwise", async () => {
+    const res = await app.request('/api/knuter', {
+      headers: { Authorization: `Bearer ${studentTokenA}` },
+    })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { knuter: (KnuteRow & { myStatus: string | null })[] }
+    expect(body.knuter.find((k) => k.id === frokostId)?.myStatus).toBe('approved')
+    // Her own rejected does not count as taken — and Loke's pending must not leak.
+    expect(body.knuter.find((k) => k.id === klassebildeId)?.myStatus).toBeNull()
+  })
+
+  it('is strictly per-user: the knutesjef sees his own pending, not her approved', async () => {
+    const res = await app.request('/api/knuter', {
+      headers: { Authorization: `Bearer ${knutesjefTokenA}` },
+    })
+    const body = (await res.json()) as { knuter: (KnuteRow & { myStatus: string | null })[] }
+    expect(body.knuter.find((k) => k.id === klassebildeId)?.myStatus).toBe('pending')
+    expect(body.knuter.find((k) => k.id === frokostId)?.myStatus).toBeNull()
   })
 })
