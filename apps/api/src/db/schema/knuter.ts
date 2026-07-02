@@ -12,9 +12,9 @@ import {
 import { schools } from './schools'
 import { libraryKnuter } from './library'
 
-// Per-school knuter. Each school's knutesjef creates their own — no shared
-// catalog at this stage. A curated library is planned as a separate feature
-// later (separate tables, separate import flow), but is NOT modeled here.
+// Per-school knuter — the school's own list: custom knuter the knutesjef
+// creates PLUS copies imported from the central library (./library.ts via
+// lib/library-import.ts; provenance in source_library_knute_id). ADR-0014.
 //
 // Tenant-scoped: full RLS treatment per database.md §1 — enableRLS + policy
 // + composite index + FORCE RLS in a hand-written migration.
@@ -31,9 +31,9 @@ export const knuter = pgTable(
     difficulty: text('difficulty', { enum: ['Lett', 'Medium', 'Hard', 'Valgfri'] })
       .notNull()
       .default('Medium'),
-    // Knutemappe (folder). App-level enum (text column, no DB CHECK) — same pattern
-    // as `difficulty`. The five v1 folders; UI maps these to short display labels.
-    // A richer per-school folders table is deferred to the library feature (ADR-0013).
+    // LEGACY theme axis (the five v1 folders). Real folders are knute_folders +
+    // knute_folder_memberships (ADR-0014); this enum survives only because the
+    // profile category rings (routes/me.ts) still read it. Slated for removal.
     category: text('category', {
       enum: ['Generelle', 'Dobbelknuter', 'Alkoholknuter', 'Sexknuter', 'Fordervett-knuter'],
     })
