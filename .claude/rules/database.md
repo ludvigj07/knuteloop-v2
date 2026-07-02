@@ -262,34 +262,23 @@ export const db = drizzle(client, { schema })
 
 ---
 
-## 7. The knuter schema (per-school)
+## 7. Knuter + the central library (ADR-0014)
 
-Every school's knutesjef creates their own knuter — there is **no shared catalog at this stage**. The `knuter` table is fully tenant-scoped (see §2 for the canonical pattern; `knuter` follows it exactly):
+Knuter live on TWO sides. The schema files (`apps/api/src/db/schema/*.ts`) are the source of truth for exact columns — this section describes the shape so you know where things belong.
 
-```ts
-// apps/api/src/db/schema/knuter.ts
-export const knuter = pgTable('knuter', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  schoolId: uuid('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }),
-  title: text('title').notNull(),
-  description: text('description'),
-  points: integer('points').notNull(),
-  difficulty: text('difficulty', { enum: ['Lett', 'Medium', 'Hard', 'Valgfri'] })
-    .notNull().default('Medium'),
-  isActive: boolean('is_active').notNull().default(true),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-}, (table) => [
-  pgPolicy('knuter_tenant_isolation', {
-    as: 'permissive', for: 'all', to: 'app_role',
-    using: sql`school_id = NULLIF(current_setting('app.school_id', true), '')::uuid`,
-    withCheck: sql`school_id = NULLIF(current_setting('app.school_id', true), '')::uuid`,
-  }),
-  index('knuter_school_created_idx').on(table.schoolId, table.createdAt.desc()),
-]).enableRLS()
-```
+**School side (tenant-scoped — full §2 treatment: RLS + FORCE + policy + composite index):**
 
-**Future feature, not yet modeled:** a **curated library** — separate `library_folders`, `library_knuter`, and a `school_library_imports` linking table — would let schools browse pre-made knuter and adopt them into their own `knuter` table. Designed when real curated content exists, not before. v1's 43 demo knuter from `docs/v1-spec.md §2` are **test data only**, not library content.
+- **`knuter`** — the school's own list: custom knuter the knutesjef creates PLUS copies imported from the library. Beyond the §2 basics it carries `is_gold` (explicit gullknute flag, ADR-0013), `evidence_type` (`'media' | 'text'` — text-only for legally sensitive knuter; set by the library, NOT relaxable by schools), `min_age` (17/18, gated against `users.is_adult`, ADR-0015) and `source_library_knute_id` (import provenance; NULL for custom knuter). The legacy `category` enum still exists because the profile category rings (`routes/me.ts`) read it — slated for removal per ADR-0014.
+- **`knute_folders`** + **`knute_folder_memberships`** — per-school knutemapper, many-to-many (a knute can sit in several folders). "Alle knuter" is implicit (the unfiltered list), never a stored folder.
+- **`school_library_imports`** — which library knuter this school imported (dedupe + the "added" badge). `knute_id` points at the school's copy; deleting the copy cascades the row so re-import works.
+
+**Library side (shared across ALL schools — no `school_id`, no RLS):**
+
+- **`library_knuter`** — the curated catalog: title, points, difficulty, `evidence_type`, `min_age`, `suggested_folder` (theme axis — becomes the school folder on import), `region` (discovery filter only).
+- **`library_packs`** + **`library_pack_memberships`** — named bundles for one-tap bulk import.
+- Per §1, shared tables are **read-only for `app_role`**: the write REVOKE lives in migration `0014_library_force_rls_and_grants.sql`, and `library.test.ts` proves app_role cannot write. Only a Knuteloop super-admin (admin_role) curates. Deployment invariant: migrations run as a privileged role, never app_role (see the header comment in `schema/library.ts`).
+
+**Import = copy** (`lib/library-import.ts`): importing snapshots the library fields into the school's `knuter`, records it in `school_library_imports`, and auto-creates/assigns the folder named by `suggested_folder`. Copies are independent — library updates do NOT propagate. Concurrent imports within one school are serialized with a transaction-scoped advisory lock.
 
 **Sponsor fields** (`is_sponsored`, `sponsor_name`, etc. shown in earlier drafts of this rule) move out of `knuter` and into a dedicated `sponsored_knuter` join table when the sponsor flow ships. Keep `knuter` small until then.
 
