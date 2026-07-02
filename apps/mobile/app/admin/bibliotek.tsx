@@ -19,6 +19,7 @@ import {
   Toast,
   useToast,
 } from '../../components/primitives'
+import { KnutesjefTabBar } from '../../components/KnutesjefTabBar'
 import { FilterBar } from '../../components/library/FilterBar'
 import { PackHero } from '../../components/library/PackHero'
 import { LibraryCatalogRow } from '../../components/library/LibraryCatalogRow'
@@ -33,7 +34,7 @@ import {
 } from '../../lib/api'
 import { formatNumber } from '../../lib/format'
 import { haptics } from '../../lib/haptics'
-import { sticker, spacing } from '../../lib/theme'
+import { size, sticker, spacing } from '../../lib/theme'
 
 const PAGE = 30
 
@@ -180,7 +181,9 @@ export default function BibliotekScreen() {
           keyExtractor={(k) => k.id}
           estimatedItemSize={96}
           keyboardDismissMode="on-drag"
-          contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}
+          contentContainerStyle={{
+            paddingBottom: insets.bottom + size.bottomNavMinHeight + spacing.xl,
+          }}
           ListHeaderComponent={listHeader}
           extraData={`${items.length}:${importKnute.isPending ? String(importKnute.variables) : ''}`}
           renderItem={({ item, index }) => (
@@ -223,6 +226,7 @@ export default function BibliotekScreen() {
             />
           }
         />
+        <KnutesjefTabBar active="bibliotek" />
       </View>
 
       <KnuteDetailSheet
@@ -232,7 +236,10 @@ export default function BibliotekScreen() {
         onImport={(k) => importKnute.mutate(k.id)}
       />
 
-      <Toast message={toast.message} bottomOffset={insets.bottom + spacing.lg} />
+      <Toast
+        message={toast.message}
+        bottomOffset={insets.bottom + size.bottomNavMinHeight + spacing.lg}
+      />
     </>
   )
 }

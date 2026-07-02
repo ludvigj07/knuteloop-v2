@@ -7,7 +7,7 @@ export type AppTabKey = 'knuter' | 'toppliste' | 'oyeblikk' | 'knutesjef' | 'pro
 
 type TabItem = {
   key: AppTabKey
-  href: '/' | '/leaderboard' | '/feed' | '/admin' | '/profile'
+  href: '/' | '/leaderboard' | '/feed' | '/review' | '/profile'
   label: string
 }
 
@@ -15,7 +15,9 @@ const TAB_ITEMS: readonly TabItem[] = [
   { key: 'knuter', href: '/', label: 'Knuter' },
   { key: 'toppliste', href: '/leaderboard', label: 'Toppliste' },
   { key: 'oyeblikk', href: '/feed', label: 'Øyeblikk' },
-  { key: 'knutesjef', href: '/admin', label: 'Knutesjef' },
+  // Lands in the knutesjef WORLD (Kø | Biblioteket | Knuteboka — its own tab
+  // bar, see KnutesjefTabBar). The queue is the main job, so it is the door.
+  { key: 'knutesjef', href: '/review', label: 'Knutesjef' },
   { key: 'profil', href: '/profile', label: 'Profil' },
 ]
 

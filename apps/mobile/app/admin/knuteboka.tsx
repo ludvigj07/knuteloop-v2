@@ -16,6 +16,7 @@ import {
   useToast,
 } from '../../components/primitives'
 import { GlyphTile } from '../../components/knute/GlyphTile'
+import { KnutesjefTabBar } from '../../components/KnutesjefTabBar'
 import {
   ApiError,
   createFolder,
@@ -28,7 +29,7 @@ import { CreateFolderSheet } from '../../components/folder/CreateFolderSheet'
 import { folderIconFor } from '../../lib/folder-icons'
 import { formatNumber } from '../../lib/format'
 import { haptics } from '../../lib/haptics'
-import { sticker, spacing } from '../../lib/theme'
+import { size, sticker, spacing } from '../../lib/theme'
 
 export default function KnutebokaScreen() {
   const insets = useSafeAreaInsets()
@@ -113,7 +114,9 @@ export default function KnutebokaScreen() {
     <View style={styles.root}>
       {sheetHeader}
       <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + spacing['2xl'] }}
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + size.bottomNavMinHeight + spacing['2xl'],
+        }}
         refreshControl={
           <RefreshControl
             refreshing={knuter.isRefetching || folders.isRefetching}
@@ -225,13 +228,18 @@ export default function KnutebokaScreen() {
         </View>
       </ScrollView>
 
+      <KnutesjefTabBar active="knuteboka" />
+
       <CreateFolderSheet
         open={creatingFolder}
         creating={createFolderMutation.isPending}
         onClose={() => setCreatingFolder(false)}
         onCreate={(name, icon) => createFolderMutation.mutate({ name, icon })}
       />
-      <Toast message={toast.message} bottomOffset={insets.bottom + spacing.lg} />
+      <Toast
+        message={toast.message}
+        bottomOffset={insets.bottom + size.bottomNavMinHeight + spacing.lg}
+      />
     </View>
   )
 }
