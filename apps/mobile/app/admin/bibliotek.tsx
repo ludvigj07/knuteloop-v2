@@ -26,6 +26,7 @@ import { FilterBar } from '../../components/library/FilterBar'
 import { PackHero } from '../../components/library/PackHero'
 import { LibraryCatalogRow } from '../../components/library/LibraryCatalogRow'
 import { KnuteDetailSheet } from '../../components/library/KnuteDetailSheet'
+import { PackSheet } from '../../components/library/PackSheet'
 import {
   AddToFolderSheet,
   type AddToFolderPayload,
@@ -160,11 +161,16 @@ export default function BibliotekScreen() {
     onError: (err) => toast.show((err as Error).message),
   })
 
+  // Which pack's contents-sheet is open (see-before-you-add).
+  const [packOpenId, setPackOpenId] = useState<string | null>(null)
+
   const importPack = useMutation({
     mutationFn: importLibraryPack,
     onSuccess: (res) => {
       haptics.success()
       invalidateAfterImport()
+      void qc.invalidateQueries({ queryKey: ['library', 'pack'] })
+      setPackOpenId(null)
       toast.show(
         res.imported > 0
           ? `La til ${formatNumber(res.imported)} knuter ✓`
@@ -218,12 +224,7 @@ export default function BibliotekScreen() {
   const listHeader = showPacks ? (
     <View style={styles.packBlock}>
       {packs.data?.packs.map((pack) => (
-        <PackHero
-          key={pack.id}
-          pack={pack}
-          importing={importPack.isPending && importPack.variables === pack.id}
-          onImport={() => importPack.mutate(pack.id)}
-        />
+        <PackHero key={pack.id} pack={pack} onOpen={() => setPackOpenId(pack.id)} />
       ))}
     </View>
   ) : (
@@ -341,6 +342,13 @@ export default function BibliotekScreen() {
         confirming={importKnute.isPending}
         onClose={() => setAddTarget(null)}
         onConfirm={(k, payload) => importKnute.mutate({ id: k.id, payload })}
+      />
+
+      <PackSheet
+        packId={packOpenId}
+        importing={importPack.isPending}
+        onClose={() => setPackOpenId(null)}
+        onImport={(id) => importPack.mutate(id)}
       />
 
       <AddToFolderSheet

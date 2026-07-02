@@ -50,11 +50,21 @@ function renderSheet(
   )
 }
 
+// Wait until the PRE-CHECK effect has actually applied (the badge renders one
+// frame before the selection state on slow CI — asserting on the state kills
+// the race that made #64's first CI run flaky).
+async function waitForSelected(label: RegExp | string) {
+  await waitFor(() =>
+    expect(screen.getByLabelText(label).props.accessibilityState.selected).toBe(true),
+  )
+}
+
 describe('AddToFolderSheet v2', () => {
   it('pre-checks the theme folder and marks it «Foreslått»', async () => {
     const onConfirm = jest.fn()
     renderSheet({ onConfirm })
-    await waitFor(() => expect(screen.getByText('Foreslått')).toBeTruthy())
+    await waitForSelected(/^Alkohol/)
+    expect(screen.getByText('Foreslått')).toBeTruthy()
     fireEvent.press(screen.getByLabelText('Legg til i 1 mappe'))
     expect(onConfirm).toHaveBeenCalledWith(
       KNUTE,
@@ -65,7 +75,7 @@ describe('AddToFolderSheet v2', () => {
   it('offers «Ny mappe: <tema>» pre-checked when the school lacks the theme folder', async () => {
     const onConfirm = jest.fn()
     renderSheet({ onConfirm }, [FOLDERS[1]!]) // only «Fest» — no Alkohol
-    await waitFor(() => expect(screen.getByLabelText('Ny mappe: Alkohol')).toBeTruthy())
+    await waitForSelected('Ny mappe: Alkohol')
     fireEvent.press(screen.getByLabelText('Legg til i 1 mappe'))
     expect(onConfirm).toHaveBeenCalledWith(
       KNUTE,
@@ -76,7 +86,7 @@ describe('AddToFolderSheet v2', () => {
   it('locks the CTA at zero folders (minst én)', async () => {
     const onConfirm = jest.fn()
     renderSheet({ onConfirm })
-    await waitFor(() => expect(screen.getByText('Foreslått')).toBeTruthy())
+    await waitForSelected(/^Alkohol/)
     fireEvent.press(screen.getByLabelText(/^Alkohol/)) // deselect the suggestion
     fireEvent.press(screen.getByLabelText('Legg til i 1 mappe'))
     expect(onConfirm).not.toHaveBeenCalled()
@@ -85,7 +95,7 @@ describe('AddToFolderSheet v2', () => {
   it('pre-checks the context folder instead when browsing from a folder', async () => {
     const onConfirm = jest.fn()
     renderSheet({ onConfirm, contextFolderId: 'f-fest' })
-    await waitFor(() => expect(screen.getByLabelText(/^Fest/)).toBeTruthy())
+    await waitForSelected(/^Fest/)
     fireEvent.press(screen.getByLabelText('Legg til i 1 mappe'))
     expect(onConfirm).toHaveBeenCalledWith(
       KNUTE,
@@ -96,7 +106,7 @@ describe('AddToFolderSheet v2', () => {
   it('saves inline edits as overrides on the copy', async () => {
     const onConfirm = jest.fn()
     renderSheet({ onConfirm })
-    await waitFor(() => expect(screen.getByText('Foreslått')).toBeTruthy())
+    await waitForSelected(/^Alkohol/)
     fireEvent.press(screen.getByLabelText('Rediger knuten før lagring'))
     fireEvent.changeText(screen.getByLabelText('Poeng'), '40')
     fireEvent.press(screen.getByLabelText('Ferdig med redigering'))
