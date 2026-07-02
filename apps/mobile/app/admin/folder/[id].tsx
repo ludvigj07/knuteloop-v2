@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { Alert, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { FlashList } from '@shopify/flash-list'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
-import { Skeleton, StickerButton, StickerCard, Text, Toast, useToast } from '../../../components/primitives'
+import { ConfirmSheet, Skeleton, StickerButton, StickerCard, Text, Toast, useToast } from '../../../components/primitives'
 import { SchoolKnuteRow } from '../../../components/knute/SchoolKnuteRow'
 import { AddOwnKnuterSheet } from '../../../components/folder/AddOwnKnuterSheet'
 import {
@@ -90,6 +90,12 @@ export default function FolderViewScreen() {
     onError: (err) => toast.show((err as Error).message),
   })
 
+  // Destructive confirms as ConfirmSheet — Alert.alert is a silent no-op on
+  // RN-web, so the buttons looked dead in the browser.
+  const [confirm, setConfirm] = useState<
+    { kind: 'archive'; knuteId: string; title: string } | { kind: 'delete' } | null
+  >(null)
+
   // «Fjern fra knuteboka» (the Alle-view X): archive — instantly gone from
   // the student catalog/search; submissions and history stay intact.
   const archiveMutation = useMutation({
@@ -99,46 +105,27 @@ export default function FolderViewScreen() {
       haptics.success()
       invalidate()
       void qc.invalidateQueries({ queryKey: ['library'] })
+      setConfirm(null)
       toast.show(`«${title}» fjernet fra knuteboka`)
     },
     onError: (err) => toast.show((err as Error).message),
   })
 
-  const confirmArchive = (knuteId: string, title: string) => {
-    Alert.alert(
-      `Fjerne «${title}»?`,
-      'Knuten forsvinner fra elevenes katalog og søk. Innsendinger og historikk beholdes.',
-      [
-        { text: 'Avbryt', style: 'cancel' },
-        {
-          text: 'Fjern fra knuteboka',
-          style: 'destructive',
-          onPress: () => archiveMutation.mutate({ knuteId, title }),
-        },
-      ],
-    )
-  }
+  const confirmArchive = (knuteId: string, title: string) =>
+    setConfirm({ kind: 'archive', knuteId, title })
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteFolder(folderId),
     onSuccess: () => {
       haptics.success()
       invalidate()
+      setConfirm(null)
       router.back()
     },
     onError: (err) => toast.show((err as Error).message),
   })
 
-  const confirmDelete = () => {
-    Alert.alert(
-      `Slette «${folderName}»?`,
-      'Mappa forsvinner, men knutene blir liggende i skolens liste.',
-      [
-        { text: 'Avbryt', style: 'cancel' },
-        { text: 'Slett mappe', style: 'destructive', onPress: () => deleteMutation.mutate() },
-      ],
-    )
-  }
+  const confirmDelete = () => setConfirm({ kind: 'delete' })
 
   const screen = (
     <Stack.Screen
@@ -245,6 +232,26 @@ export default function FolderViewScreen() {
         adding={addMutation.isPending}
         onClose={() => setAddOpen(false)}
         onConfirm={(ids) => addMutation.mutate(ids)}
+      />
+
+      <ConfirmSheet
+        open={confirm !== null}
+        title={
+          confirm?.kind === 'archive' ? `Fjerne «${confirm.title}»?` : `Slette «${folderName}»?`
+        }
+        message={
+          confirm?.kind === 'archive'
+            ? 'Knuten forsvinner fra elevenes katalog og søk. Innsendinger og historikk beholdes.'
+            : 'Mappa forsvinner, men knutene blir liggende i skolens liste.'
+        }
+        confirmLabel={confirm?.kind === 'archive' ? 'Fjern fra knuteboka' : 'Slett mappe'}
+        confirming={archiveMutation.isPending || deleteMutation.isPending}
+        onCancel={() => setConfirm(null)}
+        onConfirm={() => {
+          if (confirm?.kind === 'archive')
+            archiveMutation.mutate({ knuteId: confirm.knuteId, title: confirm.title })
+          else if (confirm?.kind === 'delete') deleteMutation.mutate()
+        }}
       />
 
       <Toast message={toast.message} bottomOffset={insets.bottom + spacing.lg} />
