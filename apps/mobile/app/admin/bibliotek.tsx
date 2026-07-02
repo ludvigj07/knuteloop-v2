@@ -10,8 +10,10 @@ import {
   type InfiniteData,
 } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Stack } from 'expo-router'
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
+import { X } from 'lucide-react-native'
 import {
+  Pressable,
   Skeleton,
   StickerButton,
   StickerCard,
@@ -30,6 +32,7 @@ import {
 } from '../../components/library/AddToFolderSheet'
 import {
   createFolder,
+  fetchFolders,
   fetchLibraryKnuter,
   fetchLibraryPacks,
   importLibraryKnute,
@@ -52,6 +55,14 @@ export default function BibliotekScreen() {
   const insets = useSafeAreaInsets()
   const qc = useQueryClient()
   const toast = useToast()
+  const router = useRouter()
+  // Fill-this-folder mode (D2): arriving from a folder puts its id here — a
+  // pinned banner shows the context and the add-sheet pre-checks the folder.
+  const { folderId: ctxFolderId } = useLocalSearchParams<{ folderId?: string }>()
+  const foldersQuery = useQuery({ queryKey: ['folders'], queryFn: fetchFolders })
+  const ctxFolder = ctxFolderId
+    ? (foldersQuery.data?.folders.find((f) => f.id === ctxFolderId) ?? null)
+    : null
 
   const [folder, setFolder] = useState<string | null>(null)
   const [region, setRegion] = useState<string | null>(null)
@@ -188,6 +199,23 @@ export default function BibliotekScreen() {
       />
       <View style={styles.root}>
         <View style={styles.pinned}>
+          {ctxFolder ? (
+            <View style={styles.ctxBanner}>
+              <Text size="sm" weight="semibold" color={sticker.color.primary} style={styles.ctxText}>
+                Velger knuter til: <Text weight="bold" color={sticker.color.primary}>{ctxFolder.name}</Text>
+              </Text>
+              <Pressable
+                onPress={() => router.back()}
+                haptic="light"
+                accessibilityRole="button"
+                accessibilityLabel="Ferdig — tilbake til mappa"
+                hitSlop={8}
+                style={styles.ctxClose}
+              >
+                <X size={sticker.icon.sm} color={sticker.color.primary} strokeWidth={2.5} />
+              </Pressable>
+            </View>
+          ) : null}
           <FilterBar
             folder={folder}
             onFolder={setFolder}
@@ -265,6 +293,7 @@ export default function BibliotekScreen() {
 
       <AddToFolderSheet
         knute={addTarget}
+        contextFolderId={ctxFolder?.id ?? null}
         confirming={importKnute.isPending}
         onClose={() => setAddTarget(null)}
         onConfirm={(k, payload) => importKnute.mutate({ id: k.id, payload })}
@@ -323,6 +352,26 @@ function EmptyState({
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: sticker.color.paper },
   pinned: { paddingTop: spacing.sm },
+  ctxBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginHorizontal: spacing.base,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: sticker.radius.md,
+    borderWidth: sticker.borderWidth,
+    borderColor: sticker.color.primary,
+    backgroundColor: sticker.color.primaryBg,
+  },
+  ctxText: { flex: 1 },
+  ctxClose: {
+    width: size.actionMinHeight,
+    height: size.actionMinHeight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   gutter: { paddingHorizontal: spacing.base },
   packBlock: { paddingTop: spacing.xs },
   listTopSpacer: { height: spacing.xs },

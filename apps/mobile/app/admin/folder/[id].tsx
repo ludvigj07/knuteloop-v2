@@ -125,7 +125,11 @@ export default function FolderViewScreen() {
         label="Legg til fra biblioteket"
         variant="secondary"
         fullWidth
-        onPress={() => router.push('/admin/bibliotek')}
+        onPress={() =>
+          // From a folder the library opens in fill-this-folder mode: context
+          // banner + the add-sheet pre-checks this folder (D2, Ludvig's demo).
+          router.push(isAll ? '/admin/bibliotek' : `/admin/bibliotek?folderId=${folderId}`)
+        }
       />
       {!isAll ? (
         <StickerButton
