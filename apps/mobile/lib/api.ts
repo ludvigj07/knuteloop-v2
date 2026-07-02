@@ -42,6 +42,8 @@ export type Knute = {
   isGold: boolean
   isActive: boolean
   createdAt: string
+  /** The CALLER's active submission for this knute — tatt/ikke tatt. Rejected → null (can retry). */
+  myStatus: 'pending' | 'approved' | null
 }
 
 export type KnuterResponse = { knuter: Knute[] }

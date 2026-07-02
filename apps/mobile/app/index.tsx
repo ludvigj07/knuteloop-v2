@@ -4,7 +4,7 @@ import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useRouter } from 'expo-router'
-import { Shuffle } from 'lucide-react-native'
+import { EyeOff, Shuffle } from 'lucide-react-native'
 import { AppTabBar } from '../components/AppTabBar'
 import { FolderChips } from '../components/knute/FolderChips'
 import { KnuteListCard } from '../components/knute/KnuteListCard'
@@ -41,6 +41,9 @@ export default function KnuterScreen() {
   const [search, setSearch] = useState('')
   // null = "Alle" (the whole catalog); otherwise the selected folder's id.
   const [folderId, setFolderId] = useState<string | null>(null)
+  // Tatt/ikke tatt: hide the knuter the student already has an active
+  // (pending/approved) submission for — "what can I still do?"
+  const [hideTaken, setHideTaken] = useState(false)
 
   const foldersQuery = useQuery({ queryKey: ['folders'], queryFn: fetchFolders })
 
@@ -58,9 +61,10 @@ export default function KnuterScreen() {
   const knuter = data?.knuter ?? []
   const searchTerm = search.trim().toLocaleLowerCase('nb-NO')
   const visibleKnuter = useMemo(() => {
-    if (!searchTerm) return knuter
+    const pool = hideTaken ? knuter.filter((k) => k.myStatus === null) : knuter
+    if (!searchTerm) return pool
 
-    return knuter.filter((knute) => {
+    return pool.filter((knute) => {
       const haystack = [
         knute.title,
         knute.description ?? '',
@@ -72,7 +76,7 @@ export default function KnuterScreen() {
 
       return haystack.includes(searchTerm)
     })
-  }, [knuter, searchTerm])
+  }, [knuter, searchTerm, hideTaken])
 
   if (isLoading) return <LoadingState />
   // Only take over the whole screen when we have nothing to show. With keepPreviousData,
@@ -83,12 +87,17 @@ export default function KnuterScreen() {
 
   const bottomPadding = insets.bottom + size.bottomNavMinHeight + spacing.xl
 
-  // Distinguish a genuinely empty folder from a search that matched nothing.
+  // Distinguish: everything taken (celebrate!), a genuinely empty folder, or
+  // a search that matched nothing.
   const isEmptyFolder = folderId !== null && !searchTerm && knuter.length === spacing.none
-  const emptyTitle = isEmptyFolder ? 'Tom mappe' : 'Ingen treff'
-  const emptyText = isEmptyFolder
-    ? `Ingen knuter i «${selectedFolder?.name ?? 'mappa'}» ennå. Velg «Alle» for hele knuteboka.`
-    : 'Prøv et annet søk, eller trykk Tilfeldig når listen har knuter igjen.'
+  const emptyBecauseTaken =
+    hideTaken && !searchTerm && knuter.length > spacing.none && visibleKnuter.length === spacing.none
+  const emptyTitle = emptyBecauseTaken ? 'Alt tatt ✓' : isEmptyFolder ? 'Tom mappe' : 'Ingen treff'
+  const emptyText = emptyBecauseTaken
+    ? 'Du har tatt alt som vises her. Sterkt! Slå av «Skjul tatte» for å se dem igjen.'
+    : isEmptyFolder
+      ? `Ingen knuter i «${selectedFolder?.name ?? 'mappa'}» ennå. Velg «Alle» for hele knuteboka.`
+      : 'Prøv et annet søk, eller trykk Tilfeldig når listen har knuter igjen.'
 
   const openRandomKnute = () => {
     const randomKnute = visibleKnuter[Math.floor(Math.random() * visibleKnuter.length)]
@@ -165,6 +174,33 @@ export default function KnuterScreen() {
             disabled={visibleKnuter.length === spacing.none}
             accessibilityHint="Åpner en tilfeldig knute fra listen som vises."
           />
+          <StickerCard
+            tone={hideTaken ? 'primary' : 'surface'}
+            radius="full"
+            shadow="sm"
+            padding="none"
+            onPress={() => setHideTaken((v) => !v)}
+            haptic="selection"
+            accessibilityRole="button"
+            accessibilityLabel="Skjul tatte"
+            accessibilityHint="Skjuler knutene du allerede har tatt eller venter på."
+            accessibilitySelected={hideTaken}
+          >
+            <View style={styles.toggleContent}>
+              <EyeOff
+                size={sticker.icon.sm}
+                color={hideTaken ? sticker.color.textInverse : sticker.color.ink}
+                strokeWidth={2.5}
+              />
+              <Text
+                size="sm"
+                weight="semibold"
+                color={hideTaken ? sticker.color.textInverse : sticker.color.ink}
+              >
+                Skjul tatte
+              </Text>
+            </View>
+          </StickerCard>
         </View>
 
         {visibleKnuter.length === spacing.none ? (
@@ -300,6 +336,14 @@ const styles = StyleSheet.create({
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.sm,
+  },
+  toggleContent: {
+    minHeight: size.actionMinHeight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
   },
   list: {
     gap: spacing.md,
