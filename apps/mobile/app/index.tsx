@@ -1,32 +1,32 @@
 import { useMemo, useState } from 'react'
 import { View, ScrollView, StyleSheet, RefreshControl, TextInput } from 'react-native'
 import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useRouter } from 'expo-router'
+import { Shuffle } from 'lucide-react-native'
 import { AppTabBar } from '../components/AppTabBar'
-import { CountUp, Pressable, Skeleton, Text } from '../components/primitives'
-import { fetchKnuter, type Knute } from '../lib/api'
-import { formatNumber } from '../lib/format'
+import { FolderChips } from '../components/knute/FolderChips'
+import { KnuteListCard } from '../components/knute/KnuteListCard'
 import {
-  animation,
-  borderWidth,
-  colors,
-  fontSize,
-  fontWeight,
-  opacity,
-  radius,
-  shadows,
-  size,
-  spacing,
-} from '../lib/theme'
+  CountUp,
+  Eyebrow,
+  Skeleton,
+  StickerButton,
+  StickerCard,
+  Text,
+} from '../components/primitives'
+import { fetchFolders, fetchKnuter, fetchKnuterInFolder, type Knute } from '../lib/api'
+import { formatNumber } from '../lib/format'
+import { animation, fontFamily, fontSize, size, spacing, sticker } from '../lib/theme'
 
-// Each list row fades + slides in just after the one above it, so the list
+// Each list card fades + slides in just after the one above it, so the list
 // assembles itself rather than snapping in. Capped so a long list doesn't keep
-// delaying — rows past the cap all share the last delay.
+// delaying — cards past the cap all share the last delay.
 const STAGGER_STEP_MS = 40
 const STAGGER_MAX_STEPS = 8
 
+// Student-facing difficulty labels (the enum keeps v1's mixed vocabulary).
 const DIFFICULTY_LABEL: Record<Knute['difficulty'], string> = {
   Lett: 'Lett',
   Medium: 'Middels',
@@ -39,12 +39,22 @@ export default function KnuterScreen() {
   const router = useRouter()
   const reduceMotion = useReducedMotion()
   const [search, setSearch] = useState('')
+  // null = "Alle" (the whole catalog); otherwise the selected folder's id.
+  const [folderId, setFolderId] = useState<string | null>(null)
 
+  const foldersQuery = useQuery({ queryKey: ['folders'], queryFn: fetchFolders })
+
+  // "Alle" reuses the shared ['knuter'] entry (same one the knute-detail screen reads);
+  // a folder gets its own entry. keepPreviousData keeps the list on screen while a new
+  // folder loads instead of flashing the skeleton.
   const { data, error, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ['knuter'],
-    queryFn: fetchKnuter,
+    queryKey: folderId ? (['knuter', 'folder', folderId] as const) : (['knuter'] as const),
+    queryFn: () => (folderId ? fetchKnuterInFolder(folderId) : fetchKnuter()),
+    placeholderData: keepPreviousData,
   })
 
+  const folders = foldersQuery.data?.folders ?? []
+  const selectedFolder = folders.find((f) => f.id === folderId) ?? null
   const knuter = data?.knuter ?? []
   const searchTerm = search.trim().toLocaleLowerCase('nb-NO')
   const visibleKnuter = useMemo(() => {
@@ -65,9 +75,20 @@ export default function KnuterScreen() {
   }, [knuter, searchTerm])
 
   if (isLoading) return <LoadingState />
-  if (error) return <ErrorState message={(error as Error).message} onRetry={() => void refetch()} />
+  // Only take over the whole screen when we have nothing to show. With keepPreviousData,
+  // a failed folder switch keeps the previous list + chips on screen instead of trapping
+  // the user on an error page with no way back to "Alle".
+  if (error && !data)
+    return <ErrorState message={(error as Error).message} onRetry={() => void refetch()} />
 
   const bottomPadding = insets.bottom + size.bottomNavMinHeight + spacing.xl
+
+  // Distinguish a genuinely empty folder from a search that matched nothing.
+  const isEmptyFolder = folderId !== null && !searchTerm && knuter.length === spacing.none
+  const emptyTitle = isEmptyFolder ? 'Tom mappe' : 'Ingen treff'
+  const emptyText = isEmptyFolder
+    ? `Ingen knuter i «${selectedFolder?.name ?? 'mappa'}» ennå. Velg «Alle» for hele knuteboka.`
+    : 'Prøv et annet søk, eller trykk Tilfeldig når listen har knuter igjen.'
 
   const openRandomKnute = () => {
     const randomKnute = visibleKnuter[Math.floor(Math.random() * visibleKnuter.length)]
@@ -87,25 +108,25 @@ export default function KnuterScreen() {
           <RefreshControl
             refreshing={isRefetching}
             onRefresh={() => void refetch()}
-            tintColor={colors.ink}
+            tintColor={sticker.color.ink}
           />
         }
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.hero}>
-          <Text style={styles.heading} accessibilityRole="header" accessibilityLabel="Hva tar du i dag?">
-            Hva tar du <Text style={styles.headingHighlight}>i dag?</Text>
+          <Eyebrow>Knuteloop</Eyebrow>
+          <Text
+            font="display"
+            weight="bold"
+            style={styles.heading}
+            accessibilityRole="header"
+            accessibilityLabel="Hva tar du i dag?"
+          >
+            Hva tar du <Text font="display" weight="bold" style={[styles.heading, styles.headingHighlight]}>i dag?</Text>
           </Text>
           <View style={styles.countChip}>
             <CountUp value={knuter.length} suffix=" knuter" style={styles.countChipText} />
           </View>
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Alle knuter</Text>
-          <Text style={styles.sectionMeta}>
-            {formatNumber(visibleKnuter.length)}/{formatNumber(knuter.length)} synlig
-          </Text>
         </View>
 
         <TextInput
@@ -113,104 +134,75 @@ export default function KnuterScreen() {
           value={search}
           onChangeText={setSearch}
           placeholder="Søk etter knute..."
-          placeholderTextColor={colors.knuter.muted}
-          selectionColor={colors.accent.yellow}
+          placeholderTextColor={sticker.color.textMuted}
+          selectionColor={sticker.color.accent}
           autoCorrect={false}
           returnKeyType="search"
           accessibilityRole="search"
           accessibilityLabel="Søk etter knute"
         />
 
-        <View style={styles.toolbar}>
-          <Pressable
-            style={[styles.randomButton, visibleKnuter.length === spacing.none && styles.buttonDisabled]}
-            onPress={openRandomKnute}
-            disabled={visibleKnuter.length === spacing.none}
-            accessibilityRole="button"
-            accessibilityLabel="Velg en tilfeldig knute"
-            accessibilityHint="Åpner en tilfeldig knute fra listen som vises."
-            accessibilityState={{ disabled: visibleKnuter.length === spacing.none }}
-          >
-            <Text style={styles.randomIcon}>↝</Text>
-            <Text style={styles.randomText}>Tilfeldig</Text>
-          </Pressable>
-          <View style={styles.sortPill} accessibilityLabel="Standard sortering">
-            <Text style={styles.sortText}>Standard</Text>
-          </View>
+        {folders.length > 0 ? (
+          <FolderChips folders={folders} selected={folderId} onSelect={setFolderId} />
+        ) : null}
+
+        <View style={styles.sectionHeader}>
+          <Text weight="semibold" size="lg" color={sticker.color.ink}>
+            {selectedFolder?.name ?? 'Alle knuter'}
+          </Text>
+          <Text size="sm" color={sticker.color.textMuted}>
+            {formatNumber(visibleKnuter.length)}/{formatNumber(knuter.length)} synlig
+          </Text>
         </View>
 
-        <View style={styles.listPanelShadow}>
-          <View style={styles.listPanel}>
-            {visibleKnuter.length === spacing.none ? (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyTitle}>Ingen treff</Text>
-                <Text style={styles.emptyText}>
-                  Prøv et annet søk, eller trykk Tilfeldig når listen har knuter igjen.
-                </Text>
-              </View>
-            ) : (
-              visibleKnuter.map((knute, index) => (
-                <Animated.View
-                  key={knute.id}
-                  entering={
-                    reduceMotion
-                      ? undefined
-                      : FadeInDown.duration(animation.duration.base).delay(
-                          Math.min(index, STAGGER_MAX_STEPS) * STAGGER_STEP_MS,
-                        )
-                  }
-                >
-                  <KnuteRow
-                    knute={knute}
-                    isLast={index === visibleKnuter.length - 1}
-                    onPress={() => router.push(`/knute/${knute.id}`)}
-                  />
-                </Animated.View>
-              ))
-            )}
-          </View>
+        <View style={styles.toolbar}>
+          <StickerButton
+            label="Tilfeldig"
+            variant="secondary"
+            size="sm"
+            icon={<Shuffle size={sticker.icon.sm} color={sticker.color.ink} strokeWidth={2.5} />}
+            onPress={openRandomKnute}
+            disabled={visibleKnuter.length === spacing.none}
+            accessibilityHint="Åpner en tilfeldig knute fra listen som vises."
+          />
         </View>
+
+        {visibleKnuter.length === spacing.none ? (
+          <StickerCard tone="soft" radius="lg" shadow="sm">
+            <View style={styles.emptyState}>
+              <Text weight="bold" size="base" color={sticker.color.ink}>
+                {emptyTitle}
+              </Text>
+              <Text size="sm" color={sticker.color.textMuted} style={styles.emptyText}>
+                {emptyText}
+              </Text>
+            </View>
+          </StickerCard>
+        ) : (
+          <View style={styles.list}>
+            {visibleKnuter.map((knute, index) => (
+              <Animated.View
+                key={knute.id}
+                entering={
+                  reduceMotion
+                    ? undefined
+                    : FadeInDown.duration(animation.duration.base).delay(
+                        Math.min(index, STAGGER_MAX_STEPS) * STAGGER_STEP_MS,
+                      )
+                }
+              >
+                <KnuteListCard
+                  knute={knute}
+                  difficultyLabel={DIFFICULTY_LABEL[knute.difficulty]}
+                  onPress={() => router.push(`/knute/${knute.id}`)}
+                />
+              </Animated.View>
+            ))}
+          </View>
+        )}
       </ScrollView>
       <AppTabBar active="knuter" />
     </View>
-  )
-}
-
-function KnuteRow({
-  knute,
-  isLast,
-  onPress,
-}: {
-  knute: Knute
-  isLast: boolean
-  onPress: () => void
-}) {
-  const difficulty = DIFFICULTY_LABEL[knute.difficulty]
-
-  return (
-    <Pressable
-      style={[styles.knuteRow, isLast && styles.knuteRowLast, knute.isGold && styles.knuteRowGold]}
-      onPress={onPress}
-      accessibilityRole="link"
-      accessibilityLabel={`Ta ${knute.isGold ? 'gullknute' : 'knute'}: ${knute.title}, ${formatNumber(knute.points)} poeng, ${difficulty}`}
-      accessibilityHint="Åpner innsending for denne knuten."
-    >
-      <View style={styles.knuteTextBlock}>
-        <Text style={styles.knuteTitle} numberOfLines={1}>
-          {knute.isGold ? <Text style={styles.goldStar}>★ </Text> : null}
-          {knute.title}
-        </Text>
-        <Text style={styles.knuteDifficulty}>{difficulty}</Text>
-      </View>
-      <View style={[styles.pointsBadge, knute.isGold && styles.pointsBadgeGold]}>
-        <Text style={[styles.pointsText, knute.isGold && styles.pointsTextGold]}>
-          {formatNumber(knute.points)} p
-        </Text>
-      </View>
-      <View style={styles.takeButton}>
-        <Text style={styles.takeButtonText}>Ta knute</Text>
-      </View>
-    </Pressable>
   )
 }
 
@@ -222,7 +214,7 @@ function LoadingState() {
         <Skeleton style={styles.skeletonHeading} />
         <Skeleton style={styles.skeletonSearch} />
         {[0, 1, 2, 3].map((i) => (
-          <View key={i} style={styles.skeletonRow}>
+          <View key={i} style={styles.skeletonCard}>
             <Skeleton style={styles.skeletonRowTitle} />
             <Skeleton style={styles.skeletonRowMeta} />
           </View>
@@ -236,16 +228,17 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
   return (
     <View style={styles.center}>
       <Stack.Screen options={{ headerShown: false }} />
-      <Text style={styles.errorTitle}>Kunne ikke laste knutene</Text>
-      <Text style={styles.muted}>{message}</Text>
-      <Pressable
-        style={styles.retryButton}
-        onPress={onRetry}
-        accessibilityRole="button"
-        accessibilityLabel="Prøv igjen"
-      >
-        <Text style={styles.retryText}>Prøv igjen</Text>
-      </Pressable>
+      <StickerCard radius="lg" style={styles.errorCard}>
+        <View style={styles.errorContent}>
+          <Text weight="bold" size="lg" color={sticker.color.danger}>
+            Kunne ikke laste knutene
+          </Text>
+          <Text size="sm" color={sticker.color.textMuted} style={styles.emptyText}>
+            {message}
+          </Text>
+          <StickerButton label="Prøv igjen" variant="primary" onPress={onRetry} />
+        </View>
+      </StickerCard>
     </View>
   )
 }
@@ -253,11 +246,11 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.knuter.canvas,
+    backgroundColor: sticker.color.paper,
   },
   scroll: {
     flex: 1,
-    backgroundColor: colors.knuter.canvas,
+    backgroundColor: sticker.color.paper,
   },
   content: {
     paddingHorizontal: spacing.base,
@@ -268,194 +261,56 @@ const styles = StyleSheet.create({
   },
   heading: {
     fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
-    color: colors.ink,
+    lineHeight: fontSize['2xl'] * 1.1,
+    color: sticker.color.ink,
   },
   headingHighlight: {
-    backgroundColor: colors.accent.yellow,
-    color: colors.ink,
+    backgroundColor: sticker.color.accent,
   },
   countChip: {
     alignSelf: 'flex-start',
-    backgroundColor: colors.ink,
+    backgroundColor: sticker.color.ink,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
-    borderRadius: radius.full,
+    borderRadius: sticker.radius.full,
   },
   countChipText: {
-    color: colors.text.inverse,
+    color: sticker.color.textInverse,
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  sectionTitle: {
-    color: colors.ink,
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.bold,
-  },
-  sectionMeta: {
-    color: colors.knuter.muted,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.mono.semibold,
   },
   searchInput: {
     minHeight: size.searchMinHeight,
-    borderWidth: borderWidth.thick,
-    borderColor: colors.borderInk,
-    borderRadius: radius.full,
-    backgroundColor: colors.surface,
+    borderWidth: sticker.borderWidth,
+    borderColor: sticker.color.ink,
+    borderRadius: sticker.radius.sm,
+    backgroundColor: sticker.color.card,
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.sm,
-    color: colors.ink,
+    color: sticker.color.ink,
     fontSize: fontSize.base,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.sans.medium,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
   },
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
   },
-  randomButton: {
-    minHeight: size.actionMinHeight,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.accent.yellow,
-    borderWidth: borderWidth.thin,
-    borderColor: colors.borderInk,
-    borderRadius: radius.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  randomIcon: {
-    color: colors.ink,
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.bold,
-  },
-  randomText: {
-    color: colors.ink,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-  },
-  sortPill: {
-    minHeight: size.actionMinHeight,
-    justifyContent: 'center',
-    borderWidth: borderWidth.thin,
-    borderColor: colors.borderStrong,
-    borderRadius: radius.full,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  sortText: {
-    color: colors.ink,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-  },
-  // Outer view casts the shadow (no overflow clip); inner view clips the rows
-  // to the rounded corners. Splitting them keeps the drop shadow from being
-  // chopped off by `overflow: 'hidden'` — a cross-platform RN gotcha.
-  listPanelShadow: {
-    borderRadius: radius.lg,
-    backgroundColor: colors.knuter.panel,
-    ...shadows.md,
-  },
-  listPanel: {
-    overflow: 'hidden',
-    backgroundColor: colors.knuter.panel,
-    borderWidth: borderWidth.medium,
-    borderColor: colors.borderInk,
-    borderRadius: radius.lg,
-  },
-  knuteRow: {
-    minHeight: size.bottomNavMinHeight,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: borderWidth.thin,
-    borderBottomColor: colors.knuter.divider,
-  },
-  knuteRowLast: {
-    borderBottomWidth: borderWidth.none,
-  },
-  knuteRowGold: {
-    backgroundColor: colors.goldSoft,
-  },
-  goldStar: {
-    color: colors.gold,
-  },
-  knuteTextBlock: {
-    flex: 1,
-    minWidth: spacing.none,
-    gap: spacing['2xs'],
-  },
-  knuteTitle: {
-    color: colors.ink,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-  },
-  knuteDifficulty: {
-    color: colors.knuter.muted,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
-  },
-  pointsBadge: {
-    backgroundColor: colors.accent.yellow,
-    borderRadius: radius.full,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  pointsText: {
-    color: colors.ink,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-  },
-  pointsBadgeGold: {
-    backgroundColor: colors.gold,
-  },
-  pointsTextGold: {
-    color: colors.text.inverse,
-  },
-  takeButton: {
-    minWidth: size.knuteActionMinWidth,
-    minHeight: size.actionMinHeight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.ink,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.sm,
-  },
-  takeButtonText: {
-    color: colors.text.inverse,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
+  list: {
+    gap: spacing.md,
   },
   emptyState: {
     alignItems: 'center',
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.xl,
+    paddingVertical: spacing.lg,
     gap: spacing.xs,
   },
-  emptyTitle: {
-    color: colors.ink,
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.bold,
-  },
   emptyText: {
-    color: colors.knuter.muted,
-    fontSize: fontSize.sm,
     textAlign: 'center',
-  },
-  buttonDisabled: {
-    opacity: opacity.disabled,
   },
   loadingContent: {
     flex: 1,
@@ -469,13 +324,13 @@ const styles = StyleSheet.create({
   },
   skeletonSearch: {
     minHeight: size.searchMinHeight,
-    borderRadius: radius.full,
+    borderRadius: sticker.radius.sm,
   },
-  skeletonRow: {
-    backgroundColor: colors.knuter.panel,
-    borderWidth: borderWidth.medium,
-    borderColor: colors.borderInk,
-    borderRadius: radius.lg,
+  skeletonCard: {
+    backgroundColor: sticker.color.card,
+    borderWidth: sticker.borderWidth,
+    borderColor: sticker.color.ink,
+    borderRadius: sticker.radius.md,
     padding: spacing.base,
     gap: spacing.sm,
   },
@@ -491,29 +346,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.lg,
-    backgroundColor: colors.knuter.canvas,
+    backgroundColor: sticker.color.paper,
   },
-  errorTitle: {
-    color: colors.error,
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-    marginBottom: spacing.sm,
+  errorCard: {
+    alignSelf: 'stretch',
   },
-  muted: {
-    color: colors.knuter.muted,
-    fontSize: fontSize.sm,
-    textAlign: 'center',
-  },
-  retryButton: {
-    marginTop: spacing.base,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.ink,
-    borderRadius: radius.md,
-  },
-  retryText: {
-    color: colors.text.inverse,
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
+  errorContent: {
+    alignItems: 'center',
+    gap: spacing.md,
   },
 })
