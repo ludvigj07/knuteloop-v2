@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { memo, useCallback, useRef } from 'react'
 import {
   View,
   ScrollView,
@@ -22,7 +22,13 @@ const formatPoints = (n: number) => new Intl.NumberFormat('nb-NO').format(n)
 export default function LeaderboardScreen() {
   const insets = useSafeAreaInsets()
   const scrollRef = useRef<ScrollView>(null)
-  const [myPlaceY, setMyPlaceY] = useState<number | null>(null)
+  // Where the current user's row sits, for «Gå til min plass». A ref, not
+  // state: the value is only read inside the press handler, and a state write
+  // here would re-render every row right after the list has settled.
+  const myPlaceY = useRef<number | null>(null)
+  const handleCurrentUserLayout = useCallback((y: number) => {
+    myPlaceY.current = y
+  }, [])
   const { data, error, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['leaderboard'],
     queryFn: fetchLeaderboard,
@@ -64,10 +70,10 @@ export default function LeaderboardScreen() {
   const bottomPadding = insets.bottom + size.bottomNavMinHeight + spacing.xl
 
   const goToMyPlace = () => {
-    if (myPlaceY === null) return
+    if (myPlaceY.current === null) return
 
     scrollRef.current?.scrollTo({
-      y: Math.max(myPlaceY - spacing.lg, spacing.none),
+      y: Math.max(myPlaceY.current - spacing.lg, spacing.none),
       animated: true,
     })
   }
@@ -135,7 +141,7 @@ export default function LeaderboardScreen() {
                   <LeaderboardRow
                     key={entry.userId}
                     entry={entry}
-                    onCurrentUserLayout={entry.isCurrentUser ? setMyPlaceY : undefined}
+                    onCurrentUserLayout={entry.isCurrentUser ? handleCurrentUserLayout : undefined}
                   />
                 ))}
               </View>
@@ -148,7 +154,11 @@ export default function LeaderboardScreen() {
   )
 }
 
-function LeaderboardRow({
+// memo: one row per russ in the school (a few hundred at vg1/vg2 scale) — a
+// parent re-render (refresh state etc.) must not re-render every row. Stable
+// props: entry objects keep identity within a query result, and the layout
+// callback is a useCallback ref-writer.
+const LeaderboardRow = memo(function LeaderboardRow({
   entry,
   onCurrentUserLayout,
 }: {
@@ -215,7 +225,7 @@ function LeaderboardRow({
       </View>
     </View>
   )
-}
+})
 
 function getInitials(name: string) {
   const letters = name
