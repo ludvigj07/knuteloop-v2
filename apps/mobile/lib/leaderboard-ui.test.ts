@@ -1,13 +1,5 @@
-import type { LeaderboardEntry } from '../lib/api'
-import { nextPlaceText } from './leaderboard'
-
-jest.mock('expo-router', () => ({
-  Stack: { Screen: () => null },
-  useRouter: () => ({ replace: jest.fn() }),
-}))
-jest.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
-}))
+import type { LeaderboardEntry } from './api'
+import { nextPlaceText } from './leaderboard-ui'
 
 function entry(rank: number, points: number, isCurrentUser = false): LeaderboardEntry {
   return {

@@ -17,6 +17,7 @@ import {
 } from '../components/primitives'
 import { fetchLeaderboard, type LeaderboardEntry } from '../lib/api'
 import { formatNumber } from '../lib/format'
+import { nextPlaceText } from '../lib/leaderboard-ui'
 import { animation, fontFamily, fontSize, size, spacing, sticker } from '../lib/theme'
 
 // Toppliste i sticker-designet: én rad per russ (medalje-badge for topp 3,
@@ -61,15 +62,6 @@ function getInitials(name: string) {
     .toLocaleUpperCase('nb-NO')
 
   return letters || 'R'
-}
-
-// Copy for the pinned «min plass» card. Framed as an invitation (what's within
-// reach), never as a loss — pressure-free gamification. Exported for tests.
-export function nextPlaceText(entries: LeaderboardEntry[], me: LeaderboardEntry): string {
-  const above = entries.find((e) => e.rank === me.rank - 1)
-  if (!above) return 'Du leder kullet!'
-  const gap = Math.max(above.points - me.points, 1)
-  return `Du mangler ${formatNumber(gap)} poeng til plass ${formatNumber(above.rank)}`
 }
 
 export default function LeaderboardScreen() {
