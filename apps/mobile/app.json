@@ -6,6 +6,9 @@
     "orientation": "portrait",
     "scheme": "knuteloop",
     "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#C8102E"
+    },
     "ios": {
       "bundleIdentifier": "no.knuteloop.app",
       "supportsTablet": true

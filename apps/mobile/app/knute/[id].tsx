@@ -94,9 +94,12 @@ export default function KnuteDetailScreen() {
       const asset = result.canceled ? null : result.assets[0]
       if (!asset) return
 
+      // Never upscale: a source narrower than MAX_WIDTH (screenshots, older
+      // gallery photos) is only re-encoded — resizing UP would blur the photo
+      // AND grow the upload, the opposite of what the cap is for.
       const compressed = await ImageManipulator.manipulateAsync(
         asset.uri,
-        [{ resize: { width: MAX_WIDTH } }],
+        asset.width > MAX_WIDTH ? [{ resize: { width: MAX_WIDTH } }] : [],
         { compress: JPEG_QUALITY, format: ImageManipulator.SaveFormat.JPEG },
       )
       setImageUri(compressed.uri)
