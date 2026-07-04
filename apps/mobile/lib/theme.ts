@@ -292,7 +292,9 @@ export const sticker = {
     dangerStrong: '#B53A32',
     dangerBg: 'rgba(214, 72, 63, 0.12)',
 
-    gold: '#D6A429', // gullknute star / accents
+    gold: '#D6A429', // gullknute star / accents + toppliste-medalje for 1. plass
+    silver: '#9EA4AD', // toppliste-medalje — 2. plass (design-systemets MEDAL[2])
+    bronze: '#B07A47', // toppliste-medalje — 3. plass (design-systemets MEDAL[3])
   },
   // Generous, friendly radii (much rounder than the legacy `radius` scale).
   radius: {
