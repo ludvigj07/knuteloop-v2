@@ -83,7 +83,7 @@ What we are choosing. Be specific — name versions, libraries, vendors.
 | [0008](./0008-bunny-over-cloudflare.md) | Bunny.net over Cloudflare R2 for storage | Accepted | 2026-05-28 |
 | [0009](./0009-no-video-photos-only.md) | Photos only, no video uploads in v2 | Superseded by [0019](./0019-per-knute-evidence-type.md) | 2026-05-28 |
 | [0010](./0010-feide-deferred-2028.md) | Feide auth deferred to 2028 (or later) | Accepted | 2026-05-28 |
-| [0011](./0011-scale-target-100-schools-2027.md) | Scale target revised to 100+ schools for 2027 | Proposed | 2026-06-13 |
+| [0011](./0011-scale-target-100-schools-2027.md) | Scale target revised to 100+ schools for 2027 | Accepted | 2026-06-13 |
 | [0012](./0012-video-submissions-with-bandwidth-cap.md) | Video in v2 (supersedes 0009), with bandwidth cap | Superseded by [0019](./0019-per-knute-evidence-type.md) | 2026-06-13 |
 | [0013](./0013-knute-category-and-profile-status.md) | Knute category enum + reconstructed profile/status rules | Proposed | 2026-06-14 |
 | [0014](./0014-knute-library-and-folders.md) | Knute library + per-school folders + evidence type | Accepted | 2026-06-14 |
