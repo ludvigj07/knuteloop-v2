@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { RefreshControl, StyleSheet, View } from 'react-native'
 import { FlashList, type ListRenderItemInfo } from '@shopify/flash-list'
 import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated'
@@ -6,14 +6,24 @@ import { useQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack } from 'expo-router'
 import { AppTabBar } from '../components/AppTabBar'
-import { Chip, Skeleton, StickerButton, StickerCard, Text } from '../components/primitives'
+import {
+  Chip,
+  Pressable,
+  Skeleton,
+  StickerButton,
+  StickerCard,
+  Text,
+} from '../components/primitives'
 import { fetchLeaderboard, type LeaderboardEntry } from '../lib/api'
 import { formatNumber } from '../lib/format'
+import { classStandings, classmatesOf, type ClassStanding } from '../lib/leaderboard-ui'
 import { animation, fontSize, size, spacing, sticker } from '../lib/theme'
 
-// Toppliste i sticker-designet: så enkel som mulig (Ludvigs ord) — én sentrert
-// tittel, så radene. Én rad per russ: medalje-badge for topp 3, russenavn +
-// rangtittel, mono-poeng. Din egen rad markeres med en «Deg»-chip.
+// Toppliste i sticker-designet, tre visninger fra samme data (v1-paritet,
+// Ludvig 2026-07-05): «Skolen» (alle individuelt), «Klassen min» (klassen din
+// individuelt), «Klassekamp» (klassene mot hverandre, rangert på SNITT — og
+// snittet er også tallet som VISES; aldri v1-feilen «viser sum, rangerer
+// snitt»). Så enkel som mulig: sentrert tittel, segmentvelger, rader.
 
 // Only the first screenful staggers in; FlashList recycles cells, so rows
 // mounted later during scroll must appear instantly (same rule as hjem).
@@ -39,6 +49,15 @@ const MEDAL_COLOR: Record<number, string> = {
   3: sticker.color.bronze,
 }
 
+type ViewKey = 'skolen' | 'klassen' | 'klassekamp'
+
+// One list, three shapes: russ rows (Skolen/Klassen min) or class rows
+// (Klassekamp). displayRank is view-local (a russ can be #14 at school and #2
+// in their class) — medals follow the view, titles stay school-wide.
+type RowItem =
+  | { kind: 'russ'; entry: LeaderboardEntry; displayRank: number }
+  | { kind: 'klasse'; standing: ClassStanding }
+
 function getInitials(name: string) {
   const letters = name
     .trim()
@@ -54,16 +73,28 @@ function getInitials(name: string) {
 export default function LeaderboardScreen() {
   const insets = useSafeAreaInsets()
   const reduceMotion = useReducedMotion()
+  const [view, setView] = useState<ViewKey>('skolen')
 
   const { data, error, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['leaderboard'],
     queryFn: fetchLeaderboard,
   })
 
-  const entries = data?.leaderboard ?? []
+  const entries = useMemo(() => data?.leaderboard ?? [], [data])
+  const me = useMemo(() => entries.find((e) => e.isCurrentUser) ?? null, [entries])
+  const classmates = useMemo(() => classmatesOf(entries, me), [entries, me])
+  const standings = useMemo(() => classStandings(entries), [entries])
+
+  const rows = useMemo<RowItem[]>(() => {
+    if (view === 'klassekamp') {
+      return standings.map((standing) => ({ kind: 'klasse', standing }))
+    }
+    const pool = view === 'klassen' ? classmates : entries
+    return pool.map((entry, idx) => ({ kind: 'russ', entry, displayRank: idx + 1 }))
+  }, [view, entries, classmates, standings])
 
   const renderRow = useCallback(
-    ({ item, index }: ListRenderItemInfo<LeaderboardEntry>) => (
+    ({ item, index }: ListRenderItemInfo<RowItem>) => (
       <Animated.View
         entering={
           reduceMotion || index >= STAGGER_MAX_STEPS
@@ -71,7 +102,11 @@ export default function LeaderboardScreen() {
             : FadeInDown.duration(animation.duration.base).delay(index * STAGGER_STEP_MS)
         }
       >
-        <LeaderRow entry={item} />
+        {item.kind === 'russ' ? (
+          <LeaderRow entry={item.entry} displayRank={item.displayRank} />
+        ) : (
+          <ClassRow standing={item.standing} />
+        )}
       </Animated.View>
     ),
     [reduceMotion],
@@ -83,8 +118,22 @@ export default function LeaderboardScreen() {
 
   const bottomPadding = insets.bottom + size.bottomNavMinHeight + spacing.xl
 
+  // Empty copy per view: class-less users get a friendly nudge, never a wall.
+  const emptyTitle =
+    view === 'klassen' && !me?.className
+      ? 'Du har ikke valgt klasse ennå'
+      : view === 'klassekamp'
+        ? 'Ingen klasser ennå'
+        : 'Ingen poeng ennå'
+  const emptyText =
+    view === 'klassen' && !me?.className
+      ? 'Klassevalg kommer i appen snart — da dukker klassekameratene dine opp her.'
+      : view === 'klassekamp'
+        ? 'Når russ har valgt klasse, kjemper klassene her — rangert på snittpoeng.'
+        : 'Når russ får godkjent knuter, dukker topplisten opp her.'
+
   const listHeader = (
-    <View style={styles.hero}>
+    <View style={styles.header}>
       <Text
         font="display"
         weight="bold"
@@ -94,6 +143,26 @@ export default function LeaderboardScreen() {
       >
         Toppliste
       </Text>
+      <View style={styles.segmented} accessibilityRole="tablist">
+        <ViewSegment
+          label="Skolen"
+          active={view === 'skolen'}
+          onPress={() => setView('skolen')}
+          hint="Viser alle russ på skolen."
+        />
+        <ViewSegment
+          label="Klassen min"
+          active={view === 'klassen'}
+          onPress={() => setView('klassen')}
+          hint="Viser bare klassen din."
+        />
+        <ViewSegment
+          label="Klassekamp"
+          active={view === 'klassekamp'}
+          onPress={() => setView('klassekamp')}
+          hint="Viser klassene mot hverandre, rangert på snittpoeng."
+        />
+      </View>
     </View>
   )
 
@@ -101,8 +170,8 @@ export default function LeaderboardScreen() {
     <View style={styles.root}>
       <Stack.Screen options={{ headerShown: false }} />
       <FlashList
-        data={entries}
-        keyExtractor={(entry) => entry.userId}
+        data={rows}
+        keyExtractor={(item) => (item.kind === 'russ' ? item.entry.userId : item.standing.className)}
         renderItem={renderRow}
         estimatedItemSize={ESTIMATED_ROW_HEIGHT}
         ItemSeparatorComponent={ListGap}
@@ -111,10 +180,10 @@ export default function LeaderboardScreen() {
           <StickerCard tone="soft" radius="lg" shadow="sm">
             <View style={styles.emptyState}>
               <Text weight="bold" size="base" color={sticker.color.ink}>
-                Ingen poeng ennå
+                {emptyTitle}
               </Text>
               <Text size="sm" color={sticker.color.textMuted} style={styles.centerText}>
-                Når russ får godkjent knuter, dukker topplisten opp her.
+                {emptyText}
               </Text>
             </View>
           </StickerCard>
@@ -132,24 +201,64 @@ export default function LeaderboardScreen() {
           />
         }
       />
-
       <AppTabBar active="toppliste" />
     </View>
   )
 }
 
-// One row of the toppliste. memo: a few hundred rows per school — parent
-// re-renders (refresh state etc.) must not re-render them all. Non-pressable
-// (public profiles are not in v2), so the row is ONE screen-reader element via
-// the inner accessible View.
-const LeaderRow = memo(function LeaderRow({ entry }: { entry: LeaderboardEntry }) {
-  const medal = MEDAL_COLOR[entry.rank]
+// One segment of the Skolen/Klassen min/Klassekamp control — same pattern as
+// hjem-skjermens Tilgjengelige/Fullført: the ACTIVE segment names what is on
+// screen, and every alternative stays one tap away.
+function ViewSegment({
+  label,
+  active,
+  onPress,
+  hint,
+}: {
+  label: string
+  active: boolean
+  onPress: () => void
+  hint: string
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      haptic="selection"
+      accessibilityRole="tab"
+      accessibilityLabel={label}
+      accessibilityHint={hint}
+      accessibilityState={{ selected: active }}
+      style={[styles.segment, active ? styles.segmentActive : null]}
+    >
+      <Text
+        size="sm"
+        weight="bold"
+        color={active ? sticker.color.textInverse : sticker.color.textSoft}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  )
+}
+
+// One russ row. memo: a few hundred rows per school — parent re-renders
+// (view/refresh state) must not re-render them all. Non-pressable (public
+// profiles are not in v2), so the row is ONE screen-reader element.
+const LeaderRow = memo(function LeaderRow({
+  entry,
+  displayRank,
+}: {
+  entry: LeaderboardEntry
+  displayRank: number
+}) {
+  const medal = MEDAL_COLOR[displayRank]
   return (
     <StickerCard radius="md" shadow="sm" padding="md">
       <View
         style={styles.row}
         accessible
-        accessibilityLabel={`Plass ${formatNumber(entry.rank)}, ${entry.russenavn}, ${entry.rankTitle}, ${formatNumber(entry.points)} poeng${entry.isCurrentUser ? ', det er deg' : ''}`}
+        accessibilityLabel={`Plass ${formatNumber(displayRank)}, ${entry.russenavn}, ${entry.rankTitle}, ${formatNumber(entry.points)} poeng${entry.isCurrentUser ? ', det er deg' : ''}`}
       >
         <View style={[styles.rankBadge, medal ? { backgroundColor: medal } : null]}>
           <Text
@@ -158,7 +267,7 @@ const LeaderRow = memo(function LeaderRow({ entry }: { entry: LeaderboardEntry }
             size="sm"
             color={medal ? sticker.color.textInverse : sticker.color.textSoft}
           >
-            {formatNumber(entry.rank)}
+            {formatNumber(displayRank)}
           </Text>
         </View>
         <View style={styles.avatar}>
@@ -182,6 +291,7 @@ const LeaderRow = memo(function LeaderRow({ entry }: { entry: LeaderboardEntry }
           </View>
           <Text size="xs" weight="semibold" color={sticker.color.textMuted} numberOfLines={1}>
             {entry.rankTitle}
+            {entry.className ? ` · ${entry.className}` : ''}
           </Text>
         </View>
         <View style={styles.pointsBlock}>
@@ -190,6 +300,58 @@ const LeaderRow = memo(function LeaderRow({ entry }: { entry: LeaderboardEntry }
           </Text>
           <Text size="xs" color={sticker.color.textMuted}>
             poeng
+          </Text>
+        </View>
+      </View>
+    </StickerCard>
+  )
+})
+
+// One class row in Klassekamp. The BIG number is the average — the exact
+// number the ranking uses (rule #1 from v1's sum-vs-snitt confusion).
+const ClassRow = memo(function ClassRow({ standing }: { standing: ClassStanding }) {
+  const medal = MEDAL_COLOR[standing.rank]
+  return (
+    <StickerCard radius="md" shadow="sm" padding="md">
+      <View
+        style={styles.row}
+        accessible
+        accessibilityLabel={`Plass ${formatNumber(standing.rank)}, klasse ${standing.className}, ${formatNumber(standing.memberCount)} russ, ${formatNumber(standing.averagePoints)} poeng i snitt${standing.isMyClass ? ', klassen din' : ''}`}
+      >
+        <View style={[styles.rankBadge, medal ? { backgroundColor: medal } : null]}>
+          <Text
+            font="mono"
+            weight="bold"
+            size="sm"
+            color={medal ? sticker.color.textInverse : sticker.color.textSoft}
+          >
+            {formatNumber(standing.rank)}
+          </Text>
+        </View>
+        <View style={styles.nameBlock}>
+          <View style={styles.nameLine}>
+            <Text
+              font="display"
+              weight="bold"
+              size="base"
+              color={sticker.color.ink}
+              numberOfLines={1}
+              style={styles.nameText}
+            >
+              {standing.className}
+            </Text>
+            {standing.isMyClass ? <Chip label="Deg" tone="accent" /> : null}
+          </View>
+          <Text size="xs" weight="semibold" color={sticker.color.textMuted} numberOfLines={1}>
+            {formatNumber(standing.memberCount)} russ
+          </Text>
+        </View>
+        <View style={styles.pointsBlock}>
+          <Text font="mono" weight="bold" size="lg" color={sticker.color.ink}>
+            {formatNumber(standing.averagePoints)}
+          </Text>
+          <Text size="xs" color={sticker.color.textMuted}>
+            snittpoeng
           </Text>
         </View>
       </View>
@@ -241,14 +403,35 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: sticker.color.paper,
   },
-  hero: {
-    alignItems: 'center',
+  header: {
+    gap: spacing.base,
     paddingBottom: spacing.base,
   },
   heading: {
     fontSize: fontSize['2xl'],
     lineHeight: fontSize['2xl'] * 1.1,
     color: sticker.color.ink,
+    textAlign: 'center',
+  },
+  segmented: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    padding: spacing.xs,
+    borderRadius: sticker.radius.full,
+    borderWidth: sticker.borderWidth,
+    borderColor: sticker.color.ink,
+    backgroundColor: sticker.color.surfaceSoft,
+  },
+  segment: {
+    flex: 1,
+    minHeight: size.actionMinHeight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xs,
+    borderRadius: sticker.radius.full,
+  },
+  segmentActive: {
+    backgroundColor: sticker.color.primary,
   },
   row: {
     flexDirection: 'row',
