@@ -64,7 +64,7 @@ export type PendingSubmission = {
   knutePoints: number
   evidenceType: 'media' | 'text'
 }
-export type PendingResponse = { submissions: PendingSubmission[] }
+export type PendingResponse = { submissions: PendingSubmission[]; nextCursor: string | null }
 
 export type ReviewedSubmission = {
   id: string
@@ -213,8 +213,9 @@ export async function uploadImageBinary(uploadUrl: string, fileUri: string): Pro
   if (!res.ok) throw new ApiError(res.status, `Opplasting feilet (${res.status}).`)
 }
 
-export function fetchPendingSubmissions(): Promise<PendingResponse> {
-  return apiFetch<PendingResponse>('/api/submissions/pending')
+export function fetchPendingSubmissions(cursor?: string | null): Promise<PendingResponse> {
+  const params = cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''
+  return apiFetch<PendingResponse>(`/api/submissions/pending${params}`)
 }
 
 export function approveSubmission(id: string): Promise<ReviewResponse> {
@@ -310,12 +311,13 @@ export function fetchMe(): Promise<MeResponse> {
   return apiFetch<MeResponse>('/api/me')
 }
 
-// Used by the home screen to detect knutesjef role without decoding the JWT:
-// hit /pending; 200 = knutesjef, 403 = not. Returns null if not authorized.
+// The queue badge (knutesjef panel + tab bar): a cheap count(*) endpoint, NOT
+// the paginated queue. Doubles as role detection without decoding the JWT:
+// 200 = knutesjef (count), 403 = not authorized (null).
 export async function tryFetchPendingCount(): Promise<number | null> {
   try {
-    const data = await fetchPendingSubmissions()
-    return data.submissions.length
+    const data = await apiFetch<{ count: number }>('/api/submissions/pending/count')
+    return data.count
   } catch (err) {
     if (err instanceof ApiError && err.status === 403) return null
     throw err

@@ -1,5 +1,5 @@
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack } from 'expo-router'
 import { KnutesjefTabBar } from '../components/KnutesjefTabBar'
@@ -18,6 +18,9 @@ import {
   approveSubmission,
   fetchPendingSubmissions,
   rejectSubmission,
+  tryFetchPendingCount,
+  type PendingResponse,
+  type PendingSubmission,
 } from '../lib/api'
 import { haptics } from '../lib/haptics'
 import { size, spacing, sticker } from '../lib/theme'
@@ -29,14 +32,51 @@ const SCREEN_OPTIONS = {
   headerShadowVisible: false,
 } as const
 
+// Approve/reject shifts the page boundaries between the sequential page
+// refetches, so an item can transiently appear in two loaded pages. Duplicate
+// FlatList keys break the list — dedupe by id, first occurrence wins.
+function dedupeById(pages: PendingResponse[] | undefined): PendingSubmission[] {
+  const seen = new Set<string>()
+  const out: PendingSubmission[] = []
+  for (const page of pages ?? []) {
+    for (const s of page.submissions) {
+      if (!seen.has(s.id)) {
+        seen.add(s.id)
+        out.push(s)
+      }
+    }
+  }
+  return out
+}
+
 export default function ReviewScreen() {
   const insets = useSafeAreaInsets()
   const qc = useQueryClient()
   const toast = useToast()
 
-  const { data, error, isLoading, refetch, isRefetching } = useQuery({
+  const {
+    data,
+    error,
+    isLoading,
+    refetch,
+    isRefetching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ['submissions', 'pending'],
-    queryFn: fetchPendingSubmissions,
+    queryFn: ({ pageParam }) => fetchPendingSubmissions(pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+  })
+
+  // Header total. The queue itself is paginated, so «X venter» comes from the
+  // count endpoint (same cache entry as the tab-bar badge — no extra request);
+  // until it lands, the loaded count is a fine stand-in.
+  const countQuery = useQuery({
+    queryKey: ['submissions', 'pending', 'count'],
+    queryFn: tryFetchPendingCount,
+    staleTime: 30_000,
   })
 
   // Both actions clear the queue + its badge count and flip the catalog's
@@ -106,7 +146,8 @@ export default function ReviewScreen() {
     )
   }
 
-  const pending = data?.submissions ?? []
+  const pending = dedupeById(data?.pages)
+  const totalPending = countQuery.data ?? pending.length
   // Changes whenever a different card enters/leaves review. FlatList is a
   // PureComponent, so without extraData it wouldn't re-render a row when this
   // external mutation state flips (the tapped card's spinner would never show).
@@ -141,11 +182,16 @@ export default function ReviewScreen() {
           pending.length > 0 ? (
             <View style={styles.header}>
               <Text font="display" weight="bold" size="xl" color={sticker.color.ink}>
-                {pending.length} venter
+                {totalPending} venter
               </Text>
             </View>
           ) : null
         }
+        ListFooterComponent={isFetchingNextPage ? <PendingSkeleton /> : null}
+        onEndReachedThreshold={0.5}
+        onEndReached={() => {
+          if (hasNextPage && !isFetchingNextPage) void fetchNextPage()
+        }}
         ListEmptyComponent={
           <View style={styles.centered}>
             <StickerCard tone="surface" radius="lg" style={styles.stateCard}>

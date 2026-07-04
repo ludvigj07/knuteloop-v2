@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { sql, eq } from 'drizzle-orm'
+import { and, count, eq, sql } from 'drizzle-orm'
 import { schools, users, knuter, submissions } from '../../db/schema/index.js'
 import { setupTestDb, type TestHandles } from '../helpers/test-db.js'
 import { signDevToken } from '../../lib/auth-dev.js'
@@ -322,6 +322,107 @@ describe('GET /api/submissions/pending', () => {
     expect(res.status).toBe(200)
     const body = (await res.json()) as { submissions: { russenavn: string }[] }
     expect(body.submissions.every((s) => s.russenavn !== 'StudentA')).toBe(true)
+  })
+
+  it('paginates with cursor — walks all pages without duplicates or gaps', async () => {
+    // Three staggered pending rows far in the past, so their cursor order is
+    // deterministic (API-created rows from other tests all sit at "now" and
+    // therefore come first in the DESC walk).
+    const base = Date.parse('2026-05-01T12:00:00.000Z')
+    const knuteIds = [
+      await freshKnuteA('page walk 0'),
+      await freshKnuteA('page walk 1'),
+      await freshKnuteA('page walk 2'),
+    ]
+    const inserted = await h.superDb
+      .insert(submissions)
+      .values(
+        knuteIds.map((knuteId, i) => ({
+          schoolId: schoolAId,
+          userId: studentAId,
+          knuteId,
+          imageKey: `placeholder/page-walk-${i}.jpg`,
+          status: 'pending' as const,
+          createdAt: new Date(base + i * 60_000),
+        })),
+      )
+      .returning()
+    const freshIds = inserted.map((r) => r.id)
+
+    type PendingPage = { submissions: { id: string }[]; nextCursor: string | null }
+    const seen: string[] = []
+    let cursor: string | null = null
+    for (let guard = 0; guard < 20; guard++) {
+      const qs: string = cursor ? `?limit=2&cursor=${encodeURIComponent(cursor)}` : '?limit=2'
+      const res = await app.request(`/api/submissions/pending${qs}`, {
+        headers: { Authorization: `Bearer ${knutesjefTokenA}` },
+      })
+      expect(res.status).toBe(200)
+      const body = (await res.json()) as PendingPage
+      expect(body.submissions.length).toBeLessThanOrEqual(2)
+      seen.push(...body.submissions.map((s) => s.id))
+      if (!body.nextCursor) break
+      cursor = body.nextCursor
+    }
+
+    expect(new Set(seen).size).toBe(seen.length) // no duplicates across pages
+    for (const id of freshIds) expect(seen).toContain(id) // nothing skipped
+  })
+
+  it('returns 400 for a malformed cursor', async () => {
+    const res = await app.request('/api/submissions/pending?cursor=ikke-en-dato', {
+      headers: { Authorization: `Bearer ${knutesjefTokenA}` },
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 400 for limit above max', async () => {
+    const res = await app.request('/api/submissions/pending?limit=999', {
+      headers: { Authorization: `Bearer ${knutesjefTokenA}` },
+    })
+    expect(res.status).toBe(400)
+  })
+})
+
+describe('GET /api/submissions/pending/count', () => {
+  it('returns 401 without auth', async () => {
+    const res = await app.request('/api/submissions/pending/count')
+    expect(res.status).toBe(401)
+  })
+
+  it('returns 403 when caller is a student', async () => {
+    const res = await app.request('/api/submissions/pending/count', {
+      headers: { Authorization: `Bearer ${studentTokenA}` },
+    })
+    expect(res.status).toBe(403)
+  })
+
+  it('matches each school\'s own pending rows — cross-tenant isolated', async () => {
+    // Ground truth straight from the DB (superDb bypasses RLS), so the test is
+    // robust to however many pending rows earlier tests have created.
+    const [expectedA] = await h.superDb
+      .select({ n: count() })
+      .from(submissions)
+      .where(and(eq(submissions.schoolId, schoolAId), eq(submissions.status, 'pending')))
+    const [expectedB] = await h.superDb
+      .select({ n: count() })
+      .from(submissions)
+      .where(and(eq(submissions.schoolId, schoolBId), eq(submissions.status, 'pending')))
+
+    const resA = await app.request('/api/submissions/pending/count', {
+      headers: { Authorization: `Bearer ${knutesjefTokenA}` },
+    })
+    expect(resA.status).toBe(200)
+    expect(((await resA.json()) as { count: number }).count).toBe(expectedA!.n)
+    // The pending tests above guarantee school A has a non-empty queue — so a
+    // count that ignored the tenant filter could not pass both assertions.
+    expect(expectedA!.n).toBeGreaterThan(0)
+
+    const resB = await app.request('/api/submissions/pending/count', {
+      headers: { Authorization: `Bearer ${knutesjefTokenB}` },
+    })
+    expect(resB.status).toBe(200)
+    expect(((await resB.json()) as { count: number }).count).toBe(expectedB!.n)
   })
 })
 
