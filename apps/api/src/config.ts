@@ -29,6 +29,16 @@ const envSchema = z.object({
   BUNNY_STORAGE_ZONE: z.string().optional(),
   BUNNY_STORAGE_KEY: z.string().optional(),
   BUNNY_CDN_HOSTNAME: z.string().optional(),
+
+  // Bunny Optimizer is a PAID pull-zone add-on (launch-checklist purchase).
+  // When 'true', publicUrlForKey appends resize params (?width=&quality=) for
+  // list-sized image variants; while 'false' every URL is the untouched
+  // original, so flipping this is the entire rollout. z.enum + transform, NOT
+  // z.coerce.boolean() — Boolean('false') === true is the classic env footgun.
+  BUNNY_OPTIMIZER_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
 })
 
 type Env = z.infer<typeof envSchema>
