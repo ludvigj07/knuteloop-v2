@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { memo, useCallback } from 'react'
 import {
   View,
   StyleSheet,
@@ -110,6 +110,14 @@ export default function FeedScreen() {
           snapToInterval={height}
           decelerationRate="fast"
           getItemLayout={(_, index) => ({ length: height, offset: height * index, index })}
+          // Every page is a full screen with two decoded copies of the photo
+          // (blur backdrop + contain), so the default render window (~21
+          // screens) pins hundreds of MB of bitmaps. Keep the current page +
+          // 2 neighbors each way; the NEXT API page is still fetched 2
+          // screens early via onEndReachedThreshold, so swiping stays smooth.
+          initialNumToRender={1}
+          maxToRenderPerBatch={2}
+          windowSize={5}
           onEndReached={() => {
             if (hasNextPage && !isFetchingNextPage) void fetchNextPage()
           }}
@@ -138,7 +146,10 @@ export default function FeedScreen() {
   )
 }
 
-function FeedCard({
+// memo: fetching the next feed page rebuilds the items array, but the page
+// objects keep their identity — already-mounted fullscreen cards (each holding
+// decoded photos) must not re-render just because pagination advanced.
+const FeedCard = memo(function FeedCard({
   item,
   height,
   width,
@@ -228,7 +239,7 @@ function FeedCard({
       </View>
     </View>
   )
-}
+})
 
 const styles = StyleSheet.create({
   root: {
