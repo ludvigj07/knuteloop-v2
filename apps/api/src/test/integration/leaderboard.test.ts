@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { schools, users } from '../../db/schema/index.js'
+import { schoolClasses, schools, users } from '../../db/schema/index.js'
 import { setupTestDb, type TestHandles } from '../helpers/test-db.js'
 import { signDevToken } from '../../lib/auth-dev.js'
 import { buildApp } from '../../app.js'
@@ -17,6 +17,7 @@ type LeaderboardEntry = {
   userId: string
   russenavn: string
   points: number
+  className: string | null
   rank: number
   rankTitle: string
   isCurrentUser: boolean
@@ -34,12 +35,28 @@ beforeAll(async () => {
   schoolAId = insertedSchools[0]!.id
   schoolBId = insertedSchools[1]!.id
 
+  // A class per school. Same NAME on purpose: unique is per school, and the
+  // cross-tenant join test below must show that school A never resolves school
+  // B's class row even when a class_id points across the tenant boundary.
+  const insertedClasses = await h.superDb
+    .insert(schoolClasses)
+    .values([
+      { schoolId: schoolAId, name: '3STA' },
+      { schoolId: schoolBId, name: '3STA' },
+    ])
+    .returning()
+  const classAId = insertedClasses[0]!.id
+  const classBId = insertedClasses[1]!.id
+
   const insertedUsers = await h.superDb
     .insert(users)
     .values([
-      { schoolId: schoolAId, russenavn: 'Alpha', role: 'student', points: 100 },
-      { schoolId: schoolAId, russenavn: 'Beta', role: 'student', points: 250 },
-      { schoolId: schoolAId, russenavn: 'Charlie', role: 'student', points: 50 },
+      { schoolId: schoolAId, russenavn: 'Alpha', role: 'student', points: 100, classId: classAId },
+      { schoolId: schoolAId, russenavn: 'Beta', role: 'student', points: 250, classId: classAId },
+      // Charlie's class_id points at SCHOOL B's class — a state only a bug or a
+      // malicious write could produce (no endpoint sets class yet). RLS on
+      // school_classes must hide the row from school A's join → className null.
+      { schoolId: schoolAId, russenavn: 'Charlie', role: 'student', points: 50, classId: classBId },
       // Soft-deleted — should NOT appear on the board.
       {
         schoolId: schoolAId,
@@ -129,5 +146,28 @@ describe('GET /api/leaderboard', () => {
     const body = (await res.json()) as Response
     expect(body.leaderboard[0]?.userId).toBe(user2AId)
     expect(body.leaderboard[0]?.rank).toBe(1)
+  })
+
+  it('className rides along; class-less users get null', async () => {
+    const res = await app.request('/api/leaderboard', {
+      headers: { Authorization: `Bearer ${tokenUser1A}` },
+    })
+    const body = (await res.json()) as Response
+    const byName = new Map(body.leaderboard.map((e) => [e.russenavn, e.className]))
+    expect(byName.get('Alpha')).toBe('3STA')
+    expect(byName.get('Beta')).toBe('3STA')
+  })
+
+  it('cross-tenant: a class_id pointing at another school\'s class resolves to null, never the foreign name', async () => {
+    // Charlie (school A) has class_id → school B's «3STA» row. RLS on
+    // school_classes hides that row from school A's join — the leaderboard
+    // must show null, not school B's class name.
+    const res = await app.request('/api/leaderboard', {
+      headers: { Authorization: `Bearer ${tokenUser1A}` },
+    })
+    const body = (await res.json()) as Response
+    const charlie = body.leaderboard.find((e) => e.russenavn === 'Charlie')
+    expect(charlie).toBeDefined()
+    expect(charlie?.className).toBeNull()
   })
 })

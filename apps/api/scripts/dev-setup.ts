@@ -79,6 +79,22 @@ const insertedSchools = await supDb
 const stOlav = insertedSchools[0]!
 const hetland = insertedSchools[1]!
 
+// Classes (school_classes): created by the knutesjef in the real flow; users
+// claim membership via class_id. Seeded here so the toppliste's «Klassen min»
+// + «Klassekamp» views have data. Odin alone in 3MKA makes the Klassekamp
+// average visibly differ from the sum.
+const insertedClasses = await supDb
+  .insert(schema.schoolClasses)
+  .values([
+    { schoolId: stOlav.id, name: '3STA' },
+    { schoolId: stOlav.id, name: '3MKA' },
+    { schoolId: hetland.id, name: '3PBA' },
+  ])
+  .returning()
+const class3STA = insertedClasses[0]!
+const class3MKA = insertedClasses[1]!
+const class3PBA = insertedClasses[2]!
+
 const insertedUsers = await supDb
   .insert(schema.users)
   .values([
@@ -93,13 +109,15 @@ const insertedUsers = await supDb
       russType: 'red',
       quote: 'E det bedre å pilsa i heisen eller heisa pilsen?',
       isAdult: true,
+      classId: class3STA.id,
     },
-    { schoolId: stOlav.id, russenavn: 'Frida', role: 'student', russType: 'blue', quote: 'Tar livet med ein klype Maarud.', isAdult: true },
+    { schoolId: stOlav.id, russenavn: 'Frida', role: 'student', russType: 'blue', quote: 'Tar livet med ein klype Maarud.', isAdult: true, classId: class3STA.id },
     // Odin stays a minor (isAdult default false) so you can test the 18+ age gate.
-    { schoolId: stOlav.id, russenavn: 'Odin', role: 'student', russType: 'red' },
+    { schoolId: stOlav.id, russenavn: 'Odin', role: 'student', russType: 'red', classId: class3MKA.id },
+    // Brage has NO class — exercises the class-less path in the class views.
     { schoolId: hetland.id, russenavn: 'Brage', role: 'knutesjef', russType: 'red', isAdult: true },
-    { schoolId: hetland.id, russenavn: 'Tor', role: 'student', russType: 'blue' },
-    { schoolId: hetland.id, russenavn: 'Saga', role: 'student' },
+    { schoolId: hetland.id, russenavn: 'Tor', role: 'student', russType: 'blue', classId: class3PBA.id },
+    { schoolId: hetland.id, russenavn: 'Saga', role: 'student', classId: class3PBA.id },
   ])
   .returning()
 const userLoke = insertedUsers[0]!
@@ -391,6 +409,7 @@ await supDb
 
 process.stdout.write(`  seeded:\n`)
 process.stdout.write(`    library: ${insertedLibrary.length} knuter, ${starterMembers.length} i «Anbefalt starter»\n`)
+process.stdout.write(`    klasser: 3STA + 3MKA (St. Olav), 3PBA (Hetland)\n`)
 process.stdout.write(`    ${stOlav.name}: ${stOlavKnuter.length} knuter\n`)
 process.stdout.write(`      ${userLoke.russenavn} (${userLoke.role})\n`)
 process.stdout.write(`      ${userFrida.russenavn} (${userFrida.role})\n`)

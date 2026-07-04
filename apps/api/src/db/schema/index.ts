@@ -1,4 +1,5 @@
 export * from './schools'
+export * from './school-classes'
 export * from './users'
 export * from './knuter'
 export * from './submissions'

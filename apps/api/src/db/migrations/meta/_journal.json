@@ -127,6 +127,20 @@
       "when": 1782598526989,
       "tag": "0017_mysterious_chimera",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1783200734207,
+      "tag": "0018_keen_blacklash",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1783200757718,
+      "tag": "0019_force_rls_school_classes",
+      "breakpoints": true
     }
   ]
 }
