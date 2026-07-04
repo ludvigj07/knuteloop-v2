@@ -1,4 +1,4 @@
-import { memo, useCallback, useRef } from 'react'
+import { memo, useCallback } from 'react'
 import { RefreshControl, StyleSheet, View } from 'react-native'
 import { FlashList, type ListRenderItemInfo } from '@shopify/flash-list'
 import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated'
@@ -6,24 +6,14 @@ import { useQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack } from 'expo-router'
 import { AppTabBar } from '../components/AppTabBar'
-import {
-  Chip,
-  CountUp,
-  Eyebrow,
-  Skeleton,
-  StickerButton,
-  StickerCard,
-  Text,
-} from '../components/primitives'
+import { Chip, Skeleton, StickerButton, StickerCard, Text } from '../components/primitives'
 import { fetchLeaderboard, type LeaderboardEntry } from '../lib/api'
 import { formatNumber } from '../lib/format'
-import { nextPlaceText } from '../lib/leaderboard-ui'
-import { animation, fontFamily, fontSize, size, spacing, sticker } from '../lib/theme'
+import { animation, fontSize, size, spacing, sticker } from '../lib/theme'
 
-// Toppliste i sticker-designet: én rad per russ (medalje-badge for topp 3,
-// russenavn + rangtittel, mono-poeng), og et FESTET «min plass»-kort nederst —
-// skjermens ene aksent — som ruller lista til din rad. Tonen er bevisst vennlig
-// og lavterskel («vennlig oversikt», aldri «du taper»).
+// Toppliste i sticker-designet: så enkel som mulig (Ludvigs ord) — én sentrert
+// tittel, så radene. Én rad per russ: medalje-badge for topp 3, russenavn +
+// rangtittel, mono-poeng. Din egen rad markeres med en «Deg»-chip.
 
 // Only the first screenful staggers in; FlashList recycles cells, so rows
 // mounted later during scroll must appear instantly (same rule as hjem).
@@ -36,9 +26,6 @@ const ESTIMATED_ROW_HEIGHT = 78
 // Row artwork sizes (props, not styles — same precedent as GlyphTile size={44}).
 const RANK_BADGE_SIZE = 38
 const AVATAR_SIZE = 44
-
-// Clearance so the last rows can scroll up past the pinned «min plass» card.
-const MY_PLACE_CLEARANCE = 92
 
 const FIRST_INITIAL_LENGTH = 1
 const MAX_INITIALS = 2
@@ -67,7 +54,6 @@ function getInitials(name: string) {
 export default function LeaderboardScreen() {
   const insets = useSafeAreaInsets()
   const reduceMotion = useReducedMotion()
-  const listRef = useRef<FlashList<LeaderboardEntry>>(null)
 
   const { data, error, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['leaderboard'],
@@ -75,14 +61,6 @@ export default function LeaderboardScreen() {
   })
 
   const entries = data?.leaderboard ?? []
-  const myIndex = entries.findIndex((e) => e.isCurrentUser)
-  const me = myIndex >= 0 ? entries[myIndex]! : null
-
-  const goToMyPlace = useCallback(() => {
-    if (myIndex >= 0) {
-      listRef.current?.scrollToIndex({ index: myIndex, animated: true, viewPosition: 0.4 })
-    }
-  }, [myIndex])
 
   const renderRow = useCallback(
     ({ item, index }: ListRenderItemInfo<LeaderboardEntry>) => (
@@ -103,15 +81,10 @@ export default function LeaderboardScreen() {
   if (error)
     return <ErrorState message={(error as Error).message} onRetry={() => void refetch()} />
 
-  const bottomPadding =
-    insets.bottom +
-    size.bottomNavMinHeight +
-    spacing.xl +
-    (me ? MY_PLACE_CLEARANCE : spacing.none)
+  const bottomPadding = insets.bottom + size.bottomNavMinHeight + spacing.xl
 
   const listHeader = (
     <View style={styles.hero}>
-      <Eyebrow>Knuteloop</Eyebrow>
       <Text
         font="display"
         weight="bold"
@@ -121,12 +94,6 @@ export default function LeaderboardScreen() {
       >
         Toppliste
       </Text>
-      <Text size="sm" color={sticker.color.textMuted}>
-        Vennlig oversikt over deltakelsen i kullet.
-      </Text>
-      <View style={styles.countChip}>
-        <CountUp value={entries.length} suffix=" russ" style={styles.countChipText} />
-      </View>
     </View>
   )
 
@@ -134,7 +101,6 @@ export default function LeaderboardScreen() {
     <View style={styles.root}>
       <Stack.Screen options={{ headerShown: false }} />
       <FlashList
-        ref={listRef}
         data={entries}
         keyExtractor={(entry) => entry.userId}
         renderItem={renderRow}
@@ -166,51 +132,6 @@ export default function LeaderboardScreen() {
           />
         }
       />
-
-      {me ? (
-        <View
-          style={[
-            styles.myPlaceWrap,
-            { bottom: insets.bottom + size.bottomNavMinHeight + spacing.md },
-          ]}
-          pointerEvents="box-none"
-        >
-          <StickerCard
-            tone="accent"
-            radius="lg"
-            shadow="base"
-            padding="md"
-            onPress={goToMyPlace}
-            haptic="light"
-            accessibilityRole="button"
-            accessibilityLabel={`Din plass: ${formatNumber(me.rank)}. ${me.rankTitle}, ${formatNumber(me.points)} poeng`}
-            accessibilityHint="Ruller listen til din plassering."
-          >
-            <View style={styles.myPlaceRow}>
-              <Text font="mono" weight="bold" style={styles.myPlaceRank}>
-                #{formatNumber(me.rank)}
-              </Text>
-              <View style={styles.myPlaceBody}>
-                <Text
-                  font="display"
-                  weight="bold"
-                  size="base"
-                  color={sticker.color.ink}
-                  numberOfLines={1}
-                >
-                  {me.rankTitle}
-                </Text>
-                <Text size="xs" weight="semibold" color={sticker.color.ink} numberOfLines={1}>
-                  {nextPlaceText(entries, me)}
-                </Text>
-              </View>
-              <Text font="mono" weight="bold" size="base" color={sticker.color.ink}>
-                {formatNumber(me.points)} p
-              </Text>
-            </View>
-          </StickerCard>
-        </View>
-      ) : null}
 
       <AppTabBar active="toppliste" />
     </View>
@@ -321,25 +242,13 @@ const styles = StyleSheet.create({
     backgroundColor: sticker.color.paper,
   },
   hero: {
-    gap: spacing.sm,
+    alignItems: 'center',
     paddingBottom: spacing.base,
   },
   heading: {
     fontSize: fontSize['2xl'],
     lineHeight: fontSize['2xl'] * 1.1,
     color: sticker.color.ink,
-  },
-  countChip: {
-    alignSelf: 'flex-start',
-    backgroundColor: sticker.color.ink,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: sticker.radius.full,
-  },
-  countChipText: {
-    color: sticker.color.textInverse,
-    fontSize: fontSize.xs,
-    fontFamily: fontFamily.mono.semibold,
   },
   row: {
     flexDirection: 'row',
@@ -384,25 +293,6 @@ const styles = StyleSheet.create({
   },
   listGap: {
     height: spacing.md,
-  },
-  myPlaceWrap: {
-    position: 'absolute',
-    left: spacing.base,
-    right: spacing.base,
-    zIndex: 10,
-  },
-  myPlaceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  myPlaceRank: {
-    fontSize: fontSize.xl,
-    color: sticker.color.ink,
-  },
-  myPlaceBody: {
-    flex: 1,
-    minWidth: spacing.none,
   },
   emptyState: {
     alignItems: 'center',
