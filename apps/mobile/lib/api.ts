@@ -252,6 +252,8 @@ export type LeaderboardEntry = {
   userId: string
   russenavn: string
   points: number
+  /** Klassen brukeren har claimet (null = ikke valgt klasse ennå). */
+  className: string | null
   rank: number
   rankTitle: string
   isCurrentUser: boolean
