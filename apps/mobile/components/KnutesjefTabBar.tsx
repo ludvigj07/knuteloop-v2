@@ -41,7 +41,7 @@ export function KnutesjefTabBar({ active }: { active: KnutesjefTabKey }) {
     >
       <View style={styles.bar} accessibilityRole="tablist" accessibilityLabel="Knutesjef-navigasjon">
         <Pressable
-          onPress={() => router.push('/')}
+          onPress={() => router.replace('/')}
           haptic="light"
           accessibilityRole="button"
           accessibilityLabel="Tilbake til appen"
@@ -59,8 +59,10 @@ export function KnutesjefTabBar({ active }: { active: KnutesjefTabKey }) {
           return (
             <Pressable
               key={tab.key}
+              // replace, not push: tab switches swap the screen instead of
+              // stacking Kø/Bibliotek/Knuteboka copies on every switch.
               onPress={() => {
-                if (!isActive) router.push(tab.href)
+                if (!isActive) router.replace(tab.href)
               }}
               haptic="selection"
               accessibilityRole="tab"

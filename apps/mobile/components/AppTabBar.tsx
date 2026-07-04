@@ -38,7 +38,11 @@ export function AppTabBar({ active }: { active: AppTabKey }) {
             <Pressable
               key={item.key}
               style={[styles.tabItem, isActive && styles.tabItemActive]}
-              onPress={() => router.push(item.href)}
+              // replace, not push: tab switches swap the screen instead of
+              // stacking a new copy per tap (memory + a sane back button).
+              onPress={() => {
+                if (!isActive) router.replace(item.href)
+              }}
               accessibilityRole="tab"
               accessibilityLabel={item.label}
               accessibilityHint={`Åpner ${item.label.toLocaleLowerCase('nb-NO')}.`}
