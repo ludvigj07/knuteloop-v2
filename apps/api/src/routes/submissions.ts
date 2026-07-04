@@ -10,6 +10,7 @@ import { ConflictError, NotFoundError, ValidationError } from '../lib/errors.js'
 import {
   isValidImageKey,
   newSubmissionImageKey,
+  PENDING_CARD_VARIANT,
   publicUrlForKey,
   requestOrigin,
   uploadUrlForKey,
@@ -228,12 +229,16 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
       const nextCursor = hasMore ? page[page.length - 1]!.createdAt.toISOString() : null
 
       // Resolve each stored key to a loadable URL (null for legacy placeholder keys
-      // that aren't real uploads — the client shows a placeholder for those).
+      // that aren't real uploads — the client shows a placeholder for those). The
+      // queue shows card-sized photos, so ask for the card variant — a no-op until
+      // the Bunny Optimizer add-on is enabled.
       const origin = requestOrigin(c.req.url)
       const withUrls = page.map((r) => ({
         ...r,
         imageUrl:
-          r.imageKey && isValidImageKey(r.imageKey) ? publicUrlForKey(r.imageKey, origin) : null,
+          r.imageKey && isValidImageKey(r.imageKey)
+            ? publicUrlForKey(r.imageKey, origin, PENDING_CARD_VARIANT)
+            : null,
       }))
 
       return c.json({ submissions: withUrls, nextCursor })

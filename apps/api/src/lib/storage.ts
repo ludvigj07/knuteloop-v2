@@ -84,13 +84,37 @@ export function uploadUrlForKey(key: string, origin: string): string {
   return `${origin}/uploads/${key}`
 }
 
-/** The public URL the app loads the image from (feed, review, etc.). */
-export function publicUrlForKey(key: string, origin: string): string {
+// ---- Image variants (Bunny Optimizer, ADR-0008 / launch checklist) ----
+//
+// List surfaces don't need the stored 1280px original. Bunny Optimizer resizes
+// on the fly via URL params — but it is a PAID pull-zone add-on, so variants
+// apply ONLY when BUNNY_OPTIMIZER_ENABLED is true (buying the add-on + flipping
+// that flag is the whole rollout). While off — and that includes the local dev
+// driver — every URL is the untouched original.
+
+export type ImageVariant = { width: number; quality: number }
+
+/** Review-queue cards: photo well is card-width (~360pt) at 2-3× DPR. */
+export const PENDING_CARD_VARIANT: ImageVariant = { width: 750, quality: 80 }
+
+/** Append Bunny Optimizer resize params. Assumes `url` has no query string yet
+ *  (the URLs built here never do). Exported for unit tests. */
+export function withImageVariant(url: string, variant: ImageVariant): string {
+  return `${url}?width=${variant.width}&quality=${variant.quality}`
+}
+
+/** The public URL the app loads the image from (feed, review, etc.).
+ *  Pass a `variant` on list surfaces; it is a no-op until the Optimizer
+ *  add-on is bought and BUNNY_OPTIMIZER_ENABLED is flipped. */
+export function publicUrlForKey(key: string, origin: string, variant?: ImageVariant): string {
+  let url: string
   if (config.STORAGE_DRIVER === 'bunny') {
     if (!config.BUNNY_CDN_HOSTNAME) throw new Error('BUNNY_CDN_HOSTNAME is not set')
-    return `https://${config.BUNNY_CDN_HOSTNAME}/${key}`
+    url = `https://${config.BUNNY_CDN_HOSTNAME}/${key}`
+  } else {
+    url = `${origin}/uploads/${key}`
   }
-  return `${origin}/uploads/${key}`
+  return variant && config.BUNNY_OPTIMIZER_ENABLED ? withImageVariant(url, variant) : url
 }
 
 // ---- Local driver disk I/O (dev only; used by routes/uploads.ts) ----
