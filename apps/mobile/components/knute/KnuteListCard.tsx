@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { ChevronRight } from 'lucide-react-native'
 import { Chip, KnoteIcon, StickerCard, Text } from '../primitives'
@@ -10,18 +11,22 @@ import { spacing, sticker } from '../../lib/theme'
 // A knute in the STUDENT catalog, as a tappable sticker card → opens the
 // submit screen (/knute/[id]). Sibling of SchoolKnuteRow (the knutesjef's
 // row, which opens the editor) — student cards never expose admin actions.
+//
+// memo + id-based onPressKnute (not a per-card closure): the card lives in the
+// catalog FlashList, and the search field re-renders the screen per keystroke —
+// only cards whose knute actually changed may re-render.
 
 const STATUS_LABEL = { approved: 'Godkjent', pending: 'Venter' } as const
 
-export function KnuteListCard({
+export const KnuteListCard = memo(function KnuteListCard({
   knute,
   difficultyLabel,
-  onPress,
+  onPressKnute,
 }: {
   knute: Knute
   /** Student-facing bokmål label (Medium → «Middels» etc.), mapped by the screen. */
   difficultyLabel: string
-  onPress: () => void
+  onPressKnute: (id: string) => void
 }) {
   const statusLabel = knute.myStatus ? STATUS_LABEL[knute.myStatus] : null
   return (
@@ -29,7 +34,7 @@ export function KnuteListCard({
       radius="md"
       shadow="sm"
       padding="md"
-      onPress={onPress}
+      onPress={() => onPressKnute(knute.id)}
       haptic="light"
       accessibilityRole="link"
       accessibilityLabel={`${knute.isGold ? 'Gullknute' : 'Knute'}: ${knute.title}, ${formatNumber(knute.points)} poeng, ${difficultyLabel}${statusLabel ? `, ${statusLabel.toLocaleLowerCase('nb-NO')}` : ''}`}
@@ -59,7 +64,7 @@ export function KnuteListCard({
       </View>
     </StickerCard>
   )
-}
+})
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },

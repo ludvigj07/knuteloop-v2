@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
-import { View, ScrollView, StyleSheet, RefreshControl, TextInput } from 'react-native'
+import { useCallback, useMemo, useState } from 'react'
+import { View, StyleSheet, RefreshControl, TextInput } from 'react-native'
+import { FlashList, type ListRenderItemInfo } from '@shopify/flash-list'
 import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -22,10 +23,15 @@ import { formatNumber } from '../lib/format'
 import { animation, fontFamily, fontSize, size, spacing, sticker } from '../lib/theme'
 
 // Each list card fades + slides in just after the one above it, so the list
-// assembles itself rather than snapping in. Capped so a long list doesn't keep
-// delaying — cards past the cap all share the last delay.
+// assembles itself rather than snapping in. Only the first screenful animates:
+// FlashList recycles cells, so cards mounted later during scroll must appear
+// instantly instead of replaying the entrance.
 const STAGGER_STEP_MS = 40
 const STAGGER_MAX_STEPS = 8
+
+// FlashList renders only what's visible; this is the typical KnuteListCard
+// height (1–2 title lines) used to size the scroll area before measuring.
+const ESTIMATED_CARD_HEIGHT = 84
 
 // Student-facing difficulty labels (the enum keeps v1's mixed vocabulary).
 const DIFFICULTY_LABEL: Record<Knute['difficulty'], string> = {
@@ -85,6 +91,27 @@ export default function KnuterScreen() {
     })
   }, [knuter, searchTerm, view])
 
+  const openKnute = useCallback((id: string) => router.push(`/knute/${id}`), [router])
+
+  const renderKnute = useCallback(
+    ({ item, index }: ListRenderItemInfo<Knute>) => (
+      <Animated.View
+        entering={
+          reduceMotion || index >= STAGGER_MAX_STEPS
+            ? undefined
+            : FadeInDown.duration(animation.duration.base).delay(index * STAGGER_STEP_MS)
+        }
+      >
+        <KnuteListCard
+          knute={item}
+          difficultyLabel={DIFFICULTY_LABEL[item.difficulty]}
+          onPressKnute={openKnute}
+        />
+      </Animated.View>
+    ),
+    [reduceMotion, openKnute],
+  )
+
   if (isLoading) return <LoadingState />
   // Only take over the whole screen when we have nothing to show. With keepPreviousData,
   // a failed folder switch keeps the previous list + chips on screen instead of trapping
@@ -124,97 +151,96 @@ export default function KnuterScreen() {
     if (randomKnute) router.push(`/knute/${randomKnute.id}`)
   }
 
+  // The whole top section rides inside the list as its header. Passed as an
+  // element (not a component) so the TextInput isn't remounted — and doesn't
+  // lose focus — when a keystroke re-renders the screen.
+  const listHeader = (
+    <View style={styles.headerWrap}>
+      <View style={styles.hero}>
+        <Eyebrow>Knuteloop</Eyebrow>
+        <Text
+          font="display"
+          weight="bold"
+          style={styles.heading}
+          accessibilityRole="header"
+          accessibilityLabel="Hva tar du i dag?"
+        >
+          Hva tar du <Text font="display" weight="bold" style={[styles.heading, styles.headingHighlight]}>i dag?</Text>
+        </Text>
+        <View style={styles.countChip}>
+          <CountUp value={knuter.length} suffix=" knuter" style={styles.countChipText} />
+        </View>
+      </View>
+
+      <TextInput
+        style={styles.searchInput}
+        value={search}
+        onChangeText={setSearch}
+        placeholder="Søk etter knute..."
+        placeholderTextColor={sticker.color.textMuted}
+        selectionColor={sticker.color.accent}
+        autoCorrect={false}
+        returnKeyType="search"
+        accessibilityRole="search"
+        accessibilityLabel="Søk etter knute"
+      />
+
+      {folders.length > 0 ? (
+        <FolderChips folders={folders} selected={folderId} onSelect={setFolderId} />
+      ) : null}
+
+      <View style={styles.segmented} accessibilityRole="tablist">
+        <ViewSegment
+          label="Tilgjengelige"
+          count={availableCount}
+          active={view === 'available'}
+          onPress={() => setView('available')}
+          hint="Viser knutene du kan ta nå."
+        />
+        <ViewSegment
+          label="Fullført"
+          count={completedCount}
+          active={view === 'completed'}
+          onPress={() => setView('completed')}
+          hint="Viser knutene du har sendt inn eller fått godkjent."
+        />
+      </View>
+
+      <View style={styles.sectionHeader}>
+        <Text weight="semibold" size="lg" color={sticker.color.ink}>
+          {selectedFolder?.name ?? 'Alle knuter'}
+        </Text>
+        <Text size="sm" color={sticker.color.textMuted}>
+          {formatNumber(visibleKnuter.length)}/
+          {formatNumber(view === 'available' ? availableCount : completedCount)} synlig
+        </Text>
+      </View>
+
+      <View style={styles.toolbar}>
+        <StickerButton
+          label="Tilfeldig"
+          variant="secondary"
+          size="sm"
+          icon={<Shuffle size={sticker.icon.sm} color={sticker.color.ink} strokeWidth={2.5} />}
+          onPress={openRandomKnute}
+          disabled={visibleKnuter.length === spacing.none}
+          accessibilityHint="Åpner en tilfeldig knute fra listen som vises."
+        />
+      </View>
+    </View>
+  )
+
   return (
     <View style={styles.root}>
       <Stack.Screen options={{ headerShown: false }} />
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: insets.top + spacing.lg, paddingBottom: bottomPadding },
-        ]}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={() => void refetch()}
-            tintColor={sticker.color.ink}
-          />
-        }
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.hero}>
-          <Eyebrow>Knuteloop</Eyebrow>
-          <Text
-            font="display"
-            weight="bold"
-            style={styles.heading}
-            accessibilityRole="header"
-            accessibilityLabel="Hva tar du i dag?"
-          >
-            Hva tar du <Text font="display" weight="bold" style={[styles.heading, styles.headingHighlight]}>i dag?</Text>
-          </Text>
-          <View style={styles.countChip}>
-            <CountUp value={knuter.length} suffix=" knuter" style={styles.countChipText} />
-          </View>
-        </View>
-
-        <TextInput
-          style={styles.searchInput}
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Søk etter knute..."
-          placeholderTextColor={sticker.color.textMuted}
-          selectionColor={sticker.color.accent}
-          autoCorrect={false}
-          returnKeyType="search"
-          accessibilityRole="search"
-          accessibilityLabel="Søk etter knute"
-        />
-
-        {folders.length > 0 ? (
-          <FolderChips folders={folders} selected={folderId} onSelect={setFolderId} />
-        ) : null}
-
-        <View style={styles.segmented} accessibilityRole="tablist">
-          <ViewSegment
-            label="Tilgjengelige"
-            count={availableCount}
-            active={view === 'available'}
-            onPress={() => setView('available')}
-            hint="Viser knutene du kan ta nå."
-          />
-          <ViewSegment
-            label="Fullført"
-            count={completedCount}
-            active={view === 'completed'}
-            onPress={() => setView('completed')}
-            hint="Viser knutene du har sendt inn eller fått godkjent."
-          />
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <Text weight="semibold" size="lg" color={sticker.color.ink}>
-            {selectedFolder?.name ?? 'Alle knuter'}
-          </Text>
-          <Text size="sm" color={sticker.color.textMuted}>
-            {formatNumber(visibleKnuter.length)}/
-            {formatNumber(view === 'available' ? availableCount : completedCount)} synlig
-          </Text>
-        </View>
-
-        <View style={styles.toolbar}>
-          <StickerButton
-            label="Tilfeldig"
-            variant="secondary"
-            size="sm"
-            icon={<Shuffle size={sticker.icon.sm} color={sticker.color.ink} strokeWidth={2.5} />}
-            onPress={openRandomKnute}
-            disabled={visibleKnuter.length === spacing.none}
-            accessibilityHint="Åpner en tilfeldig knute fra listen som vises."
-          />
-        </View>
-
-        {visibleKnuter.length === spacing.none ? (
+      <FlashList
+        data={visibleKnuter}
+        keyExtractor={(knute) => knute.id}
+        renderItem={renderKnute}
+        estimatedItemSize={ESTIMATED_CARD_HEIGHT}
+        ItemSeparatorComponent={ListGap}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={
           <StickerCard tone="soft" radius="lg" shadow="sm">
             <View style={styles.emptyState}>
               <Text weight="bold" size="base" color={sticker.color.ink}>
@@ -225,29 +251,21 @@ export default function KnuterScreen() {
               </Text>
             </View>
           </StickerCard>
-        ) : (
-          <View style={styles.list}>
-            {visibleKnuter.map((knute, index) => (
-              <Animated.View
-                key={knute.id}
-                entering={
-                  reduceMotion
-                    ? undefined
-                    : FadeInDown.duration(animation.duration.base).delay(
-                        Math.min(index, STAGGER_MAX_STEPS) * STAGGER_STEP_MS,
-                      )
-                }
-              >
-                <KnuteListCard
-                  knute={knute}
-                  difficultyLabel={DIFFICULTY_LABEL[knute.difficulty]}
-                  onPress={() => router.push(`/knute/${knute.id}`)}
-                />
-              </Animated.View>
-            ))}
-          </View>
-        )}
-      </ScrollView>
+        }
+        contentContainerStyle={{
+          paddingHorizontal: spacing.base,
+          paddingTop: insets.top + spacing.lg,
+          paddingBottom: bottomPadding,
+        }}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={() => void refetch()}
+            tintColor={sticker.color.ink}
+          />
+        }
+        keyboardShouldPersistTaps="handled"
+      />
       <AppTabBar active="knuter" />
     </View>
   )
@@ -298,6 +316,12 @@ function ViewSegment({
   )
 }
 
+// Spacing between cards. FlashList has no `gap` — a separator keeps row
+// heights predictable for recycling.
+function ListGap() {
+  return <View style={styles.listGap} />
+}
+
 function LoadingState() {
   return (
     <View style={styles.root}>
@@ -340,13 +364,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: sticker.color.paper,
   },
-  scroll: {
-    flex: 1,
-    backgroundColor: sticker.color.paper,
-  },
-  content: {
-    paddingHorizontal: spacing.base,
+  headerWrap: {
     gap: spacing.base,
+    paddingBottom: spacing.base,
   },
   hero: {
     gap: spacing.sm,
@@ -415,8 +435,8 @@ const styles = StyleSheet.create({
   segmentActive: {
     backgroundColor: sticker.color.primary,
   },
-  list: {
-    gap: spacing.md,
+  listGap: {
+    height: spacing.md,
   },
   emptyState: {
     alignItems: 'center',
