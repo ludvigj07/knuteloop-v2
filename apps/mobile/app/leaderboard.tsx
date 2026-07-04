@@ -5,6 +5,7 @@ import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated'
 import { useQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack } from 'expo-router'
+import { ChevronRight, X } from 'lucide-react-native'
 import { AppTabBar } from '../components/AppTabBar'
 import {
   Chip,
@@ -16,7 +17,12 @@ import {
 } from '../components/primitives'
 import { fetchLeaderboard, type LeaderboardEntry } from '../lib/api'
 import { formatNumber } from '../lib/format'
-import { classStandings, classmatesOf, type ClassStanding } from '../lib/leaderboard-ui'
+import {
+  classMembers,
+  classStandings,
+  classmatesOf,
+  type ClassStanding,
+} from '../lib/leaderboard-ui'
 import { animation, fontSize, size, spacing, sticker } from '../lib/theme'
 
 // Toppliste i sticker-designet, tre visninger fra samme data (v1-paritet,
@@ -74,6 +80,9 @@ export default function LeaderboardScreen() {
   const insets = useSafeAreaInsets()
   const reduceMotion = useReducedMotion()
   const [view, setView] = useState<ViewKey>('skolen')
+  // Klassekamp-drill: tap a class row to see THAT class's own list. Cleared by
+  // every segment tap, so the segments always mean what they say.
+  const [drilledClass, setDrilledClass] = useState<string | null>(null)
 
   const { data, error, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['leaderboard'],
@@ -85,13 +94,29 @@ export default function LeaderboardScreen() {
   const classmates = useMemo(() => classmatesOf(entries, me), [entries, me])
   const standings = useMemo(() => classStandings(entries), [entries])
 
+  const selectView = useCallback((next: ViewKey) => {
+    setDrilledClass(null)
+    setView(next)
+  }, [])
+
+  const drillInto = useCallback((className: string) => {
+    setDrilledClass(className)
+  }, [])
+
   const rows = useMemo<RowItem[]>(() => {
     if (view === 'klassekamp') {
-      return standings.map((standing) => ({ kind: 'klasse', standing }))
+      if (drilledClass) {
+        return classMembers(entries, drilledClass).map((entry, idx) => ({
+          kind: 'russ' as const,
+          entry,
+          displayRank: idx + 1,
+        }))
+      }
+      return standings.map((standing) => ({ kind: 'klasse' as const, standing }))
     }
     const pool = view === 'klassen' ? classmates : entries
-    return pool.map((entry, idx) => ({ kind: 'russ', entry, displayRank: idx + 1 }))
-  }, [view, entries, classmates, standings])
+    return pool.map((entry, idx) => ({ kind: 'russ' as const, entry, displayRank: idx + 1 }))
+  }, [view, drilledClass, entries, classmates, standings])
 
   const renderRow = useCallback(
     ({ item, index }: ListRenderItemInfo<RowItem>) => (
@@ -105,11 +130,11 @@ export default function LeaderboardScreen() {
         {item.kind === 'russ' ? (
           <LeaderRow entry={item.entry} displayRank={item.displayRank} />
         ) : (
-          <ClassRow standing={item.standing} />
+          <ClassRow standing={item.standing} onDrill={drillInto} />
         )}
       </Animated.View>
     ),
-    [reduceMotion],
+    [reduceMotion, drillInto],
   )
 
   if (isLoading) return <LoadingState />
@@ -132,6 +157,12 @@ export default function LeaderboardScreen() {
         ? 'Når russ har valgt klasse, kjemper klassene her — rangert på snittpoeng.'
         : 'Når russ får godkjent knuter, dukker topplisten opp her.'
 
+  // The standing for the drilled class — feeds the context banner so the link
+  // back to the Klassekamp numbers stays visible while inside the class.
+  const drilledStanding = drilledClass
+    ? standings.find((s) => s.className === drilledClass) ?? null
+    : null
+
   const listHeader = (
     <View style={styles.header}>
       <Text
@@ -147,22 +178,47 @@ export default function LeaderboardScreen() {
         <ViewSegment
           label="Skolen"
           active={view === 'skolen'}
-          onPress={() => setView('skolen')}
+          onPress={() => selectView('skolen')}
           hint="Viser alle russ på skolen."
         />
         <ViewSegment
           label="Klassen min"
           active={view === 'klassen'}
-          onPress={() => setView('klassen')}
+          onPress={() => selectView('klassen')}
           hint="Viser bare klassen din."
         />
         <ViewSegment
           label="Klassekamp"
           active={view === 'klassekamp'}
-          onPress={() => setView('klassekamp')}
+          onPress={() => selectView('klassekamp')}
           hint="Viser klassene mot hverandre, rangert på snittpoeng."
         />
       </View>
+      {drilledStanding ? (
+        <StickerCard tone="soft" radius="md" shadow="sm" padding="md">
+          <View style={styles.banner}>
+            <View style={styles.bannerBody}>
+              <Text font="display" weight="bold" size="base" color={sticker.color.ink}>
+                {drilledStanding.className}
+              </Text>
+              <Text size="xs" weight="semibold" color={sticker.color.textMuted}>
+                {`Plass ${formatNumber(drilledStanding.rank)} i Klassekamp · ${formatNumber(drilledStanding.memberCount)} russ · ${formatNumber(drilledStanding.averagePoints)} snittpoeng`}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => setDrilledClass(null)}
+              haptic="light"
+              accessibilityRole="button"
+              accessibilityLabel="Lukk klassevisningen"
+              accessibilityHint="Går tilbake til Klassekamp."
+              hitSlop={spacing.sm}
+              style={styles.bannerClose}
+            >
+              <X size={sticker.icon.sm} color={sticker.color.ink} strokeWidth={2.5} />
+            </Pressable>
+          </View>
+        </StickerCard>
+      ) : null}
     </View>
   )
 
@@ -309,15 +365,28 @@ const LeaderRow = memo(function LeaderRow({
 
 // One class row in Klassekamp. The BIG number is the average — the exact
 // number the ranking uses (rule #1 from v1's sum-vs-snitt confusion).
-const ClassRow = memo(function ClassRow({ standing }: { standing: ClassStanding }) {
+// Tappable: drills into that class's own leaderboard (id-based stable handler
+// so memo holds — same pattern as KnuteListCard).
+const ClassRow = memo(function ClassRow({
+  standing,
+  onDrill,
+}: {
+  standing: ClassStanding
+  onDrill: (className: string) => void
+}) {
   const medal = MEDAL_COLOR[standing.rank]
   return (
-    <StickerCard radius="md" shadow="sm" padding="md">
-      <View
-        style={styles.row}
-        accessible
-        accessibilityLabel={`Plass ${formatNumber(standing.rank)}, klasse ${standing.className}, ${formatNumber(standing.memberCount)} russ, ${formatNumber(standing.averagePoints)} poeng i snitt${standing.isMyClass ? ', klassen din' : ''}`}
-      >
+    <StickerCard
+      radius="md"
+      shadow="sm"
+      padding="md"
+      onPress={() => onDrill(standing.className)}
+      haptic="light"
+      accessibilityRole="button"
+      accessibilityLabel={`Plass ${formatNumber(standing.rank)}, klasse ${standing.className}, ${formatNumber(standing.memberCount)} russ, ${formatNumber(standing.averagePoints)} poeng i snitt${standing.isMyClass ? ', klassen din' : ''}`}
+      accessibilityHint="Viser klassens egen toppliste."
+    >
+      <View style={styles.row}>
         <View style={[styles.rankBadge, medal ? { backgroundColor: medal } : null]}>
           <Text
             font="mono"
@@ -354,6 +423,7 @@ const ClassRow = memo(function ClassRow({ standing }: { standing: ClassStanding 
             snittpoeng
           </Text>
         </View>
+        <ChevronRight size={sticker.icon.md} color={sticker.color.textMuted} strokeWidth={2} />
       </View>
     </StickerCard>
   )
@@ -476,6 +546,26 @@ const styles = StyleSheet.create({
   },
   listGap: {
     height: spacing.md,
+  },
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  bannerBody: {
+    flex: 1,
+    minWidth: spacing.none,
+    gap: spacing.xs,
+  },
+  bannerClose: {
+    width: size.actionMinHeight,
+    height: size.actionMinHeight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: sticker.radius.full,
+    borderWidth: sticker.borderWidth,
+    borderColor: sticker.color.ink,
+    backgroundColor: sticker.color.card,
   },
   emptyState: {
     alignItems: 'center',

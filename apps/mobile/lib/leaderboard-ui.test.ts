@@ -1,5 +1,5 @@
 import type { LeaderboardEntry } from './api'
-import { classStandings, classmatesOf } from './leaderboard-ui'
+import { classMembers, classStandings, classmatesOf } from './leaderboard-ui'
 
 function entry(
   russenavn: string,
@@ -56,6 +56,14 @@ describe('classStandings — Klassekamp ranked on average (the number shown IS t
     ])
     expect(standings.find((s) => s.className === '3STA')?.isMyClass).toBe(true)
     expect(standings.find((s) => s.className === '3MKA')?.isMyClass).toBe(false)
+  })
+})
+
+describe('classMembers — any class\'s own list (Klassekamp-drill)', () => {
+  it('returns members of the named class in given order, empty for null', () => {
+    const list = [entry('A', 90, '3MKA'), entry('B', 60, '3STA'), entry('C', 10, '3MKA')]
+    expect(classMembers(list, '3MKA').map((e) => e.russenavn)).toEqual(['A', 'C'])
+    expect(classMembers(list, null)).toEqual([])
   })
 })
 

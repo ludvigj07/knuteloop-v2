@@ -47,12 +47,21 @@ export function classStandings(entries: LeaderboardEntry[]): ClassStanding[] {
     }))
 }
 
-// «Klassen min»: the signed-in user's classmates, in school-leaderboard order
-// (already sorted by points). Empty when the user hasn't claimed a class.
+// Any class's own leaderboard, in school-leaderboard order (already sorted by
+// points). Drives both «Klassen min» and drilling into a class from Klassekamp.
+export function classMembers(
+  entries: LeaderboardEntry[],
+  className: string | null,
+): LeaderboardEntry[] {
+  if (!className) return []
+  return entries.filter((e) => e.className === className)
+}
+
+// «Klassen min»: the signed-in user's classmates. Empty when the user hasn't
+// claimed a class.
 export function classmatesOf(
   entries: LeaderboardEntry[],
   me: LeaderboardEntry | null,
 ): LeaderboardEntry[] {
-  if (!me?.className) return []
-  return entries.filter((e) => e.className === me.className)
+  return classMembers(entries, me?.className ?? null)
 }
