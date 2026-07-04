@@ -1,7 +1,7 @@
 # ADR-0011: Scale target revised to 100+ schools for 2027
 
-**Status:** Proposed
-**Date:** 2026-06-13
+**Status:** Accepted
+**Date:** 2026-06-13 (accepted 2026-07-04)
 **Deciders:** Ludvig (+ Claude as advisor)
 
 ## Context
