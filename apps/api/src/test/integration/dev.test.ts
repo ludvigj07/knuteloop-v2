@@ -27,6 +27,7 @@ describe('dev-route + secret gates (fail-closed)', () => {
       PORT: 3000,
       LOG_LEVEL: 'info',
       STORAGE_DRIVER: 'local',
+      BUNNY_OPTIMIZER_ENABLED: false,
     })
     expect(err).toMatch(/refusing to boot/i)
   })
@@ -39,6 +40,7 @@ describe('dev-route + secret gates (fail-closed)', () => {
         PORT: 3000,
         LOG_LEVEL: 'info',
         STORAGE_DRIVER: 'local',
+        BUNNY_OPTIMIZER_ENABLED: false,
       }),
     ).toBeNull()
     expect(
@@ -48,6 +50,7 @@ describe('dev-route + secret gates (fail-closed)', () => {
         PORT: 3000,
         LOG_LEVEL: 'info',
         STORAGE_DRIVER: 'local',
+        BUNNY_OPTIMIZER_ENABLED: false,
       }),
     ).toBeNull()
   })
