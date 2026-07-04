@@ -1,231 +1,55 @@
 import { memo, useCallback, useRef } from 'react'
-import {
-  View,
-  ScrollView,
-  StyleSheet,
-  RefreshControl,
-  type LayoutChangeEvent,
-} from 'react-native'
+import { RefreshControl, StyleSheet, View } from 'react-native'
+import { FlashList, type ListRenderItemInfo } from '@shopify/flash-list'
+import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated'
 import { useQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack } from 'expo-router'
 import { AppTabBar } from '../components/AppTabBar'
-import { Pressable, Text } from '../components/primitives'
+import {
+  Chip,
+  CountUp,
+  Eyebrow,
+  Skeleton,
+  StickerButton,
+  StickerCard,
+  Text,
+} from '../components/primitives'
 import { fetchLeaderboard, type LeaderboardEntry } from '../lib/api'
-import { borderWidth, colors, fontSize, fontWeight, opacity, radius, size, spacing } from '../lib/theme'
+import { formatNumber } from '../lib/format'
+import { animation, fontFamily, fontSize, size, spacing, sticker } from '../lib/theme'
 
-const TOP_RANK_LIMIT = 3
+// Toppliste i sticker-designet: én rad per russ (medalje-badge for topp 3,
+// russenavn + rangtittel, mono-poeng), og et FESTET «min plass»-kort nederst —
+// skjermens ene aksent — som ruller lista til din rad. Tonen er bevisst vennlig
+// og lavterskel («vennlig oversikt», aldri «du taper»).
+
+// Only the first screenful staggers in; FlashList recycles cells, so rows
+// mounted later during scroll must appear instantly (same rule as hjem).
+const STAGGER_STEP_MS = 40
+const STAGGER_MAX_STEPS = 8
+
+// FlashList sizing hint: rank badge/avatar row + card padding + separator.
+const ESTIMATED_ROW_HEIGHT = 78
+
+// Row artwork sizes (props, not styles — same precedent as GlyphTile size={44}).
+const RANK_BADGE_SIZE = 38
+const AVATAR_SIZE = 44
+
+// Clearance so the last rows can scroll up past the pinned «min plass» card.
+const MY_PLACE_CLEARANCE = 92
+
 const FIRST_INITIAL_LENGTH = 1
 const MAX_INITIALS = 2
-const formatPoints = (n: number) => new Intl.NumberFormat('nb-NO').format(n)
 
-export default function LeaderboardScreen() {
-  const insets = useSafeAreaInsets()
-  const scrollRef = useRef<ScrollView>(null)
-  // Where the current user's row sits, for «Gå til min plass». A ref, not
-  // state: the value is only read inside the press handler, and a state write
-  // here would re-render every row right after the list has settled.
-  const myPlaceY = useRef<number | null>(null)
-  const handleCurrentUserLayout = useCallback((y: number) => {
-    myPlaceY.current = y
-  }, [])
-  const { data, error, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ['leaderboard'],
-    queryFn: fetchLeaderboard,
-  })
-
-  if (isLoading) {
-    return (
-      <>
-        <Stack.Screen options={{ title: 'Toppliste' }} />
-        <View style={styles.center}>
-          <Text style={styles.muted}>Laster topplisten...</Text>
-        </View>
-      </>
-    )
-  }
-
-  if (error) {
-    return (
-      <>
-        <Stack.Screen options={{ title: 'Toppliste' }} />
-        <View style={styles.center}>
-          <Text style={styles.errorTitle}>Kunne ikke laste topplisten</Text>
-          <Text style={styles.muted}>{(error as Error).message}</Text>
-          <Pressable
-            style={styles.retryButton}
-            onPress={() => void refetch()}
-            accessibilityRole="button"
-            accessibilityLabel="Prøv igjen"
-          >
-            <Text style={styles.retryText}>Prøv igjen</Text>
-          </Pressable>
-        </View>
-      </>
-    )
-  }
-
-  const entries = data?.leaderboard ?? []
-  const currentUser = entries.find((entry) => entry.isCurrentUser)
-  const bottomPadding = insets.bottom + size.bottomNavMinHeight + spacing.xl
-
-  const goToMyPlace = () => {
-    if (myPlaceY.current === null) return
-
-    scrollRef.current?.scrollTo({
-      y: Math.max(myPlaceY.current - spacing.lg, spacing.none),
-      animated: true,
-    })
-  }
-
-  return (
-    <>
-      <Stack.Screen options={{ title: 'Toppliste' }} />
-      <View style={styles.root}>
-        <ScrollView
-          ref={scrollRef}
-          style={styles.scroll}
-          contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }]}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={() => void refetch()}
-              tintColor={colors.ink}
-            />
-          }
-        >
-          <View style={styles.hero}>
-            <Text style={styles.eyebrow}>Visning</Text>
-            <Text style={styles.heading} accessibilityRole="header">
-              Topplisten
-            </Text>
-            <Text style={styles.heroText}>Se deltakelse i kullet på en vennlig og lavterskel måte.</Text>
-          </View>
-
-          <View style={styles.panel}>
-            <View style={styles.panelHeader}>
-              <View style={styles.panelTitleBlock}>
-                <Text style={styles.panelTitle}>Toppliste</Text>
-                <Text style={styles.panelText}>En vennlig oversikt over aktivitet og deltakelse i kullet.</Text>
-              </View>
-
-              {currentUser ? (
-                <Pressable
-                  style={styles.myPlaceButton}
-                  onPress={goToMyPlace}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Gå til min plass, plass ${formatPoints(currentUser.rank)}`}
-                  accessibilityHint="Ruller listen til din plassering."
-                >
-                  <Text style={styles.myPlaceText}>Gå til min plass</Text>
-                </Pressable>
-              ) : null}
-            </View>
-
-            <View style={styles.filterBlock}>
-              <Text style={styles.filterLabel}>Statistikktype</Text>
-              <View style={styles.selectBox} accessibilityLabel="Statistikktype: Skole">
-                <Text style={styles.selectText}>Skole</Text>
-                <Text style={styles.selectArrow}>⌄</Text>
-              </View>
-            </View>
-
-            {entries.length === spacing.none ? (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyTitle}>Ingen poeng ennå</Text>
-                <Text style={styles.emptyText}>Når russ får godkjent knuter, dukker topplisten opp her.</Text>
-              </View>
-            ) : (
-              <View style={styles.list}>
-                {entries.map((entry) => (
-                  <LeaderboardRow
-                    key={entry.userId}
-                    entry={entry}
-                    onCurrentUserLayout={entry.isCurrentUser ? handleCurrentUserLayout : undefined}
-                  />
-                ))}
-              </View>
-            )}
-          </View>
-        </ScrollView>
-        <AppTabBar active="toppliste" />
-      </View>
-    </>
-  )
+// Medal fills for the podium (design-system MEDAL map). Everyone else gets the
+// soft neutral badge — the ladder is communicated by rank + title, not color
+// alone (a11y).
+const MEDAL_COLOR: Record<number, string> = {
+  1: sticker.color.gold,
+  2: sticker.color.silver,
+  3: sticker.color.bronze,
 }
-
-// memo: one row per russ in the school (a few hundred at vg1/vg2 scale) — a
-// parent re-render (refresh state etc.) must not re-render every row. Stable
-// props: entry objects keep identity within a query result, and the layout
-// callback is a useCallback ref-writer.
-const LeaderboardRow = memo(function LeaderboardRow({
-  entry,
-  onCurrentUserLayout,
-}: {
-  entry: LeaderboardEntry
-  onCurrentUserLayout?: (y: number) => void
-}) {
-  const statusLabel = entry.isCurrentUser
-    ? 'Deg'
-    : entry.rank <= TOP_RANK_LIMIT
-      ? 'Topplass'
-      : 'Russ'
-
-  const handleLayout = (event: LayoutChangeEvent) => {
-    onCurrentUserLayout?.(event.nativeEvent.layout.y)
-  }
-
-  return (
-    <View
-      style={[
-        styles.row,
-        entry.rank === 1 && styles.rowFirst,
-        entry.rank === 2 && styles.rowSecond,
-        entry.rank === TOP_RANK_LIMIT && styles.rowThird,
-        entry.isCurrentUser && styles.rowCurrentUser,
-      ]}
-      onLayout={entry.isCurrentUser ? handleLayout : undefined}
-      accessibilityLabel={`Plass ${formatPoints(entry.rank)}, ${entry.russenavn}, ${entry.rankTitle}, ${formatPoints(entry.points)} poeng${entry.isCurrentUser ? ', det er deg' : ''}`}
-    >
-      <View
-        style={[
-          styles.rankBadge,
-          entry.rank <= TOP_RANK_LIMIT && styles.rankBadgeTop,
-          entry.isCurrentUser && styles.rankBadgeCurrentUser,
-        ]}
-      >
-        <Text style={[styles.rankText, entry.isCurrentUser && styles.rankTextCurrentUser]}>
-          #{formatPoints(entry.rank)}
-        </Text>
-      </View>
-
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{getInitials(entry.russenavn)}</Text>
-      </View>
-
-      <View style={styles.nameBlock}>
-        <Text style={[styles.russenavn, entry.isCurrentUser && styles.bold]} numberOfLines={1}>
-          {entry.russenavn}
-        </Text>
-        <Text style={styles.rankTitle} numberOfLines={1}>
-          {entry.rankTitle}
-        </Text>
-        <View style={styles.metaRow}>
-          <View style={styles.metaChip}>
-            <Text style={styles.metaChipText}>{statusLabel}</Text>
-          </View>
-          {entry.rank <= TOP_RANK_LIMIT ? (
-            <Text style={styles.rankNote}>{getTopRankLabel(entry.rank)}</Text>
-          ) : null}
-        </View>
-      </View>
-
-      <View style={styles.pointsBadge}>
-        <Text style={styles.pointsText}>{formatPoints(entry.points)} p</Text>
-      </View>
-    </View>
-  )
-})
 
 function getInitials(name: string) {
   const letters = name
@@ -239,291 +63,389 @@ function getInitials(name: string) {
   return letters || 'R'
 }
 
-function getTopRankLabel(rank: number) {
-  if (rank === 1) return 'Leder'
-  if (rank === 2) return 'Jakter'
-  if (rank === TOP_RANK_LIMIT) return 'På pallen'
-  return ''
+// Copy for the pinned «min plass» card. Framed as an invitation (what's within
+// reach), never as a loss — pressure-free gamification. Exported for tests.
+export function nextPlaceText(entries: LeaderboardEntry[], me: LeaderboardEntry): string {
+  const above = entries.find((e) => e.rank === me.rank - 1)
+  if (!above) return 'Du leder kullet!'
+  const gap = Math.max(above.points - me.points, 1)
+  return `Du mangler ${formatNumber(gap)} poeng til plass ${formatNumber(above.rank)}`
+}
+
+export default function LeaderboardScreen() {
+  const insets = useSafeAreaInsets()
+  const reduceMotion = useReducedMotion()
+  const listRef = useRef<FlashList<LeaderboardEntry>>(null)
+
+  const { data, error, isLoading, refetch, isRefetching } = useQuery({
+    queryKey: ['leaderboard'],
+    queryFn: fetchLeaderboard,
+  })
+
+  const entries = data?.leaderboard ?? []
+  const myIndex = entries.findIndex((e) => e.isCurrentUser)
+  const me = myIndex >= 0 ? entries[myIndex]! : null
+
+  const goToMyPlace = useCallback(() => {
+    if (myIndex >= 0) {
+      listRef.current?.scrollToIndex({ index: myIndex, animated: true, viewPosition: 0.4 })
+    }
+  }, [myIndex])
+
+  const renderRow = useCallback(
+    ({ item, index }: ListRenderItemInfo<LeaderboardEntry>) => (
+      <Animated.View
+        entering={
+          reduceMotion || index >= STAGGER_MAX_STEPS
+            ? undefined
+            : FadeInDown.duration(animation.duration.base).delay(index * STAGGER_STEP_MS)
+        }
+      >
+        <LeaderRow entry={item} />
+      </Animated.View>
+    ),
+    [reduceMotion],
+  )
+
+  if (isLoading) return <LoadingState />
+  if (error)
+    return <ErrorState message={(error as Error).message} onRetry={() => void refetch()} />
+
+  const bottomPadding =
+    insets.bottom +
+    size.bottomNavMinHeight +
+    spacing.xl +
+    (me ? MY_PLACE_CLEARANCE : spacing.none)
+
+  const listHeader = (
+    <View style={styles.hero}>
+      <Eyebrow>Knuteloop</Eyebrow>
+      <Text
+        font="display"
+        weight="bold"
+        style={styles.heading}
+        accessibilityRole="header"
+        accessibilityLabel="Toppliste"
+      >
+        Toppliste
+      </Text>
+      <Text size="sm" color={sticker.color.textMuted}>
+        Vennlig oversikt over deltakelsen i kullet.
+      </Text>
+      <View style={styles.countChip}>
+        <CountUp value={entries.length} suffix=" russ" style={styles.countChipText} />
+      </View>
+    </View>
+  )
+
+  return (
+    <View style={styles.root}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <FlashList
+        ref={listRef}
+        data={entries}
+        keyExtractor={(entry) => entry.userId}
+        renderItem={renderRow}
+        estimatedItemSize={ESTIMATED_ROW_HEIGHT}
+        ItemSeparatorComponent={ListGap}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={
+          <StickerCard tone="soft" radius="lg" shadow="sm">
+            <View style={styles.emptyState}>
+              <Text weight="bold" size="base" color={sticker.color.ink}>
+                Ingen poeng ennå
+              </Text>
+              <Text size="sm" color={sticker.color.textMuted} style={styles.centerText}>
+                Når russ får godkjent knuter, dukker topplisten opp her.
+              </Text>
+            </View>
+          </StickerCard>
+        }
+        contentContainerStyle={{
+          paddingHorizontal: spacing.base,
+          paddingTop: insets.top + spacing.lg,
+          paddingBottom: bottomPadding,
+        }}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={() => void refetch()}
+            tintColor={sticker.color.ink}
+          />
+        }
+      />
+
+      {me ? (
+        <View
+          style={[
+            styles.myPlaceWrap,
+            { bottom: insets.bottom + size.bottomNavMinHeight + spacing.md },
+          ]}
+          pointerEvents="box-none"
+        >
+          <StickerCard
+            tone="accent"
+            radius="lg"
+            shadow="base"
+            padding="md"
+            onPress={goToMyPlace}
+            haptic="light"
+            accessibilityRole="button"
+            accessibilityLabel={`Din plass: ${formatNumber(me.rank)}. ${me.rankTitle}, ${formatNumber(me.points)} poeng`}
+            accessibilityHint="Ruller listen til din plassering."
+          >
+            <View style={styles.myPlaceRow}>
+              <Text font="mono" weight="bold" style={styles.myPlaceRank}>
+                #{formatNumber(me.rank)}
+              </Text>
+              <View style={styles.myPlaceBody}>
+                <Text
+                  font="display"
+                  weight="bold"
+                  size="base"
+                  color={sticker.color.ink}
+                  numberOfLines={1}
+                >
+                  {me.rankTitle}
+                </Text>
+                <Text size="xs" weight="semibold" color={sticker.color.ink} numberOfLines={1}>
+                  {nextPlaceText(entries, me)}
+                </Text>
+              </View>
+              <Text font="mono" weight="bold" size="base" color={sticker.color.ink}>
+                {formatNumber(me.points)} p
+              </Text>
+            </View>
+          </StickerCard>
+        </View>
+      ) : null}
+
+      <AppTabBar active="toppliste" />
+    </View>
+  )
+}
+
+// One row of the toppliste. memo: a few hundred rows per school — parent
+// re-renders (refresh state etc.) must not re-render them all. Non-pressable
+// (public profiles are not in v2), so the row is ONE screen-reader element via
+// the inner accessible View.
+const LeaderRow = memo(function LeaderRow({ entry }: { entry: LeaderboardEntry }) {
+  const medal = MEDAL_COLOR[entry.rank]
+  return (
+    <StickerCard radius="md" shadow="sm" padding="md">
+      <View
+        style={styles.row}
+        accessible
+        accessibilityLabel={`Plass ${formatNumber(entry.rank)}, ${entry.russenavn}, ${entry.rankTitle}, ${formatNumber(entry.points)} poeng${entry.isCurrentUser ? ', det er deg' : ''}`}
+      >
+        <View style={[styles.rankBadge, medal ? { backgroundColor: medal } : null]}>
+          <Text
+            font="mono"
+            weight="bold"
+            size="sm"
+            color={medal ? sticker.color.textInverse : sticker.color.textSoft}
+          >
+            {formatNumber(entry.rank)}
+          </Text>
+        </View>
+        <View style={styles.avatar}>
+          <Text weight="bold" size="sm" color={sticker.color.textSoft}>
+            {getInitials(entry.russenavn)}
+          </Text>
+        </View>
+        <View style={styles.nameBlock}>
+          <View style={styles.nameLine}>
+            <Text
+              font="display"
+              weight="bold"
+              size="base"
+              color={sticker.color.ink}
+              numberOfLines={1}
+              style={styles.nameText}
+            >
+              {entry.russenavn}
+            </Text>
+            {entry.isCurrentUser ? <Chip label="Deg" tone="accent" /> : null}
+          </View>
+          <Text size="xs" weight="semibold" color={sticker.color.textMuted} numberOfLines={1}>
+            {entry.rankTitle}
+          </Text>
+        </View>
+        <View style={styles.pointsBlock}>
+          <Text font="mono" weight="bold" size="lg" color={sticker.color.ink}>
+            {formatNumber(entry.points)}
+          </Text>
+          <Text size="xs" color={sticker.color.textMuted}>
+            poeng
+          </Text>
+        </View>
+      </View>
+    </StickerCard>
+  )
+})
+
+// Spacing between rows. FlashList has no `gap` — a separator keeps row heights
+// predictable for recycling.
+function ListGap() {
+  return <View style={styles.listGap} />
+}
+
+function LoadingState() {
+  return (
+    <View style={styles.root}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={styles.loadingContent}>
+        <Skeleton style={styles.skeletonHeading} />
+        {[0, 1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} style={styles.skeletonRow} />
+        ))}
+      </View>
+    </View>
+  )
+}
+
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <View style={styles.center}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <StickerCard radius="lg" style={styles.errorCard}>
+        <View style={styles.errorContent}>
+          <Text weight="bold" size="lg" color={sticker.color.danger}>
+            Kunne ikke laste topplisten
+          </Text>
+          <Text size="sm" color={sticker.color.textMuted} style={styles.centerText}>
+            {message}
+          </Text>
+          <StickerButton label="Prøv igjen" variant="primary" onPress={onRetry} />
+        </View>
+      </StickerCard>
+    </View>
+  )
 }
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.leaderboard.canvas,
-  },
-  scroll: {
-    flex: 1,
-    backgroundColor: colors.leaderboard.canvas,
-  },
-  content: {
-    paddingHorizontal: spacing.base,
-    paddingTop: spacing.base,
-    gap: spacing.lg,
+    backgroundColor: sticker.color.paper,
   },
   hero: {
-    gap: spacing.xs,
-  },
-  eyebrow: {
-    color: colors.ink,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
+    gap: spacing.sm,
+    paddingBottom: spacing.base,
   },
   heading: {
-    color: colors.ink,
     fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
+    lineHeight: fontSize['2xl'] * 1.1,
+    color: sticker.color.ink,
   },
-  heroText: {
-    color: colors.knuter.muted,
-    fontSize: fontSize.sm,
-  },
-  panel: {
-    backgroundColor: colors.leaderboard.panel,
-    borderWidth: borderWidth.medium,
-    borderColor: colors.borderInk,
-    borderRadius: radius.lg,
-    padding: spacing.base,
-    gap: spacing.base,
-  },
-  panelHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  panelTitleBlock: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  panelTitle: {
-    color: colors.ink,
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-  },
-  panelText: {
-    color: colors.knuter.muted,
-    fontSize: fontSize.sm,
-  },
-  myPlaceButton: {
-    minHeight: size.actionMinHeight,
-    minWidth: size.leaderboardPanelActionMinWidth,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: borderWidth.medium,
-    borderColor: colors.borderInk,
-    borderRadius: radius.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.surface,
-  },
-  myPlaceText: {
-    color: colors.ink,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-  },
-  filterBlock: {
+  countChip: {
     alignSelf: 'flex-start',
-    gap: spacing.xs,
+    backgroundColor: sticker.color.ink,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: sticker.radius.full,
   },
-  filterLabel: {
-    color: colors.knuter.muted,
+  countChipText: {
+    color: sticker.color.textInverse,
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-  },
-  selectBox: {
-    width: size.leaderboardSelectWidth,
-    minHeight: size.actionMinHeight,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: borderWidth.medium,
-    borderColor: colors.borderInk,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.surface,
-  },
-  selectText: {
-    color: colors.ink,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-  },
-  selectArrow: {
-    color: colors.ink,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-  },
-  list: {
-    gap: spacing.sm,
+    fontFamily: fontFamily.mono.semibold,
   },
   row: {
-    minHeight: size.leaderboardRowMinHeight,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.leaderboard.row,
-    borderWidth: borderWidth.medium,
-    borderColor: colors.borderInk,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-  },
-  rowFirst: {
-    backgroundColor: colors.leaderboard.first,
-    borderColor: colors.accent.yellow,
-  },
-  rowSecond: {
-    backgroundColor: colors.leaderboard.second,
-    borderColor: colors.borderStrong,
-  },
-  rowThird: {
-    backgroundColor: colors.leaderboard.third,
-    borderColor: colors.warning,
-  },
-  rowCurrentUser: {
-    borderWidth: borderWidth.thick,
+    gap: spacing.md,
   },
   rankBadge: {
-    width: size.leaderboardRank,
-    height: size.leaderboardRank,
+    width: RANK_BADGE_SIZE,
+    height: RANK_BADGE_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: borderWidth.medium,
-    borderColor: colors.borderInk,
-    borderRadius: radius.full,
-    backgroundColor: colors.accent.yellow,
-  },
-  rankBadgeTop: {
-    backgroundColor: colors.accent.yellow,
-  },
-  rankBadgeCurrentUser: {
-    backgroundColor: colors.ink,
-  },
-  rankText: {
-    color: colors.ink,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-  },
-  rankTextCurrentUser: {
-    color: colors.text.inverse,
+    borderRadius: sticker.radius.full,
+    borderWidth: sticker.borderWidth,
+    borderColor: sticker.color.ink,
+    backgroundColor: sticker.color.surfaceSoft,
   },
   avatar: {
-    width: size.leaderboardAvatar,
-    height: size.leaderboardAvatar,
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: borderWidth.thin,
-    borderColor: colors.borderInk,
-    borderRadius: radius.full,
-    backgroundColor: colors.leaderboard.chip,
-  },
-  avatarText: {
-    color: colors.ink,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
+    borderRadius: sticker.radius.full,
+    borderWidth: sticker.borderWidth,
+    borderColor: sticker.color.ink,
+    backgroundColor: sticker.color.primaryBg,
   },
   nameBlock: {
     flex: 1,
     minWidth: spacing.none,
     gap: spacing.xs,
   },
-  russenavn: {
-    color: colors.ink,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-  },
-  bold: {
-    fontWeight: fontWeight.bold,
-  },
-  rankTitle: {
-    color: colors.knuter.muted,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-  },
-  metaRow: {
+  nameLine: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
   },
-  metaChip: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.leaderboard.chip,
-    borderRadius: radius.full,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing['2xs'],
+  nameText: {
+    flexShrink: 1,
   },
-  metaChipText: {
-    color: colors.knuter.muted,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
+  pointsBlock: {
+    alignItems: 'flex-end',
   },
-  rankNote: {
-    color: colors.ink,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
+  listGap: {
+    height: spacing.md,
   },
-  pointsBadge: {
+  myPlaceWrap: {
+    position: 'absolute',
+    left: spacing.base,
+    right: spacing.base,
+    zIndex: 10,
+  },
+  myPlaceRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.full,
-    backgroundColor: colors.leaderboard.points,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    shadowColor: colors.leaderboard.pointsShadow,
-    shadowOffset: { width: spacing.none, height: spacing.xs },
-    shadowOpacity: opacity.shadow,
-    shadowRadius: spacing.sm,
-    elevation: spacing.xs,
+    gap: spacing.md,
   },
-  pointsText: {
-    color: colors.text.inverse,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
+  myPlaceRank: {
+    fontSize: fontSize.xl,
+    color: sticker.color.ink,
+  },
+  myPlaceBody: {
+    flex: 1,
+    minWidth: spacing.none,
   },
   emptyState: {
     alignItems: 'center',
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.xl,
+    paddingVertical: spacing.lg,
     gap: spacing.xs,
   },
-  emptyTitle: {
-    color: colors.ink,
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.bold,
-  },
-  emptyText: {
-    color: colors.knuter.muted,
-    fontSize: fontSize.sm,
+  centerText: {
     textAlign: 'center',
+  },
+  loadingContent: {
+    flex: 1,
+    paddingHorizontal: spacing.base,
+    paddingTop: spacing.xl,
+    gap: spacing.base,
+  },
+  skeletonHeading: {
+    width: size.skeletonTitleWidth,
+    height: size.skeletonTitleHeight,
+  },
+  skeletonRow: {
+    height: ESTIMATED_ROW_HEIGHT,
+    borderRadius: sticker.radius.md,
   },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.lg,
-    minHeight: size.emptyMinHeight,
-    backgroundColor: colors.leaderboard.canvas,
+    backgroundColor: sticker.color.paper,
   },
-  errorTitle: {
-    color: colors.error,
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-    marginBottom: spacing.sm,
+  errorCard: {
+    alignSelf: 'stretch',
   },
-  muted: {
-    color: colors.text.muted,
-    fontSize: fontSize.sm,
-    textAlign: 'center',
-  },
-  retryButton: {
-    marginTop: spacing.base,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.ink,
-    borderRadius: radius.md,
-  },
-  retryText: {
-    color: colors.text.inverse,
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
+  errorContent: {
+    alignItems: 'center',
+    gap: spacing.md,
   },
 })
