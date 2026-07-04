@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { and, desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, lt, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 import { auth, type AuthVariables } from '../middleware/auth.js'
@@ -28,6 +28,18 @@ const createSubmissionSchema = z.object({
   // validated against the knute's evidence_type in the handler (a DB lookup).
   imageKey: z.string().trim().min(1).max(500).optional(),
   caption: z.string().trim().max(500).optional(),
+})
+
+const DEFAULT_PAGE_SIZE = 20
+const MAX_PAGE_SIZE = 50
+
+// Cursor = createdAt ISO of the last item on the previous page — the same
+// contract as /api/feed. A timestamp-only cursor can skip an item on an
+// exact-microsecond tie; acceptable for a review queue (pull-to-refresh
+// reconciles, and nothing is lost — the row stays pending).
+const pendingQuerySchema = z.object({
+  cursor: z.string().datetime({ offset: true }).optional(),
+  limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
 })
 
 export const submissionRoutes = new Hono<{ Variables: Variables }>()
@@ -160,45 +172,87 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
     },
   )
 
-  // GET /api/submissions/pending — knutesjef sees the school's pending queue.
-  // Joins russenavn + knute title/points for one-shot display (no N+1).
-  .get('/pending', requireRole('knutesjef', 'admin'), async (c) => {
+  // GET /api/submissions/pending — knutesjef sees the school's pending queue,
+  // newest first, cursor-paginated (default 20, max 50 — same contract as
+  // /api/feed). Joins russenavn + knute title/points for one-shot display
+  // (no N+1). Served by the partial index submissions_pending_idx
+  // (school_id, created_at DESC) WHERE status = 'pending'.
+  .get(
+    '/pending',
+    requireRole('knutesjef', 'admin'),
+    zValidator('query', pendingQuerySchema, (result, c) => {
+      if (!result.success) {
+        return c.json(
+          { error: { message: 'Invalid input', issues: result.error.flatten() } },
+          400,
+        )
+      }
+      return undefined
+    }),
+    async (c) => {
+      const tx = c.get('tx')
+      const schoolId = c.get('schoolId')
+      const { cursor, limit } = c.req.valid('query')
+
+      const conditions = [
+        eq(submissions.schoolId, schoolId),
+        eq(submissions.status, 'pending'),
+      ]
+      if (cursor) {
+        conditions.push(lt(submissions.createdAt, new Date(cursor)))
+      }
+
+      // Fetch one extra row to know whether another page exists.
+      const rows = await tx
+        .select({
+          id: submissions.id,
+          userId: submissions.userId,
+          knuteId: submissions.knuteId,
+          imageKey: submissions.imageKey,
+          caption: submissions.caption,
+          createdAt: submissions.createdAt,
+          russenavn: users.russenavn,
+          knuteTitle: knuter.title,
+          knutePoints: knuter.points,
+          evidenceType: knuter.evidenceType,
+        })
+        .from(submissions)
+        .innerJoin(users, eq(users.id, submissions.userId))
+        .innerJoin(knuter, eq(knuter.id, submissions.knuteId))
+        .where(and(...conditions))
+        .orderBy(desc(submissions.createdAt))
+        .limit(limit + 1)
+
+      const hasMore = rows.length > limit
+      const page = hasMore ? rows.slice(0, limit) : rows
+      const nextCursor = hasMore ? page[page.length - 1]!.createdAt.toISOString() : null
+
+      // Resolve each stored key to a loadable URL (null for legacy placeholder keys
+      // that aren't real uploads — the client shows a placeholder for those).
+      const origin = requestOrigin(c.req.url)
+      const withUrls = page.map((r) => ({
+        ...r,
+        imageUrl:
+          r.imageKey && isValidImageKey(r.imageKey) ? publicUrlForKey(r.imageKey, origin) : null,
+      }))
+
+      return c.json({ submissions: withUrls, nextCursor })
+    },
+  )
+
+  // GET /api/submissions/pending/count — the queue badge (tab bar + knutesjef
+  // panel). The list endpoint is paginated, so badges use this count(*) instead
+  // of downloading the whole queue to measure its length. Same partial index.
+  .get('/pending/count', requireRole('knutesjef', 'admin'), async (c) => {
     const tx = c.get('tx')
     const schoolId = c.get('schoolId')
 
-    const rows = await tx
-      .select({
-        id: submissions.id,
-        userId: submissions.userId,
-        knuteId: submissions.knuteId,
-        imageKey: submissions.imageKey,
-        caption: submissions.caption,
-        createdAt: submissions.createdAt,
-        russenavn: users.russenavn,
-        knuteTitle: knuter.title,
-        knutePoints: knuter.points,
-        evidenceType: knuter.evidenceType,
-      })
+    const [row] = await tx
+      .select({ count: count() })
       .from(submissions)
-      .innerJoin(users, eq(users.id, submissions.userId))
-      .innerJoin(knuter, eq(knuter.id, submissions.knuteId))
-      .where(
-        and(
-          eq(submissions.schoolId, schoolId),
-          eq(submissions.status, 'pending'),
-        ),
-      )
-      .orderBy(desc(submissions.createdAt))
+      .where(and(eq(submissions.schoolId, schoolId), eq(submissions.status, 'pending')))
 
-    // Resolve each stored key to a loadable URL (null for legacy placeholder keys
-    // that aren't real uploads — the client shows a placeholder for those).
-    const origin = requestOrigin(c.req.url)
-    const withUrls = rows.map((r) => ({
-      ...r,
-      imageUrl: r.imageKey && isValidImageKey(r.imageKey) ? publicUrlForKey(r.imageKey, origin) : null,
-    }))
-
-    return c.json({ submissions: withUrls })
+    return c.json({ count: row?.count ?? 0 })
   })
 
   // PATCH /api/submissions/:id/approve — knutesjef approves a pending submission.
