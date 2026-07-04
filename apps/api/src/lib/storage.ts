@@ -97,6 +97,9 @@ export type ImageVariant = { width: number; quality: number }
 /** Review-queue cards: photo well is card-width (~360pt) at 2-3× DPR. */
 export const PENDING_CARD_VARIANT: ImageVariant = { width: 750, quality: 80 }
 
+/** Public-profile grid: 3-column thumbnails (~125pt) at 2-3× DPR. */
+export const PROFILE_GRID_VARIANT: ImageVariant = { width: 400, quality: 80 }
+
 /** Append Bunny Optimizer resize params. Assumes `url` has no query string yet
  *  (the URLs built here never do). Exported for unit tests. */
 export function withImageVariant(url: string, variant: ImageVariant): string {
