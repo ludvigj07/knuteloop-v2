@@ -11,6 +11,7 @@ import {
   pgPolicy,
 } from 'drizzle-orm/pg-core'
 import { schools } from './schools'
+import { schoolClasses } from './school-classes'
 
 // Tenant-scoped: full RLS treatment per database.md §1.
 // Auth-related columns (email, token_version) will be exercised when auth is wired up.
@@ -35,6 +36,10 @@ export const users = pgTable(
     // sets one. A future profile-edit endpoint MUST clamp its length (~700 chars).
     quote: text('quote'),
     points: integer('points').notNull().default(0),
+    // The class this russ has claimed (school_classes row). Null until claimed —
+    // class-less users appear in the school leaderboard but not the class views.
+    // SET NULL so a knutesjef deleting a class never deletes its members.
+    classId: uuid('class_id').references(() => schoolClasses.id, { onDelete: 'set null' }),
     // Verified-adult flag from Vipps-verified age (BankID-level). Default false =
     // treated as a minor (safe default) until verified. Gates 18+ content. ADR-0015.
     isAdult: boolean('is_adult').notNull().default(false),
