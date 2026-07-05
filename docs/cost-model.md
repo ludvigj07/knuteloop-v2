@@ -77,7 +77,7 @@ Kilder: [aiven.io/postgresql](https://aiven.io/postgresql), [pg-backups-doc](htt
 
 Kilde: [bunny.net/pricing](https://bunny.net/pricing/).
 
-### Vipps Login (fremtidig auth — parkert ~1 år, men prises her)
+### Vipps Login (fremtidig auth — bygges før lansering våren 2027)
 
 **Modell: fast månedspris i trinn etter aktive brukere (siste 12 mnd) — IKKE per innlogging.**
 (Ble betaltjeneste 1. aug 2024.)
