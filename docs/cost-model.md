@@ -3,8 +3,10 @@
 > **Formål:** gi prismodellen mot russestyrene et faktagrunnlag av *dagens* leverandørpriser,
 > ikke mai-estimatene i `architecture.md` §5–6 (som er utdaterte — se «Avvik fra mai-planen»).
 > Alle tall er hentet fra offisielle kilder 2026-07-03 av fire parallelle research-agenter,
-> med kilde-URL og verifisert/uverifisert-flagg. Regnestykkene er kalibrert mot ekte v1-bruk
-> (1 917 innsendinger på ~164 brukere ≈ **12 innsendinger per russ per sesong**).
+> med kilde-URL og verifisert/uverifisert-flagg. Regnestykkene er kalibrert mot ekte v1-bruk:
+> piloten nådde **2 400 innsendinger** på ~164 russ ≈ **15 per russ** — men det var en sterkt
+> engasjert skole (100 % aktivering), så scenariene under regner bevisst konservativt med
+> **12/russ** som snitt for ukjente skoler. (Innsendt ≈ godkjent: 99,4 % ble godkjent på piloten.)
 >
 > **Valutaantakelser (IKKE verifisert — oppdater ved bruk):** 1 EUR ≈ 11,7 NOK · 1 USD ≈ 10,5 NOK.
 > Leverandørpriser er ekskl. mva; norsk mva/reverse charge kommer i tillegg der det gjelder.
