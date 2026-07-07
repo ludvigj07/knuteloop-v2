@@ -224,6 +224,38 @@ lander, og hvor mange regionale sponsorer du lukker per region.
 
 ---
 
+## Del D2 — Rollout-plan 2027 (utførelse)
+
+Prinsipp: **tetthet slår spredning.** En sponsor kjøper en *region*, ikke skoler — du kan ikke selge
+«Stavanger eksklusiv» hvis du har 3 skoler i Stavanger og resten spredt utover. Én region du *eier*
+er verdt mer enn 50 skoler sprinklet rundt. Så 2027 går i dybden, ikke bredden.
+
+**Selg bredt, lever tett** — skill de to verbene:
+- **Pitche** koster nesten ingenting og lærer deg pris + innvendinger + hvilke kategorier biter. Det
+  ER «oppdag»-metoden i praksis. Pitch så mange regionale sponsorer du vil.
+- **Signere/levere** krever at du faktisk dekker regionen. Selg ikke en region du ikke kan levere —
+  en dårlig case-study er verre enn ingen.
+
+**De fire stegene:**
+1. **Vinn hjemmebanen helt først (Stor-Stavanger).** Der har du sosial kapital + en pilot-skole som
+   elsker appen. Få flest mulig av Stavanger-skolene inn. Ikke rør andre regioner ennå.
+2. **La funnelen gjøre spredningen gratis** — feed + handoff drar de neste skolene inn innad i
+   regionen. (Denne delen kan gå mens du er i militæret.)
+3. **Land 1–3 fyrtårn-sponsorer i regionen** — én per kategori (burger, gym, klær, mobil…), alle
+   eksklusive. Founding-vilkår. Over-lever og dokumentér *alt* (fullførte, sitater, WOM).
+4. **Gjør avtalen(e) om til 2028-maskinen** — case-study-en selger neste region og lar deg heve prisen.
+
+**Tre vakter (der «å prøve gjør 0 skade» ikke helt stemmer):**
+- Kategori-eksklusivitet er en engangsressurs per region — ikke brenn «Stavanger-burgeren» på et
+  svakt/billig ja bare for å *ha* en sponsor.
+- Ikke signér en region du ikke kan dekke ennå.
+- Ikke desperat-rabattér overalt → da setter du et lavt anker overalt. Én velpriset founding slår fem billige.
+
+Din knappe ressurs pre-militæret er **tiden din, ikke antall forsøk.** Founding-salget krever *deg*
+personlig — gjør det i vinduet før tjenesten (28. juli) eller på perm. Alt annet skal være selvgående.
+
+---
+
 ## Del E — Guardrails (ikke valgfritt)
 
 - Brukere kan være 17. **Ingen alkohol-, tobakk-, snus- eller gambling-sponsorer.** Apple-regler +
@@ -250,4 +282,4 @@ lander, og hvor mange regionale sponsorer du lukker per region.
 ---
 
 *Utkast 2026-07-07. Parkjøring Ludvig + Claude. Tall merket antatt skal ikke i bindende tilbud uten
-ekte datapunkt. Kostnadssiden: `docs/cost-model.md`. Skala/inntektslogikk: ADR-0011.*
+ekte datapunkt. Kostnadssiden: `docs/cost-model.md`. Skala: ADR-0011. Inntektsmodell (trinn + sponsor): ADR-0020.*
