@@ -73,7 +73,7 @@ kommer i nærheten av garantert, sosialt forsterket handling.
 | Nivå | Eksempel | Rekkevidde | Pris/sesong |
 |---|---|---|---|
 | Lokal enkeltskole | Kebaben på hjørnet | 1 skole | ~5 000 kr |
-| **Regional** ← 2027-fokus | Hekkan Burger i Nord-Norge | Hele den sosiale regionen | **~15 000–20 000 kr** |
+| **Regional** ← 2027-fokus | Hekkan Burger i Nord-Norge | Hele den sosiale regionen | **skalerer med rekkevidde** (se under) |
 | Nasjonal | Merkevare | Alle skoler | Større — utsatt (krever bevis + flaks) |
 
 ### «Region» = sosialt nedslagsfelt, ikke geografi
@@ -92,6 +92,27 @@ Fordi regionen = et vennenettverk, sprer is-knute-effekten seg gjennom venner. S
 > Bergen, Trondheim, Stor-Stavanger (Nord-Jæren), Kristiansand, Tromsø, Bodø, Ålesund, Drammen,
 > Nedre Glomma (Fredrikstad/Sarpsborg). Oslo er stort; de fleste andre er mindre.
 
+### Regional pris skalerer med rekkevidde (ikke flat)
+
+Flat «15–20k» er feil — det er *gulvet for en liten region*. Prisen må følge **hvor mange russ
+regionen faktisk når**, fordi det er umulig å nå alle russ i et miljø billigere noe annet sted:
+
+> **Regional sponsorpris ≈ russ i regionen × sats (kr/russ)**
+
+- **Sats-anker:** å nå ~alle russ i Stor-Stavanger er verdt **godt over 20k** → gulvet er ~7 kr/russ,
+  og med garantert, sosialt forsterket handling er reell verdi nærmere **~10–15 kr/russ**.
+- **Oslo tar premium på toppen, ikke bare flere hoder** — å «eie» Oslo-miljøet er verdt mer *per russ*
+  (størst scene, kjøpekraft, prestisje) enn en mindre by.
+
+**Illustrerende stige (russ-tall = placeholder, Ludvig bekrefter):**
+
+| Region | ~Russ | ~Pris/sponsor (10–15 kr/russ) |
+|---|---|---|
+| Liten by (Bodø/Ålesund) | ~1 200 | ~15–25k ← her passer gamle «15–20k» |
+| Stor-Stavanger | ~3 000 | ~30–45k |
+| Bergen / Trondheim | ~4 000 | ~40–60k |
+| Oslo (+ Akershus) | ~15 000 | ~150–225k+ (premium) |
+
 ### Modelleringsnyanse (ikke dobbelt-tell)
 
 «5–7 sponsorer per skole-knuteliste» betyr *ikke* pris × sponsorer × skoler. En regional sponsor
@@ -107,8 +128,13 @@ Lokale enkeltskole-sponsorer (5k) kommer på toppen som ren upside — og den de
 ## Del C — Inntekt og margin (30 / 50 / 100 skoler)
 
 **Antakelser:** sosial region ≈ 10 skoler (forenkling — Oslo er større, flere er mindre; **dette er
-den viktigste variabelen å kalibrere**). 5–7 regionale sponsorer per region à 15–20k. Trinn-snitt
-~900 kr/skole (base). Kost = infra + sesong-Vipps fra `cost-model.md`.
+den viktigste variabelen å kalibrere**). 5–7 regionale sponsorer per region. Trinn-snitt ~900 kr/skole
+(base). Kost = infra + sesong-Vipps fra `cost-model.md`.
+
+> ⚠️ **Tabellene under bruker fortsatt flat 15–20k per sponsor og undervurderer derfor store regioner
+> grovt.** Reach-basert (10–15 kr/russ) er den riktige modellen — Oslo alene kan overgå hele
+> sponsor-kolonnen. Regnes om når russ-per-region er satt (Del F). Tallene under er altså et
+> *konservativt gulv*, ikke et tak.
 
 ### Skolebetaling (base-fordeling, snitt ~900 kr/skole)
 
@@ -161,6 +187,9 @@ lander, og hvor mange regionale sponsorer du lukker per region.
 
 - [ ] **Skoler per sosial region** — den viktigste variabelen. Ludvig fyller inn realistiske tall
       per region (Oslo vs. de mindre).
+- [ ] **Russ per sosial region** — driver reach-basert pris direkte. Ludvig bekrefter (Stor-Stavanger,
+      Oslo, Bergen, Trondheim, …).
+- [ ] **Sats per russ (kr/russ)** — anker ~10–15 kr fra Stavanger-signalet; Oslo-premium på toppen.
 - [ ] **Regional attach-rate** — hvor mange regionale sponsorer lukkes faktisk per region? (Salg,
       Ludvigs domene.)
 - [ ] **Første regionale sponsor = ekte datapunkt.** Ett lukket salg slår hele denne tabellen.
