@@ -28,6 +28,30 @@
 
 ---
 
+## 2027 — mål og posisjon (les dette først)
+
+2027 er **ikke** et maksimer-inntekt-år. Målet er å (a) tjene nok til å holde bedriften i live og
+finansiere videre bygging, og (b) **sette opp fremtiden**. Dette er ikke et get-rich-quick-prosjekt —
+og det endrer hvordan du leser alle tallene under.
+
+**Aktivumet du bygger i 2027 er ikke omsetning — det er installert base + kulturell posisjon + bevis:**
+
+- **Underprisér skolebetalingen med vilje.** Trinn-modellen skal holde lyset på, ikke gi profitt —
+  jobben dens i 2027 er *adopsjon*: flest mulig skoler inn i feed/handoff-funnelen. Hver skole er
+  fremtidig sponsor-inventar.
+- **Gjør 1–3 fyrtårn-sponsorater, ikke 20 desperate.** Én knallgod, over-levert og dokumentert
+  case-study (Hekkan-typen) er verdt mer enn ti middels logoer — det er salgsressursen for 2028.
+- **Sett listeprisen høyt selv om du rabatterer hardt.** «Stavanger eksklusiv = 45k list» i år én gjør
+  at 2028 forhandles fra 45k, ikke fra din founding-rabatt. Du anker fremtiden.
+- **Fler-årige founding-avtaler = vollgrav.** «Founding partner: 3 år til founding-pris, låser din
+  eksklusive kategori» sikrer kontinuitet OG blokkerer konkurrenter fra å ta den kulturelle plassen
+  før de finnes.
+
+**2027-suksess = overlevelse + reinvestering + et par referanse-avtaler + voksende installert base.**
+Ikke kroner på bunnlinjen. Tallene under er et *gulv for å holde liv i bedriften*, ikke målet.
+
+---
+
 ## Del A — Skolebetaling: den trinnvise modellen
 
 Russestyret betaler etter **hvor mye skolen faktisk bruker appen**, målt i innsendinger per sesong.
@@ -112,6 +136,32 @@ regionen faktisk når**, fordi det er umulig å nå alle russ i et miljø billig
 | Stor-Stavanger | ~3 000 | ~30–45k |
 | Bergen / Trondheim | ~4 000 | ~40–60k |
 | Oslo (+ Akershus) | ~15 000 | ~150–225k+ (premium) |
+
+### Slik priser du eksklusivitet (uten sammenlignbare tall)
+
+Du *beregner* ikke prisen på en immateriell kulturell posisjon — du *anker* den grovt og *oppdager*
+den via første avtale. Tre verktøy:
+
+1. **Gulvet (bevis-matte nedenfra):** kunder knuten skaper × verdi per kunde. Stavanger: ~750 fullført
+   + ~250 WOM ≈ 1 000 unge kunder × ~35 kr = **~35k** (ignorerer gjenkjøp + WOM-glorie).
+2. **Ankeret (nest-beste alternativ):** hva ville sponsoren ellers betalt for å nå samme russ?
+   ~2–3 influencer-poster + en sampling-stunt = 35–55k for noe dårligere/ikke-eksklusivt → **~40–50k.**
+3. **Oppdag (founding partner):** sett ambisiøs listepris, gi sponsor #1 stor founding-rabatt *mot*
+   case-study + uttalelse + publiseringsrett. Første JA = din pris-referanse + ditt manglende datapunkt.
+
+**Regler:** rabattér *prisen*, aldri *eksklusiviteten* (knappheten ER verdien). Anker høyt først, tre
+nivåer så de velger midten. Som solo-gründer er failure mode å prise for lavt av nerver — bias høyt;
+verste utfall av høy pris er at de forhandler (du lærer), verste av lav er at du forærer bort posisjonen.
+
+**Start-rate-card — eksklusiv kategori-posisjon** (premium over reach-stigen over; russ-tall =
+placeholder; founding partner betaler ~60 % av listepris år 1 mot case-study):
+
+| Region | ~Russ | Listepris (eksklusiv/kategori) | Founding år 1 |
+|---|---|---|---|
+| Liten by (Bodø/Ålesund) | ~1 200 | ~18k | ~11k |
+| Stor-Stavanger | ~3 000 | ~45k | ~27k |
+| Bergen / Trondheim | ~4 000 | ~55k | ~33k |
+| Oslo (+ Akershus) | ~15 000 | ~200k+ | forhandles |
 
 ### Modelleringsnyanse (ikke dobbelt-tell)
 
