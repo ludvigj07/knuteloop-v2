@@ -3,8 +3,10 @@
 > **Formål:** gi prismodellen mot russestyrene et faktagrunnlag av *dagens* leverandørpriser,
 > ikke mai-estimatene i `architecture.md` §5–6 (som er utdaterte — se «Avvik fra mai-planen»).
 > Alle tall er hentet fra offisielle kilder 2026-07-03 av fire parallelle research-agenter,
-> med kilde-URL og verifisert/uverifisert-flagg. Regnestykkene er kalibrert mot ekte v1-bruk
-> (1 917 innsendinger på ~164 brukere ≈ **12 innsendinger per russ per sesong**).
+> med kilde-URL og verifisert/uverifisert-flagg. Regnestykkene er kalibrert mot ekte v1-bruk:
+> piloten nådde **2 400 innsendinger** på ~164 russ ≈ **15 per russ** — men det var en sterkt
+> engasjert skole (100 % aktivering), så scenariene under regner bevisst konservativt med
+> **12/russ** som snitt for ukjente skoler. (Innsendt ≈ godkjent: 99,4 % ble godkjent på piloten.)
 >
 > **Valutaantakelser (IKKE verifisert — oppdater ved bruk):** 1 EUR ≈ 11,7 NOK · 1 USD ≈ 10,5 NOK.
 > Leverandørpriser er ekskl. mva; norsk mva/reverse charge kommer i tillegg der det gjelder.
@@ -23,8 +25,8 @@
 - **SLUTTPRODUKTET MED VIDEO (ADR-0019):** legg til ~150 NOK/mnd (pilot) → ~2 300 NOK/mnd i toppmåned (50 skoler). En video koster **~10 øre** å levere mot < 1 øre for et bilde (10–20×), men medie-kostnaden forblir en liten andel av totalen — **Vipps er fortsatt største post ved skala, ikke video.** Full utregning i §3.
 - **Per innsending (marginal):** **under 1 øre for bilde, ~10 øre for video** (lagring + visninger). Knute-trinnene i prismodellen er altså ren margin — de skal prises på verdi, ikke kost.
 - **Marginal kost per NY skole:** < ~50 NOK/sesong i infra. Gratis-bunnen (første 500 knuter) koster i praksis ingenting.
-- **Største enkeltpost ved skala er Vipps Login** (3 000 NOK/mnd ved 10–50k brukere) — ikke serveren.
-- **Skjult funn:** aldersverifisering (ADR-0015) via Vipps krever `birthDate`-scopet, som IKKE er i Standard-pakken → tvinger Premium (~1 000+ NOK/mnd, indikativt). Må avklares med Vipps salg FØR prismodellen låses.
+- **Vipps Login betales bare i den aktive sesongen** (~1,25 mnd rundt russetid) → realistisk **maks ~3 750 NOK/sesong** ved skala, ikke en årlig storpost. (Månedsprisene i §1 er per aktiv måned.)
+- **18+-scope (ADR-0015):** `birthDate` krever Premium, ikke Standard. **AVKLART av Ludvig — Vipps er all-in ~3 750 NOK/sesong maks, inkl. 18+-scopet.** (Ludvig har full kontroll på Vipps-sporet.)
 
 ---
 
@@ -90,7 +92,7 @@ Kilde: [bunny.net/pricing](https://bunny.net/pricing/).
 | 50 001 – 100 000 | 6 375 | verifisert |
 
 - Standard-pakken gir navn, telefon, e-post, adresse.
-- 🚨 **`birthDate` (fødselsdato, verifisert mot Folkeregisteret) er IKKE med i Standard — krever Premium/Advanced.** Premium-pris er ikke publisert; 2024-indikasjon «fra 1 000 NOK/mnd» (Advanced «fra 6 000»). **Dette treffer ADR-0015 (aldersgating 18+) direkte → kontakt Vipps salg før prismodellen låses.**
+- 🚨 **`birthDate` (fødselsdato, verifisert mot Folkeregisteret) er IKKE med i Standard — krever Premium/Advanced.** Premium-pris var ikke publisert (2024-indikasjon «fra 1 000 NOK/mnd»). **AVKLART av Ludvig: Vipps er all-in ~3 750 NOK/sesong maks — sesongbasert (~1,25 mnd aktiv), ikke × 12 — inkl. 18+-scopet.** Treffer ADR-0015 (aldersgating 18+).
 - `nin`-scopet (fødselsnummer) er «Not available in Norway» via Login — ikke en vei rundt.
 - Aldersgrense for Vipps Login er 15 år → OK for Vg3.
 
@@ -255,7 +257,7 @@ marginer — infra er aldri flaskehalsen i denne forretningsmodellen.
 
 ## 6. Åpne punkter
 
-- [ ] **Kontakt Vipps salg:** eksakt Premium-pris (birthDate-scope for 18+-gating, ADR-0015). Største ukjente i hele modellen. *(Ludvig: «har kontroll på Vipps».)*
+- [x] **Vipps Premium/18+-pris — AVKLART (Ludvig):** all-in ~3 750 NOK/sesong maks, sesongbasert. Ikke lenger en åpen ukjent.
 - [ ] Verifiser valutakurser når prismodellen regnes om til endelige NOK-beløp.
 - [ ] Aiven Helsinki-spesifikk pris («fra $75» er gulvpris; kalkulatoren er innloggingsgated).
 - [ ] Video-antakelsene i §3 (andel video, størrelse, visninger) re-kalibreres mot ekte data når ADR-0019-pipelinen bygges. Prisene er verifiserte; antakelsene er estimater.

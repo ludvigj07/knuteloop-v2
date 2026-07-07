@@ -12,7 +12,7 @@ This system captures the brand as realized in the live v1 pilot and projects it 
 
 This system was built by reading two repositories the founder provided. Explore them for deeper context — the v2 repo in particular contains detailed specs for features not yet built.
 
-- **`github.com/ludvigj07/knuteloop.no`** — the live **v1 pilot** (Vite + React PWA). Source of the realized visual language: `frontend/index.css` (tokens), `frontend/App.css`, components, and `backend/src/data/*` (knuter, badges, folders, leaderboard rules, prototype seed data). The pilot validated the product: 100% activation, 1917 submissions, 68% W/W retention at one school.
+- **`github.com/ludvigj07/knuteloop.no`** — the live **v1 pilot** (Vite + React PWA). Source of the realized visual language: `frontend/index.css` (tokens), `frontend/App.css`, components, and `backend/src/data/*` (knuter, badges, folders, leaderboard rules, prototype seed data). The pilot validated the product: 100% activation, 2400 submissions, 68% W/W retention at one school.
 - **`github.com/ludvigj07/knuteloop-v2`** — the **v2 production rebuild** (Expo / React Native monorepo + Hono/Postgres backend). Currently a documentation + spec system, not yet built UI. Key references used here:
   - `.claude/rules/frontend.md` — the aspirational v2 design-token spec, animation/haptics/a11y rules.
   - `docs/glossary.md` — russ vocabulary (russ, russenavn, knute, knutesjef, toppliste…).

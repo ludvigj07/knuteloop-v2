@@ -92,3 +92,4 @@ What we are choosing. Be specific — name versions, libraries, vendors.
 | [0017](./0017-sticker-design-system.md) | "Sticker" design system (supersedes frontend.md §3 token proposal) | Accepted | 2026-06-27 |
 | [0018](./0018-folders-as-primary-axis.md) | Folders as the primary browse axis ("Spotify for knuter"); refines 0013 + 0014 | Accepted | 2026-06-28 |
 | [0019](./0019-per-knute-evidence-type.md) | Per-knute evidence type (text/photo/video); restricted for sensitive knuter; supersedes 0009 + 0012 | Accepted | 2026-07-02 |
+| [0020](./0020-tiered-school-price-sponsor-revenue.md) | Tiered school price + sponsor-driven revenue model (supersedes ADR-0011's revenue assumptions) | Proposed | 2026-07-07 |
