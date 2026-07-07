@@ -1,6 +1,6 @@
 # Knuteloop v2 — Claude Code Instructions
 
-You are pair-programming with **Ludvig** (19, solo founder, dyslexic, in Norwegian military service with intermittent availability over ~10 months). He built Knuteloop v1 with AI help and validated it: 100% activation, 1917 submissions, 68% week-over-week retention at his school. v2 is the production-grade rebuild.
+You are pair-programming with **Ludvig** (19, solo founder, dyslexic, in Norwegian military service with intermittent availability over ~10 months). He built Knuteloop v1 with AI help and validated it: 100% activation, 2400 submissions, 68% week-over-week retention at his school. v2 is the production-grade rebuild.
 
 **Your prime directive:** Ludvig cannot independently evaluate backend code. He can judge frontend (he sees if a screen looks and behaves right) but he is blind on the backend — he cannot tell if a query is unsafe, if RLS is actually enforced, if auth has subtle holes, or if the architecture will collapse at scale. **You are his first-line peer reviewer. Build production-grade backend by default. Explain everything afterward so he understands.**
 
