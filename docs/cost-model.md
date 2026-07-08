@@ -17,12 +17,12 @@
 
 | | I dag (dev-auth, kun bilder) | Med Vipps Standard | Med Vipps Premium (18+-sjekk) |
 |---|---|---|---|
-| **Pilot, 1 skole (~250 russ)** | ~1 150 NOK/mnd | ~1 450 NOK/mnd | ~2 200–2 700 NOK/mnd |
+| **1 skole (~250 russ, referanse)** | ~1 150 NOK/mnd | ~1 450 NOK/mnd | ~2 200–2 700 NOK/mnd |
 | **10 skoler (~2 000 russ)** | ~2 000 NOK/mnd | ~2 800 NOK/mnd | ukjent (Premium-pris må innhentes) |
 | **50 skoler (~10 000 russ)** | ~4 500 NOK/mnd | ~7 500 NOK/mnd | ukjent |
 
-- **Per bruker:** ~4,6 NOK/mnd på pilot → ~0,75 NOK/mnd ved 50 skoler. Faller kraftig med skala (kostnadene er mest faste).
-- **SLUTTPRODUKTET MED VIDEO (ADR-0019):** legg til ~150 NOK/mnd (pilot) → ~2 300 NOK/mnd i toppmåned (50 skoler). En video koster **~10 øre** å levere mot < 1 øre for et bilde (10–20×), men medie-kostnaden forblir en liten andel av totalen — **Vipps er fortsatt største post ved skala, ikke video.** Full utregning i §3.
+- **Per bruker:** ~4,6 NOK/mnd ved 1 skole → ~0,75 NOK/mnd ved 50 skoler. Faller kraftig med skala (kostnadene er mest faste).
+- **SLUTTPRODUKTET MED VIDEO (ADR-0019):** legg til ~150 NOK/mnd (1 skole) → ~2 300 NOK/mnd i toppmåned (50 skoler). En video koster **~10 øre** å levere mot < 1 øre for et bilde (10–20×), men medie-kostnaden forblir en liten andel av totalen — **Vipps er fortsatt største post ved skala, ikke video.** Full utregning i §3.
 - **Per innsending (marginal):** **under 1 øre for bilde, ~10 øre for video** (lagring + visninger). Knute-trinnene i prismodellen er altså ren margin — de skal prises på verdi, ikke kost.
 - **Marginal kost per NY skole:** < ~50 NOK/sesong i infra. Gratis-bunnen (første 500 knuter) koster i praksis ingenting.
 - **Vipps Login betales bare i den aktive sesongen** (~1,25 mnd rundt russetid) → realistisk **maks ~3 750 NOK/sesong** ved skala, ikke en årlig storpost. (Månedsprisene i §1 er per aktiv måned.)
@@ -39,7 +39,7 @@ CPX21/31/41 → **CPX22/32/42** i Tyskland/Finland. Nye priser gjelder nye besti
 
 | Plan | Spec | Pris/mnd (ekskl. mva) | Status |
 |---|---|---|---|
-| CPX22 (pilot) | 3 vCPU, 4 GB | **€19,49** (før: €7,99) | verifisert |
+| CPX22 (1 skole) | 3 vCPU, 4 GB | **€19,49** (før: €7,99) | verifisert |
 | CPX32 (10 skoler) | 4 vCPU, 8 GB | **€35,49** (før: €13,99) | verifisert |
 | CPX42 (50+ skoler) | 8 vCPU, 16 GB | **€69,49** (før: €25,49) | verifisert |
 | LB11 load balancer | 5 tjenester | €7,49 | verifisert (sekundærkilder) |
@@ -117,7 +117,7 @@ Kilder: [vippsmobilepay.com/nb-NO/login-pricing](https://vippsmobilepay.com/nb-N
 Antakelser: 12 innsendinger/russ/sesong (v1-kalibrert), ~1 MB per bilde etter komprimering,
 ~250 visninger per bilde (skole-feed), miniatyrer ~200 KB via CDN. Kun bilder (video ikke bygget).
 
-### Pilot — 1 skole, ~250 russ
+### 1 skole, ~250 russ (referansescenario)
 
 | Post | NOK/mnd |
 |---|---|
@@ -190,7 +190,7 @@ direkte til Bunny) eller databasen (lagrer bare nøkler) — det er en ren medie
 
 | Skala | Videoer/sesong | Levering/sesong | Lagring/mnd | Ekstra i TOPPMÅNED |
 |---|---|---|---|---|
-| Pilot (250 russ) | ~1 200 | ~2,4 TB ≈ 130 NOK | ~32 GB ≈ 3 NOK | **~+150 NOK/mnd** |
+| 1 skole (250 russ) | ~1 200 | ~2,4 TB ≈ 130 NOK | ~32 GB ≈ 3 NOK | **~+150 NOK/mnd** |
 | 10 skoler (2 000) | ~9 600 | ~19 TB ≈ 1 000 NOK | ~260 GB ≈ 27 NOK | **~+500 NOK/mnd** |
 | 50 skoler (10 000) | ~48 000 | ~96 TB ≈ 5 000 NOK | ~1,3 TB ≈ 140 NOK | **~+2 300 NOK/mnd** |
 
@@ -198,7 +198,7 @@ direkte til Bunny) eller databasen (lagrer bare nøkler) — det er en ren medie
 
 | Skala | Uten Vipps | Med Vipps Standard |
 |---|---|---|
-| Pilot | ~1 300 NOK/mnd | ~1 600 NOK/mnd |
+| 1 skole | ~1 300 NOK/mnd | ~1 600 NOK/mnd |
 | 10 skoler | ~2 500 NOK/mnd | ~3 300 NOK/mnd |
 | 50 skoler | **~6 800 NOK/mnd** | **~9 800 NOK/mnd** |
 
