@@ -12,6 +12,7 @@ import { submissionRoutes } from './routes/submissions.js'
 import { feedRoutes } from './routes/feed.js'
 import { leaderboardRoutes } from './routes/leaderboard.js'
 import { meRoutes } from './routes/me.js'
+import { usersRoutes } from './routes/users.js'
 import { devRoutes } from './routes/dev.js'
 import { uploadRoutes } from './routes/uploads.js'
 import { folderRoutes } from './routes/folders.js'
@@ -56,6 +57,7 @@ export function buildApp() {
   app.route('/api/feed', feedRoutes)
   app.route('/api/leaderboard', leaderboardRoutes)
   app.route('/api/me', meRoutes)
+  app.route('/api/users', usersRoutes)
   app.route('/api/folders', folderRoutes)
   app.route('/api/library', libraryRoutes)
 
