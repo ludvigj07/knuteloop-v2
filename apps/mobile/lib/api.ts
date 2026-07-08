@@ -281,6 +281,10 @@ export type MyProfile = {
   russType: RussType
   quote: string | null
   points: number
+  /** The class this russ has claimed (null = ikke valgt ennå). */
+  classId: string | null
+  /** Display name of the claimed class (null when classId is null). */
+  className: string | null
   createdAt: string
 }
 export type MySubmission = {
@@ -311,6 +315,25 @@ export type MeResponse = {
 
 export function fetchMe(): Promise<MeResponse> {
   return apiFetch<MeResponse>('/api/me')
+}
+
+/** One of the school's classes (school_classes), for the «Velg klasse» picker. */
+export type SchoolClass = { id: string; name: string }
+export type SchoolClassesResponse = { classes: SchoolClass[] }
+
+export function fetchMyClasses(): Promise<SchoolClassesResponse> {
+  return apiFetch<SchoolClassesResponse>('/api/me/classes')
+}
+
+export type SetMyClassResponse = { classId: string | null; className: string | null }
+
+// Claim (or clear, with null) the caller's class. The server verifies the class
+// belongs to this school before writing.
+export function setMyClass(classId: string | null): Promise<SetMyClassResponse> {
+  return apiFetch<SetMyClassResponse>('/api/me/class', {
+    method: 'PATCH',
+    body: JSON.stringify({ classId }),
+  })
 }
 
 // The queue badge (knutesjef panel + tab bar): a cheap count(*) endpoint, NOT

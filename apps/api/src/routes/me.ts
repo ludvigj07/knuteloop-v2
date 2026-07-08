@@ -1,8 +1,10 @@
 import { Hono } from 'hono'
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, sql } from 'drizzle-orm'
+import { z } from 'zod'
+import { zValidator } from '@hono/zod-validator'
 import { auth, type AuthVariables } from '../middleware/auth.js'
 import { tenantContext } from '../middleware/tenant-context.js'
-import { users, submissions, knuter } from '../db/schema/index.js'
+import { users, submissions, knuter, schoolClasses } from '../db/schema/index.js'
 import { NotFoundError } from '../lib/errors.js'
 import { computeStreak } from '../lib/streak.js'
 import type { db } from '../db/client.js'
@@ -35,6 +37,9 @@ export const meRoutes = new Hono<{ Variables: Variables }>()
     const userId = c.get('userId')
     const schoolId = c.get('schoolId')
 
+    // className rides along via a LEFT JOIN (null for class-less users). RLS on
+    // school_classes also guards the join — a class_id somehow pointing at another
+    // school's class resolves to null, never leaks a foreign class name.
     const [user] = await tx
       .select({
         id: users.id,
@@ -44,9 +49,12 @@ export const meRoutes = new Hono<{ Variables: Variables }>()
         quote: users.quote,
         isAdult: users.isAdult,
         points: users.points,
+        classId: users.classId,
+        className: schoolClasses.name,
         createdAt: users.createdAt,
       })
       .from(users)
+      .leftJoin(schoolClasses, eq(schoolClasses.id, users.classId))
       .where(and(eq(users.id, userId), eq(users.schoolId, schoolId)))
       .limit(1)
 
@@ -175,3 +183,69 @@ export const meRoutes = new Hono<{ Variables: Variables }>()
       categories,
     })
   })
+
+  // GET /api/me/classes — the school's classes (school_classes), so the profile
+  // screen can render the «Velg klasse» picker. Tenant-scoped by an explicit
+  // school_id filter AND RLS; a russ only ever sees their own school's classes.
+  .get('/classes', async (c) => {
+    const tx = c.get('tx')
+    const schoolId = c.get('schoolId')
+
+    const classes = await tx
+      .select({ id: schoolClasses.id, name: schoolClasses.name })
+      .from(schoolClasses)
+      .where(eq(schoolClasses.schoolId, schoolId))
+      .orderBy(asc(schoolClasses.name))
+
+    return c.json({ classes })
+  })
+
+  // PATCH /api/me/class — the russ claims (or clears) their class. Body:
+  // { classId: uuid | null }. null clears the claim (leaves the class views).
+  //
+  // Security: class_id is a plain column, and the FK to school_classes is checked
+  // GLOBALLY (foreign-key checks bypass RLS). So a client could otherwise send
+  // another school's class UUID and it would satisfy the FK. We therefore verify
+  // the class belongs to THIS school (tenant-scoped SELECT — RLS + explicit
+  // filter) before writing. Without this check, a russ could point class_id at a
+  // foreign class (harmless on read — the leaderboard join RLS-nulls it — but we
+  // reject it at the source rather than rely on read-time defenses).
+  .patch(
+    '/class',
+    zValidator('json', z.object({ classId: z.string().uuid().nullable() }), (result, c) => {
+      if (!result.success) {
+        return c.json(
+          { error: { message: 'Invalid input', issues: result.error.flatten() } },
+          400,
+        )
+      }
+      return undefined
+    }),
+    async (c) => {
+      const tx = c.get('tx')
+      const userId = c.get('userId')
+      const schoolId = c.get('schoolId')
+      const { classId } = c.req.valid('json')
+
+      let className: string | null = null
+      if (classId !== null) {
+        const [cls] = await tx
+          .select({ id: schoolClasses.id, name: schoolClasses.name })
+          .from(schoolClasses)
+          .where(and(eq(schoolClasses.id, classId), eq(schoolClasses.schoolId, schoolId)))
+          .limit(1)
+        if (!cls) throw new NotFoundError('Klasse')
+        className = cls.name
+      }
+
+      const updated = await tx
+        .update(users)
+        .set({ classId, updatedAt: new Date() })
+        .where(and(eq(users.id, userId), eq(users.schoolId, schoolId)))
+        .returning({ id: users.id })
+
+      if (updated.length === 0) throw new NotFoundError('User')
+
+      return c.json({ classId, className })
+    },
+  )

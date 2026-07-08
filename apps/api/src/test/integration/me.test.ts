@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { schools, users, knuter, submissions } from '../../db/schema/index.js'
+import { schools, users, knuter, submissions, schoolClasses } from '../../db/schema/index.js'
 import { setupTestDb, type TestHandles } from '../helpers/test-db.js'
 import { signDevToken } from '../../lib/auth-dev.js'
 import { buildApp } from '../../app.js'
@@ -10,12 +10,24 @@ let schoolAId: string
 let schoolBId: string
 let fridaId: string
 let fridaTokenA: string
+let classStaId: string
+let classMkaId: string
+let classSchoolBId: string
 
 const DAY = 24 * 60 * 60 * 1000
 
 type CategoryRing = { category: string; total: number; completed: number }
 type MeResponse = {
-  user: { id: string; russenavn: string; role: string; russType: string; quote: string | null; points: number }
+  user: {
+    id: string
+    russenavn: string
+    role: string
+    russType: string
+    quote: string | null
+    points: number
+    classId: string | null
+    className: string | null
+  }
   submissions: { id: string; status: 'pending' | 'approved' | 'rejected'; knuteTitle: string; knutePoints: number }[]
   counts: { approved: number; pending: number; rejected: number }
   completedCount: number
@@ -34,6 +46,21 @@ beforeAll(async () => {
     .returning()
   schoolAId = insertedSchools[0]!.id
   schoolBId = insertedSchools[1]!.id
+
+  // Classes: two for School A (insert order 3STA then 3MKA so the GET /classes
+  // test can assert the alphabetical sort re-orders them), one for School B that
+  // must NEVER be visible or selectable from School A.
+  const insertedClasses = await h.superDb
+    .insert(schoolClasses)
+    .values([
+      { schoolId: schoolAId, name: '3STA' },
+      { schoolId: schoolAId, name: '3MKA' },
+      { schoolId: schoolBId, name: '3BYB' },
+    ])
+    .returning()
+  classStaId = insertedClasses[0]!.id
+  classMkaId = insertedClasses[1]!.id
+  classSchoolBId = insertedClasses[2]!.id
 
   const insertedUsers = await h.superDb
     .insert(users)
@@ -142,6 +169,9 @@ describe('GET /api/me', () => {
     expect(body.user.russType).toBe('red')
     expect(body.user.quote).toBe('Heia russ')
     expect(body.user.id).toBe(fridaId)
+    // Class-less until claimed (the set/clear tests run later, in their own block).
+    expect(body.user.classId).toBeNull()
+    expect(body.user.className).toBeNull()
   })
 
   it('counts are all-time (not derived from the last-20 slice)', async () => {
@@ -194,5 +224,102 @@ describe('GET /api/me', () => {
     })
     const res = await app.request('/api/me', { headers: { Authorization: `Bearer ${ghostToken}` } })
     expect(res.status).toBe(404)
+  })
+})
+
+describe('GET /api/me/classes', () => {
+  it('returns 401 without auth', async () => {
+    const res = await app.request('/api/me/classes')
+    expect(res.status).toBe(401)
+  })
+
+  it('lists only this school\'s classes, sorted by name', async () => {
+    const res = await app.request('/api/me/classes', {
+      headers: { Authorization: `Bearer ${fridaTokenA}` },
+    })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { classes: { id: string; name: string }[] }
+    // School A only (3BYB belongs to School B), alphabetically sorted: 3MKA before 3STA.
+    expect(body.classes.map((c) => c.name)).toEqual(['3MKA', '3STA'])
+    expect(body.classes.some((c) => c.id === classSchoolBId)).toBe(false)
+  })
+})
+
+describe('PATCH /api/me/class', () => {
+  it('returns 401 without auth', async () => {
+    const res = await app.request('/api/me/class', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ classId: classStaId }),
+    })
+    expect(res.status).toBe(401)
+  })
+
+  it('rejects an invalid classId (400)', async () => {
+    const res = await app.request('/api/me/class', {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${fridaTokenA}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ classId: 'not-a-uuid' }),
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('rejects claiming another school\'s class (404, no cross-tenant write)', async () => {
+    const res = await app.request('/api/me/class', {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${fridaTokenA}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ classId: classSchoolBId }),
+    })
+    expect(res.status).toBe(404)
+    // The write must not have happened — Frida is still class-less.
+    const me = (await (
+      await app.request('/api/me', { headers: { Authorization: `Bearer ${fridaTokenA}` } })
+    ).json()) as MeResponse
+    expect(me.user.classId).toBeNull()
+  })
+
+  it('claims a class, and GET /api/me reflects it', async () => {
+    const res = await app.request('/api/me/class', {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${fridaTokenA}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ classId: classStaId }),
+    })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { classId: string | null; className: string | null }
+    expect(body).toEqual({ classId: classStaId, className: '3STA' })
+
+    const me = (await (
+      await app.request('/api/me', { headers: { Authorization: `Bearer ${fridaTokenA}` } })
+    ).json()) as MeResponse
+    expect(me.user.classId).toBe(classStaId)
+    expect(me.user.className).toBe('3STA')
+  })
+
+  it('switches to a different class', async () => {
+    const res = await app.request('/api/me/class', {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${fridaTokenA}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ classId: classMkaId }),
+    })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { classId: string | null; className: string | null }
+    expect(body).toEqual({ classId: classMkaId, className: '3MKA' })
+  })
+
+  it('clears the class with null', async () => {
+    const res = await app.request('/api/me/class', {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${fridaTokenA}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ classId: null }),
+    })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { classId: string | null; className: string | null }
+    expect(body).toEqual({ classId: null, className: null })
+
+    const me = (await (
+      await app.request('/api/me', { headers: { Authorization: `Bearer ${fridaTokenA}` } })
+    ).json()) as MeResponse
+    expect(me.user.classId).toBeNull()
+    expect(me.user.className).toBeNull()
   })
 })
