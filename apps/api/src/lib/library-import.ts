@@ -10,6 +10,7 @@ import {
   schoolLibraryImports,
 } from '../db/schema/index.js'
 import { ConflictError, NotFoundError, isUniqueViolation } from './errors.js'
+import type { SchoolId, UserId } from './ids.js'
 
 // Import = COPY (ADR-0014). Importing a library knute snapshots it into the school's
 // own `knuter` (so the school then edits freely; library updates do NOT propagate),
@@ -41,7 +42,7 @@ import { ConflictError, NotFoundError, isUniqueViolation } from './errors.js'
 // lock prevents the race); it stays as defense in depth.
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
-type ImportCtx = { schoolId: string; userId: string }
+type ImportCtx = { schoolId: SchoolId; userId: UserId }
 
 // Map the new folder/theme axis (suggested_folder) onto the legacy knuter.category enum,
 // which a few features (e.g. the profile category rings in routes/me.ts) still read. The
@@ -62,7 +63,7 @@ const categoryForFolder = (folder: string) => CATEGORY_BY_FOLDER[folder] ?? 'Gen
 // Serialize concurrent imports within one school (transaction-scoped advisory lock,
 // auto-released on commit/rollback). Two int4 keys: a fixed namespace + the school hash,
 // so it never collides with advisory locks taken elsewhere. See the CONCURRENCY note above.
-async function lockSchoolForImport(tx: Tx, schoolId: string) {
+async function lockSchoolForImport(tx: Tx, schoolId: SchoolId) {
   await tx.execute(
     sql`SELECT pg_advisory_xact_lock(hashtext('knuteloop:library-import'), hashtext(${schoolId}))`,
   )

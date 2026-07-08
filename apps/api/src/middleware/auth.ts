@@ -1,10 +1,11 @@
 import { createMiddleware } from 'hono/factory'
 import { UnauthorizedError } from '../lib/errors.js'
 import { verifyDevToken } from '../lib/auth-dev.js'
+import { asSchoolId, asUserId, type SchoolId, type UserId } from '../lib/ids.js'
 
 export type AuthVariables = {
-  userId: string
-  schoolId: string
+  userId: UserId
+  schoolId: SchoolId
   role: 'student' | 'knutesjef' | 'admin'
 }
 
@@ -23,8 +24,10 @@ export const auth = () =>
     const token = header.slice('Bearer '.length).trim()
     try {
       const claims = await verifyDevToken(token)
-      c.set('userId', claims.sub)
-      c.set('schoolId', claims.school_id)
+      // Trust boundary: verified JWT claims become branded IDs here, and
+      // ONLY here. Everything downstream carries the types.
+      c.set('userId', asUserId(claims.sub))
+      c.set('schoolId', asSchoolId(claims.school_id))
       c.set('role', claims.role)
     } catch {
       throw new UnauthorizedError('Invalid token')
