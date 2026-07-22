@@ -63,15 +63,21 @@ beforeAll(async () => {
       { schoolId: schoolAId, title: 'A: Pending-knute', points: 10, difficulty: 'Lett' },
       { schoolId: schoolBId, title: 'B: Annen skole', points: 50, difficulty: 'Hard' },
       { schoolId: schoolAId, title: 'A: 18+ knute', points: 20, difficulty: 'Medium', minAge: 18 },
+      { schoolId: schoolAId, title: 'A: Privat-knute', points: 15, difficulty: 'Lett' },
     ])
     .returning()
   const knuterA = insertedKnuter.slice(0, 5)
   const knutePending = insertedKnuter[5]!
   const knuteB = insertedKnuter[6]!
   const knuteAdult = insertedKnuter[7]!
+  const knutePrivate = insertedKnuter[8]!
 
-  // School A: 5 approved (staggered createdAt so ordering/cursor is deterministic),
-  // 1 pending, 1 rejected. School B: 1 approved (must never leak into A's feed).
+  // School A: 5 approved (staggered timestamps so ordering/cursor is
+  // deterministic), 1 pending, 1 rejected. School B: 1 approved (must never
+  // leak into A's feed). Everything meant to be feed-visible is 'shared' with
+  // sharedAt = createdAt (ADR-0021) — the pending/rejected rows are ALSO
+  // shared so their exclusion tests keep proving the STATUS filter, not the
+  // visibility filter. The private row proves the visibility filter alone.
   const base = Date.parse('2026-06-01T12:00:00.000Z')
   const approvedRows = [0, 1, 2, 3, 4].map((i) => ({
     schoolId: schoolAId,
@@ -80,6 +86,8 @@ beforeAll(async () => {
     imageKey: `placeholder/approved-${i}.jpg`,
     caption: `Godkjent nr ${i}`,
     status: 'approved' as const,
+    visibility: 'shared' as const,
+    sharedAt: new Date(base + i * 60_000),
     createdAt: new Date(base + i * 60_000),
   }))
   await h.superDb.insert(submissions).values([
@@ -90,6 +98,8 @@ beforeAll(async () => {
       knuteId: knutePending.id,
       imageKey: 'placeholder/pending.jpg',
       status: 'pending' as const,
+      visibility: 'shared' as const,
+      sharedAt: new Date(base + 10 * 60_000),
       createdAt: new Date(base + 10 * 60_000),
     },
     {
@@ -100,6 +110,8 @@ beforeAll(async () => {
       knuteId: knuterA[0]!.id,
       imageKey: 'placeholder/rejected.jpg',
       status: 'rejected' as const,
+      visibility: 'shared' as const,
+      sharedAt: new Date(base + 11 * 60_000),
       createdAt: new Date(base + 11 * 60_000),
     },
     {
@@ -108,9 +120,11 @@ beforeAll(async () => {
       knuteId: knuteB.id,
       imageKey: 'placeholder/school-b.jpg',
       status: 'approved' as const,
+      visibility: 'shared' as const,
+      sharedAt: new Date(base + 12 * 60_000),
       createdAt: new Date(base + 12 * 60_000),
     },
-    // School A, an APPROVED submission on an 18+ knute. Newest of A's approved
+    // School A, an APPROVED submission on an 18+ knute. Newest of A's shared
     // rows, so it would be feed[0] for anyone allowed to see it — a minor must not.
     {
       schoolId: schoolAId,
@@ -119,7 +133,22 @@ beforeAll(async () => {
       imageKey: 'placeholder/adult-only.jpg',
       caption: '18+ innhold',
       status: 'approved' as const,
+      visibility: 'shared' as const,
+      sharedAt: new Date(base + 6 * 60_000),
       createdAt: new Date(base + 6 * 60_000),
+    },
+    // School A, APPROVED but PRIVATE (ADR-0021): owner chose «Send inn», not
+    // «Del i feeden». Newest timestamp of all — if the visibility filter were
+    // missing it would be feed[0] for every A viewer.
+    {
+      schoolId: schoolAId,
+      userId: voss.id,
+      knuteId: knutePrivate.id,
+      imageKey: 'placeholder/private.jpg',
+      caption: 'Privat — bare knutesjef',
+      status: 'approved' as const,
+      visibility: 'private' as const,
+      createdAt: new Date(base + 13 * 60_000),
     },
   ])
 
@@ -202,6 +231,21 @@ describe('GET /api/feed', () => {
     expect(keys).toContain('placeholder/adult-only.jpg')
     expect(body.feed).toHaveLength(6)
     expect(body.feed[0]!.imageKey).toBe('placeholder/adult-only.jpg')
+  })
+
+  it('visibility (ADR-0021): a private approved submission never appears — for anyone', async () => {
+    // The private row has the newest timestamp of the whole fixture set; if the
+    // visibility filter were missing it would be feed[0]. Checked for both a
+    // regular viewer and the OWNER (adult token) — the feed is a public
+    // surface, own private posts belong on the profile/me side, not here.
+    for (const token of [studentTokenA, adultTokenA]) {
+      const res = await app.request('/api/feed', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      expect(res.status).toBe(200)
+      const body = (await res.json()) as FeedResponse
+      expect(body.feed.map((f) => f.imageKey)).not.toContain('placeholder/private.jpg')
+    }
   })
 
   it('paginates with cursor — walks all pages without overlap or gaps', async () => {

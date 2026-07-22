@@ -87,26 +87,36 @@ beforeAll(async () => {
       { schoolId: schoolAId, title: 'Gullkongla', points: 15, difficulty: 'Hard', category: 'Generelle', isGold: true },
       { schoolId: schoolAId, title: 'Tinder', points: 25, difficulty: 'Medium', category: 'Sexknuter' },
       { schoolId: schoolAId, title: 'Voksenknute', points: 30, difficulty: 'Hard', category: 'Alkoholknuter', minAge: 18 },
+      { schoolId: schoolAId, title: 'Hemmelig', points: 20, difficulty: 'Medium', category: 'Generelle' },
     ])
     .returning()
   const frokost = insertedKnuter[0]!
   const gull = insertedKnuter[1]!
   const tinder = insertedKnuter[2]!
   const voksen = insertedKnuter[3]!
+  const hemmelig = insertedKnuter[4]!
 
+  // Grid-visible rows are 'shared' with sharedAt = createdAt (ADR-0021). The
+  // pending row is shared too, so its exclusion test keeps proving the STATUS
+  // filter; Frida's PRIVATE approved row proves the visibility filter (and
+  // that header aggregates still count it — rule 5).
   const now = Date.now()
   await h.superDb.insert(submissions).values([
     // Frida: THREE approved (distinct knuter, one gold) at distinct times for
     // pagination, plus a pending that must never appear in the grid. The
     // pending sits on a FOURTH knute — the partial unique index allows only
     // one ACTIVE (pending|approved) submission per (user, knute).
-    { schoolId: schoolAId, userId: fridaId, knuteId: frokost.id, imageKey: 'bunny/f/1.webp', status: 'approved', createdAt: new Date(now - 2 * DAY) },
-    { schoolId: schoolAId, userId: fridaId, knuteId: gull.id, imageKey: 'bunny/f/2.webp', status: 'approved', createdAt: new Date(now - DAY) },
-    { schoolId: schoolAId, userId: fridaId, knuteId: tinder.id, imageKey: 'bunny/f/3.webp', status: 'approved', createdAt: new Date(now) },
-    { schoolId: schoolAId, userId: fridaId, knuteId: voksen.id, imageKey: 'bunny/f/4.webp', status: 'pending', createdAt: new Date(now) },
+    { schoolId: schoolAId, userId: fridaId, knuteId: frokost.id, imageKey: 'bunny/f/1.webp', status: 'approved', visibility: 'shared', sharedAt: new Date(now - 2 * DAY), createdAt: new Date(now - 2 * DAY) },
+    { schoolId: schoolAId, userId: fridaId, knuteId: gull.id, imageKey: 'bunny/f/2.webp', status: 'approved', visibility: 'shared', sharedAt: new Date(now - DAY), createdAt: new Date(now - DAY) },
+    { schoolId: schoolAId, userId: fridaId, knuteId: tinder.id, imageKey: 'bunny/f/3.webp', status: 'approved', visibility: 'shared', sharedAt: new Date(now), createdAt: new Date(now) },
+    { schoolId: schoolAId, userId: fridaId, knuteId: voksen.id, imageKey: 'bunny/f/4.webp', status: 'pending', visibility: 'shared', sharedAt: new Date(now), createdAt: new Date(now) },
+    // Frida: approved but PRIVATE — newest of all her rows; must NOT appear in
+    // the grid, but MUST count in completedCount (the achievement is public,
+    // the evidence is not).
+    { schoolId: schoolAId, userId: fridaId, knuteId: hemmelig.id, imageKey: 'bunny/f/5.webp', status: 'approved', visibility: 'private', createdAt: new Date(now + 1000) },
     // Odin: one normal + one 18+ approved (viewer age-gate case).
-    { schoolId: schoolAId, userId: odinId, knuteId: frokost.id, imageKey: 'bunny/o/1.webp', status: 'approved', createdAt: new Date(now - DAY) },
-    { schoolId: schoolAId, userId: odinId, knuteId: voksen.id, imageKey: 'bunny/o/2.webp', status: 'approved', createdAt: new Date(now) },
+    { schoolId: schoolAId, userId: odinId, knuteId: frokost.id, imageKey: 'bunny/o/1.webp', status: 'approved', visibility: 'shared', sharedAt: new Date(now - DAY), createdAt: new Date(now - DAY) },
+    { schoolId: schoolAId, userId: odinId, knuteId: voksen.id, imageKey: 'bunny/o/2.webp', status: 'approved', visibility: 'shared', sharedAt: new Date(now), createdAt: new Date(now) },
   ])
 
   fridaToken = await signDevToken({ sub: fridaId, school_id: schoolAId, role: 'student' })
@@ -140,7 +150,9 @@ describe('GET /api/users/:id', () => {
     expect(body.user.russType).toBe('red')
     expect(body.user.quote).toBe('Heia')
     expect(body.user.className).toBe('3STA')
-    expect(body.user.completedCount).toBe(3)
+    // 4, not 3: the private 'Hemmelig' row counts — aggregates include private
+    // submissions (ADR-0021 rule 5), only the grid hides them.
+    expect(body.user.completedCount).toBe(4)
     expect(body.user.goldCount).toBe(1)
     // The privacy rule: public profiles NEVER carry per-category breakdowns.
     expect(body.user).not.toHaveProperty('categories')
@@ -170,11 +182,14 @@ describe('GET /api/users/:id', () => {
 })
 
 describe('GET /api/users/:id/submissions', () => {
-  it('returns only APPROVED submissions, newest first', async () => {
+  it('returns only APPROVED + SHARED submissions, newest first', async () => {
     const res = await get(`/api/users/${fridaId}/submissions`, kariToken)
     expect(res.status).toBe(200)
     const body = (await res.json()) as GridResponse
-    expect(body.submissions).toHaveLength(3) // pending excluded
+    // 3, not 5: the pending row (status) and the private 'Hemmelig' row
+    // (visibility, ADR-0021) are both excluded — even though the private one
+    // is Frida's newest approved.
+    expect(body.submissions).toHaveLength(3)
     expect(body.submissions.map((s) => s.knuteTitle)).toEqual(['Tinder', 'Gullkongla', 'Frokost'])
     expect(body.submissions[1]!.isGold).toBe(true)
   })
