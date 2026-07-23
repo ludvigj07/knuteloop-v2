@@ -233,3 +233,52 @@ describe('PATCH /api/submissions/:id/visibility', () => {
     expect(res.status).toBe(400)
   })
 })
+
+describe('sharing requires media (ADR-0022)', () => {
+  async function freshTextKnuteA(label: string) {
+    const [row] = await h.superDb
+      .insert(knuter)
+      .values({
+        schoolId: schoolAId,
+        title: `A: tekst ${label}`,
+        points: 20,
+        difficulty: 'Medium',
+        evidenceType: 'text',
+      })
+      .returning()
+    return row!.id
+  }
+
+  it('a caption-only media submission can be submitted private (201, imageKey null)', async () => {
+    const knuteId = await freshKnuteA('adr22-caption-private')
+    const res = await post({ knuteId, caption: 'uten bilde', visibility: 'private' }, ownerToken)
+    expect(res.status).toBe(201)
+    const body = (await res.json()) as CreateResponse & {
+      submission: { imageKey: string | null }
+    }
+    expect(body.submission.imageKey).toBeNull()
+    expect(body.submission.visibility).toBe('private')
+  })
+
+  it('a caption-only media submission cannot be born shared (400)', async () => {
+    const knuteId = await freshKnuteA('adr22-caption-shared')
+    const res = await post({ knuteId, caption: 'uten bilde', visibility: 'shared' }, ownerToken)
+    expect(res.status).toBe(400)
+  })
+
+  it('a text knute can never be shared — the sensitive content stays private (400)', async () => {
+    const knuteId = await freshTextKnuteA('adr22-tekst-shared')
+    const res = await post({ knuteId, caption: 'sensitivt', visibility: 'shared' }, ownerToken)
+    expect(res.status).toBe(400)
+  })
+
+  it('PATCH cannot flip a media-less submission to shared (400)', async () => {
+    const knuteId = await freshKnuteA('adr22-patch-share')
+    const created = await post({ knuteId, caption: 'kanskje senere' }, ownerToken)
+    expect(created.status).toBe(201)
+    const submissionId = ((await created.json()) as CreateResponse).submission.id
+
+    const res = await patchVisibility(submissionId, { visibility: 'shared' }, ownerToken)
+    expect(res.status).toBe(400)
+  })
+})
