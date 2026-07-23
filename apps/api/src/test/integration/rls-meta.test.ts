@@ -31,13 +31,9 @@ const SHARED_TABLES: Record<string, string> = {
 // tables should be read-only — every entry here is a tracked exception, and the
 // read-only check below covers everything in SHARED_TABLES minus this list, so
 // a FUTURE shared table is read-only-checked automatically (no second list to
-// remember).
-// NOTE on `schools`: this is not a small gap. app_role can DELETE a schools row
-// today, and every tenant table cascades from it (the FK test below) — one
-// statement from the app connection can erase an entire school. The REVOKE
-// grants migration is the tracked follow-up; this test pins the invariant we
-// HAVE, not the one we want.
-const WRITABLE_SHARED_EXCEPTIONS = ['schools']
+// remember). Empty since migration 0021 made schools read-only (app_role could
+// otherwise cascade-DELETE an entire school through the FKs asserted below).
+const WRITABLE_SHARED_EXCEPTIONS: string[] = []
 const READ_ONLY_FOR_APP_ROLE = Object.keys(SHARED_TABLES).filter(
   (name) => !WRITABLE_SHARED_EXCEPTIONS.includes(name),
 )

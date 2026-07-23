@@ -55,10 +55,16 @@ export async function setupTestDb(): Promise<TestHandles> {
     GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_role;
     GRANT ALL ON ALL TABLES IN SCHEMA public TO admin_role;
   `)
-  // The library_* catalog is read-only for the app role (ADR-0014 / migration 0014).
-  // Re-apply after the blanket grant above so RLS/grants tests see prod behaviour.
+  // Shared tables are read-only for the app role (database.md §1): the
+  // library catalog (ADR-0014 / migration 0014) AND schools (migration 0021 —
+  // app_role could otherwise cascade-DELETE a whole school). Re-apply after
+  // the blanket grant above so RLS/grants tests see prod behaviour.
+  // KEEP IN SYNC with migrations 0014 + 0021: the blanket grant undoes any
+  // migration REVOKE, so every read-only table must be re-revoked here.
+  // (Helper refactor tracked: derive grants by re-running the REVOKEs from
+  // the migration files instead of this parallel list.)
   await superSql.unsafe(`
-    REVOKE INSERT, UPDATE, DELETE ON library_knuter, library_packs, library_pack_memberships FROM app_role;
+    REVOKE INSERT, UPDATE, DELETE ON library_knuter, library_packs, library_pack_memberships, schools FROM app_role;
   `)
 
   // 4. Connect as app_user — the role whose RLS we test.
