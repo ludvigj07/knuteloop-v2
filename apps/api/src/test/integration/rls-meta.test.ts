@@ -27,11 +27,20 @@ const SHARED_TABLES: Record<string, string> = {
   library_pack_memberships: 'library pack M2M, shared (ADR-0014)',
 }
 
-// Shared tables that must be READ-ONLY for app_role (migration 0014 / ADR-0014).
-// NOTE: `schools` is currently writable by app_role — database.md §1 says shared
-// tables should be read-only, but revoking is a grants migration, tracked as
-// follow-up work. This test pins the invariant we HAVE, not the one we want.
-const READ_ONLY_FOR_APP_ROLE = ['library_knuter', 'library_packs', 'library_pack_memberships']
+// Shared tables that are still WRITABLE by app_role. database.md §1 says shared
+// tables should be read-only — every entry here is a tracked exception, and the
+// read-only check below covers everything in SHARED_TABLES minus this list, so
+// a FUTURE shared table is read-only-checked automatically (no second list to
+// remember).
+// NOTE on `schools`: this is not a small gap. app_role can DELETE a schools row
+// today, and every tenant table cascades from it (the FK test below) — one
+// statement from the app connection can erase an entire school. The REVOKE
+// grants migration is the tracked follow-up; this test pins the invariant we
+// HAVE, not the one we want.
+const WRITABLE_SHARED_EXCEPTIONS = ['schools']
+const READ_ONLY_FOR_APP_ROLE = Object.keys(SHARED_TABLES).filter(
+  (name) => !WRITABLE_SHARED_EXCEPTIONS.includes(name),
+)
 
 type TableInfo = {
   table_name: string
@@ -44,6 +53,7 @@ type PolicyInfo = {
   tablename: string
   policyname: string
   roles: string[]
+  permissive: string // 'PERMISSIVE' | 'RESTRICTIVE'
   cmd: string
   qual: string | null
   with_check: string | null
@@ -57,9 +67,13 @@ let policies: PolicyInfo[]
 beforeAll(async () => {
   h = await setupTestDb()
 
-  // Every ordinary table in `public`, with its RLS flags and whether it
-  // carries a school_id column. pg_class is the source of truth Postgres
-  // itself enforces from — not the Drizzle schema files.
+  // Every relation in `public` — ordinary ('r') and partitioned ('p') tables,
+  // plus views ('v'), materialized views ('m'), and foreign tables ('f').
+  // The wide relkind net matters: matviews and views CANNOT have RLS, so a
+  // future materialized leaderboard (architecture.md §6) that snapshots
+  // cross-tenant rows must land in the unaccounted-check below and force an
+  // explicit decision — not slip past a tables-only filter. pg_class is the
+  // source of truth Postgres itself enforces from — not the Drizzle schema.
   allTables = await h.superSql<TableInfo[]>`
     SELECT c.relname AS table_name,
            c.relrowsecurity AS rls_enabled,
@@ -70,13 +84,13 @@ beforeAll(async () => {
            ) AS has_school_id
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE n.nspname = 'public' AND c.relkind = 'r'
+    WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
     ORDER BY c.relname`
 
   tenantTables = allTables.filter((t) => t.has_school_id)
 
   policies = await h.superSql<PolicyInfo[]>`
-    SELECT tablename, policyname, roles::text[] AS roles, cmd, qual, with_check
+    SELECT tablename, policyname, roles::text[] AS roles, permissive, cmd, qual, with_check
     FROM pg_policies
     WHERE schemaname = 'public'`
 })
@@ -123,28 +137,58 @@ describe('RLS meta-test — every tenant table has the full isolation setup', ()
     expect(missing).toEqual([])
   })
 
-  it('every tenant table has an app_role policy filtering on app.school_id (USING + WITH CHECK)', () => {
+  it('EVERY permissive app_role policy pins rows to app.school_id (USING + WITH CHECK)', () => {
+    // Postgres combines PERMISSIVE policies with OR — one loose policy added
+    // next to a correct one silently opens the whole table cross-tenant. So a
+    // `some()` check is worthless here: every permissive policy must pin the
+    // tenant, or it is a hole. RESTRICTIVE policies AND-narrow and cannot
+    // widen access, so they are exempt from the every-check.
+    //
+    // The predicate match requires BOTH the school_id comparison and the
+    // current_setting call — `includes('app.school_id')` alone would accept
+    // e.g. USING (current_setting('app.school_id', true) IS NOT NULL), which
+    // mentions the setting but pins nothing.
+    const pinsTenant = (clause: string | null | undefined): boolean =>
+      Boolean(
+        clause &&
+          clause.includes('school_id =') &&
+          clause.includes("current_setting('app.school_id'"),
+      )
     const violations: string[] = []
     for (const t of tenantTables) {
-      const tablePolicies = policies.filter(
+      const appPolicies = policies.filter(
         (p) => p.tablename === t.table_name && p.roles.includes('app_role'),
       )
-      if (tablePolicies.length === 0) {
+      if (appPolicies.length === 0) {
         violations.push(`${t.table_name}: no policy for app_role`)
         continue
       }
-      // Read side: some app_role policy must filter rows on app.school_id.
-      const readsFiltered = tablePolicies.some((p) => p.qual?.includes('app.school_id'))
-      if (!readsFiltered) {
-        violations.push(`${t.table_name}: no app_role policy USING app.school_id`)
+      const permissivePolicies = appPolicies.filter((p) => p.permissive === 'PERMISSIVE')
+      if (permissivePolicies.length === 0) {
+        // Only restrictive policies → deny-all for app_role. Fail-closed at
+        // runtime, but it means the tenant policy is missing — flag it.
+        violations.push(`${t.table_name}: no PERMISSIVE app_role policy (deny-all)`)
+        continue
       }
-      // Write side: WITH CHECK must also pin school_id. For a FOR ALL policy
-      // with no explicit WITH CHECK, Postgres reuses USING — so accept either.
-      const writesChecked = tablePolicies.some((p) =>
-        (p.with_check ?? p.qual)?.includes('app.school_id'),
-      )
-      if (!writesChecked) {
-        violations.push(`${t.table_name}: no app_role policy WITH CHECK on app.school_id`)
+      for (const p of permissivePolicies) {
+        // Read side: ALL/SELECT/UPDATE/DELETE policies gate reads via USING.
+        if (['ALL', 'SELECT', 'UPDATE', 'DELETE'].includes(p.cmd) && !pinsTenant(p.qual)) {
+          violations.push(
+            `${t.table_name}.${p.policyname} (${p.cmd}): USING does not pin app.school_id`,
+          )
+        }
+        // Write side: ALL/INSERT/UPDATE policies gate writes via WITH CHECK.
+        // Postgres reuses USING when WITH CHECK is omitted — but ONLY for
+        // ALL/UPDATE policies, so the fallback is cmd-aware.
+        if (['ALL', 'INSERT', 'UPDATE'].includes(p.cmd)) {
+          const effectiveCheck =
+            p.with_check ?? (p.cmd === 'ALL' || p.cmd === 'UPDATE' ? p.qual : null)
+          if (!pinsTenant(effectiveCheck)) {
+            violations.push(
+              `${t.table_name}.${p.policyname} (${p.cmd}): WITH CHECK does not pin app.school_id`,
+            )
+          }
+        }
       }
     }
     expect(violations).toEqual([])
@@ -156,7 +200,7 @@ describe('RLS meta-test — every tenant table has the full isolation setup', ()
       FROM pg_class c
       JOIN pg_namespace n ON n.oid = c.relnamespace
       JOIN pg_attribute a ON a.attrelid = c.oid AND a.attname = 'school_id' AND NOT a.attisdropped
-      WHERE n.nspname = 'public' AND c.relkind = 'r'`
+      WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')`
     const nullable = rows.filter((r) => !r.not_null).map((r) => r.table_name)
     // A NULL school_id row is invisible to every tenant (policy compares
     // against NULL → false) but still exists — an orphan no one can manage.
@@ -193,6 +237,10 @@ describe('RLS meta-test — every tenant table has the full isolation setup', ()
   it('every tenant table has an index with school_id as the FIRST column', async () => {
     // RLS adds `school_id = ...` to effectively every query — without a
     // leading school_id index that becomes a seq scan as schools multiply.
+    // indisvalid: a failed CREATE INDEX CONCURRENTLY leaves an INVALID index
+    // that serves no queries — it must not satisfy this check. indpred IS
+    // NULL: a partial index (e.g. the feed's WHERE approved+shared) only
+    // covers its predicate; the general-purpose composite must exist too.
     const rows = await h.superSql<{ table_name: string; first_col: string | null }[]>`
       SELECT t.relname AS table_name, a.attname AS first_col
       FROM pg_index ix
@@ -200,7 +248,7 @@ describe('RLS meta-test — every tenant table has the full isolation setup', ()
       JOIN pg_class t ON t.oid = ix.indrelid
       JOIN pg_namespace n ON n.oid = t.relnamespace
       LEFT JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ix.indkey[0]
-      WHERE n.nspname = 'public'`
+      WHERE n.nspname = 'public' AND ix.indisvalid AND ix.indpred IS NULL`
     const missing = tenantTables
       .filter((t) => !rows.some((r) => r.table_name === t.table_name && r.first_col === 'school_id'))
       .map((t) => t.table_name)
@@ -208,6 +256,12 @@ describe('RLS meta-test — every tenant table has the full isolation setup', ()
   })
 
   it('shared library tables are read-only for app_role', async () => {
+    // NOTE (coupling): test-db.ts re-grants ALL TABLES to app_role after
+    // migrate() and then re-revokes the read-only set — so this assertion
+    // pins the HELPER's revoke list as much as migration 0014's. If a future
+    // shared table's migration REVOKEs correctly but the helper's blanket
+    // grant undoes it, fix the helper (it should derive from this list),
+    // not this test. Tracked as helper-refactor follow-up.
     const violations: string[] = []
     for (const table of READ_ONLY_FOR_APP_ROLE) {
       for (const priv of ['INSERT', 'UPDATE', 'DELETE']) {
