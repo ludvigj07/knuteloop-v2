@@ -123,7 +123,13 @@ export default function KnuteDetailScreen() {
         if (!caption.trim()) throw new Error('Skriv en kort beskrivelse')
         return createSubmission({ knuteId: id, caption: caption.trim(), visibility })
       }
-      if (!imageUri) throw new Error('Velg eller ta et bilde først')
+      // Media knute without a photo: valid as PRIVATE with a caption (ADR-0021
+      // rule 10) — sharing requires the photo (ADR-0022; UI enforces, we guard).
+      if (!imageUri) {
+        if (visibility === 'shared') throw new Error('Legg ved et bilde for å dele i feeden')
+        if (!caption.trim()) throw new Error('Legg ved et bilde eller skriv en beskrivelse')
+        return createSubmission({ knuteId: id, caption: caption.trim(), visibility })
+      }
       // upload-url → PUT the compressed photo → create the submission with the key.
       const { uploadUrl, imageKey } = await fetchUploadUrl()
       await uploadImageBinary(uploadUrl, imageUri)
@@ -191,7 +197,11 @@ export default function KnuteDetailScreen() {
           body={
             shared
               ? `Knutesjefen får «${knute.title}» til vurdering — den legges i feeden når den er godkjent.`
-              : `Knutesjefen får «${knute.title}» til vurdering. Bare dere to ser den — du kan dele den i feeden senere.`
+              : // Promise «kan deles senere» only when a photo exists — media-less
+                // submissions can never be shared (ADR-0022).
+                `Knutesjefen får «${knute.title}» til vurdering. Bare dere to ser den${
+                  !isText && imageUri !== null ? ' — du kan dele den i feeden senere' : ''
+                }.`
           }
           actionLabel="Ferdig"
           actionVariant="accent"
@@ -201,12 +211,22 @@ export default function KnuteDetailScreen() {
     )
   }
 
-  const hasEvidence = isText ? caption.trim().length > 0 : imageUri !== null
-  const missingHint = hasEvidence
-    ? null
-    : isText
-      ? 'Skriv en beskrivelse for å sende inn.'
-      : 'Legg til et bilde for å sende inn.'
+  // Two evidence axes (ADR-0021 rule 10 + ADR-0022): VALID = caption or photo
+  // (text knuter: caption only); SHAREABLE = photo required. The hint line
+  // explains the current state — one line, no layout jump.
+  const hasText = caption.trim().length > 0
+  const hasImage = imageUri !== null
+  const canSend = isText ? hasText : hasText || hasImage
+  const canShare = !isText && hasImage
+  const hint = isText
+    ? hasText
+      ? 'Denne knuten deles ikke i feeden — bare knutesjefen ser den.'
+      : 'Skriv en beskrivelse for å sende inn.'
+    : !canSend
+      ? 'Legg til et bilde eller skriv en beskrivelse.'
+      : !hasImage
+        ? 'Legg ved bilde for å dele i feeden — «Send inn» funker uten.'
+        : 'Begge gir poeng — «Send inn» viser den bare til knutesjefen.'
 
   return (
     <View style={styles.root}>
@@ -274,8 +294,10 @@ export default function KnuteDetailScreen() {
         <SubmitActions
           onSubmit={(visibility) => submit.mutate(visibility)}
           onCancel={() => router.back()}
-          canSubmit={hasEvidence && lockReason === null}
-          missingHint={missingHint}
+          showShare={!isText}
+          canShare={canShare && lockReason === null}
+          canSend={canSend && lockReason === null}
+          hint={hint}
           busyChoice={submit.isPending ? (submit.variables ?? null) : null}
           locked={lockReason !== null}
         />

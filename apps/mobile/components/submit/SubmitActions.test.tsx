@@ -1,15 +1,18 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import { SubmitActions } from './SubmitActions'
 
-// ADR-0021: the button pair IS the visibility choice. These tests pin the
-// contract: which button fires which choice, the evidence gate disables both,
-// and the locked state hides the pair entirely.
+// ADR-0021 + ADR-0022: the button pair IS the visibility choice, and sharing
+// requires a photo. These tests pin the contract: which button fires which
+// choice, the share button greys out without a photo (visible = teaching),
+// text knuter never render it, and the locked state hides the pair.
 
 const baseProps = {
   onSubmit: jest.fn(),
   onCancel: jest.fn(),
-  canSubmit: true,
-  missingHint: null,
+  showShare: true,
+  canShare: true,
+  canSend: true,
+  hint: 'Begge gir poeng — «Send inn» viser den bare til knutesjefen.',
   busyChoice: null,
   locked: false,
 }
@@ -29,25 +32,33 @@ describe('SubmitActions', () => {
     expect(baseProps.onSubmit).toHaveBeenCalledWith('private')
   })
 
-  it('shows the poeng hint when submittable', () => {
-    render(<SubmitActions {...baseProps} />)
-    expect(
-      screen.getByText('Begge gir poeng — «Send inn» viser den bare til knutesjefen.'),
-    ).toBeTruthy()
+  it('renders the hint line', () => {
+    render(<SubmitActions {...baseProps} hint="Legg ved bilde for å dele i feeden." />)
+    expect(screen.getByText('Legg ved bilde for å dele i feeden.')).toBeTruthy()
   })
 
-  it('disables both buttons and shows the missing hint when evidence is missing', () => {
-    render(
-      <SubmitActions
-        {...baseProps}
-        canSubmit={false}
-        missingHint="Legg til et bilde for å sende inn."
-      />,
-    )
+  it('ADR-0022: share is visible but dead without a photo — private still works', () => {
+    render(<SubmitActions {...baseProps} canShare={false} />)
+    // Visible (teaches that photos can be shared) but ignores presses.
+    fireEvent.press(screen.getByLabelText('Del i feeden'))
+    expect(baseProps.onSubmit).not.toHaveBeenCalled()
+    // The private path is unaffected.
+    fireEvent.press(screen.getByLabelText('Send inn'))
+    expect(baseProps.onSubmit).toHaveBeenCalledWith('private')
+  })
+
+  it('ADR-0022: text knuter never render the share button at all', () => {
+    render(<SubmitActions {...baseProps} showShare={false} />)
+    expect(screen.queryByLabelText('Del i feeden')).toBeNull()
+    fireEvent.press(screen.getByLabelText('Send inn'))
+    expect(baseProps.onSubmit).toHaveBeenCalledWith('private')
+  })
+
+  it('disables both buttons when nothing is filled in', () => {
+    render(<SubmitActions {...baseProps} canShare={false} canSend={false} />)
     fireEvent.press(screen.getByLabelText('Del i feeden'))
     fireEvent.press(screen.getByLabelText('Send inn'))
     expect(baseProps.onSubmit).not.toHaveBeenCalled()
-    expect(screen.getByText('Legg til et bilde for å sende inn.')).toBeTruthy()
   })
 
   it('locks BOTH buttons while one choice is in flight (no double submit)', () => {
