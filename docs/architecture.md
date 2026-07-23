@@ -150,17 +150,22 @@ GitHub Actions
    │  • build apps/api as Docker image
    │  • build apps/mobile via EAS (preview channel)
    ▼
-Hetzner Cloud Helsinki (CPX31, ~€18/mo)
+Hetzner Cloud Helsinki (CPX32)
    │  • systemd service running the Hono API
    │  • Caddy reverse proxy with auto-HTTPS
    │  • Connects to Aiven Postgres via private endpoint
    ▼
-Aiven Postgres Startup-2 Helsinki (~€55/mo)
-   │  • Daily backup + 7-day PITR
+Aiven Postgres Helsinki (managed)
+   │  • Daily backup + PITR
    │  • Maintenance window: Sundays 02:00 CET
 
-Bunny Storage Frankfurt + Bunny CDN (€10-30/mo @ pilot scale)
+Bunny Storage Frankfurt + Bunny CDN
 ```
+
+> **No prices in this diagram on purpose.** Hetzner and Aiven both renamed and repriced
+> their tiers during 2026 (CPX31 → CPX32, Startup-2 discontinued), which rotted the old
+> numbers here. `docs/cost-model.md` (July 2026, verified) is the single source of truth
+> for costs; ADR-0011 for the launch topology.
 
 Mobile builds go through EAS:
 - `eas build --profile preview` → internal TestFlight / Play Internal
@@ -168,30 +173,34 @@ Mobile builds go through EAS:
 
 ## 6. Scale ramp — what changes at each step
 
-**1 school, ~250 users (pilot, validated):**
-- 1× CPX21 Hetzner, single Aiven Startup-2, single Bunny zone.
-- Cost: ~€100/month.
-- No caching layer — all queries hit Postgres.
+> Rewritten 2026-07-09 per ADR-0011 (Accepted). **There is no pilot phase — v1 (2026)
+> was the pilot**, validated with a full season at one school. v2 launches multi-school
+> at russetid 2027 with a **100+ schools (~20,000 users)** target. Knuteloop's load is
+> extremely seasonal (~5 weeks around russetid), so the ramp below is about the season
+> peak, not a year-round topology. Prices live in `docs/cost-model.md` — not here.
 
-**10 schools, ~2000 users (target 2027):**
-- Upgrade to CPX31 (4 vCPU, 8GB).
-- Stay on Aiven Startup-2 (sufficient).
-- Add Aiven Valkey (Redis) for rate-limit store + leaderboard cache.
-- Bunny still flat-rate at this volume.
-- Cost: ~€180/month.
+**Development (now → launch):**
+- 1× Hetzner box, 1× Aiven Postgres, dev-stub auth, no cache. Fine for building.
 
-**50 schools, ~10k users (2028):**
-- 2× CPX31 behind a load balancer.
-- Aiven Business-4 (more connections, more storage).
-- Materialized view for leaderboard, refreshed every 60s.
-- Cost: ~€400/month.
+**Launch — russetid 2027, 100+ schools (~20k users), the ~5-week peak:**
+- 2× CPX32 behind a Hetzner LB11 load balancer (stateless Hono — add nodes, no code change).
+- Aiven Business-tier Postgres; add the read replica for feed/leaderboard reads when needed.
+- Aiven Valkey for the rate-limit store + hot-read cache (leaderboard).
+- Bunny CDN for all media, within the ADR-0019 bandwidth caps.
+- Hard 2027 requirements from ADR-0011 that must land first: stop holding a DB
+  transaction across the whole request, rate limiting, the caching layer, real auth,
+  real observability.
+- If sales land at 30–50 schools the first season, cost and revenue scale down
+  together — nothing here is all-or-nothing.
 
-**250 schools, ~50k users (national, 2029):**
-- 4× CPX41, autoscaling on CPU.
-- Aiven Business-8 with read replica.
-- Read replica handles feed/leaderboard reads; primary handles writes.
-- Bunny CDN bandwidth tier upgrade.
-- Cost: ~€1000-1500/month.
+**Off-season (the other ~47 weeks):**
+- Scale down to a lean baseline: 1× box, smaller DB tier, no load balancer. Infra
+  spend follows the seasonal curve (ADR-0011) — that is what keeps the annual total
+  small (~€2–3k/yr excl. video).
+
+**National full scale (2028+, ~250 schools / ~50k users):**
+- More/bigger API nodes (CPX42), bigger Business tier + read replica, materialized
+  leaderboard view refreshed every 60s. Same architecture, bigger dials.
 
 **The architecture supports all of this WITHOUT a rewrite.** That's the design goal.
 

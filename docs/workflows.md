@@ -6,6 +6,10 @@ These are the playbooks for tasks Ludvig (or Claude) will do repeatedly. If you 
 
 ## 1. Add a new API endpoint
 
+> **Claude:** use the `/new-endpoint` skill — it is the maintained, codebase-accurate
+> version of this playbook (templates match the real route files). The steps below are
+> the human-readable overview; where they disagree, the skill wins.
+
 For tenant-scoped endpoints (most of them):
 
 1. **Decide the resource.** Where does this fit — `submissions`, `knuter`, `feed`, `me`? Endpoints live one-per-resource in `apps/api/src/routes/<resource>.ts`. If the resource doesn't exist yet, create the file.
@@ -72,6 +76,9 @@ For tenant-scoped endpoints (most of them):
 ---
 
 ## 2. Add a new table (tenant-scoped)
+
+> **Claude:** use the `/new-table` skill — maintained and codebase-accurate (covers the
+> RLS meta-test and shared-table path too). Where the steps below disagree, the skill wins.
 
 1. **Create the schema file** `apps/api/src/db/schema/<table>.ts`:
    ```ts

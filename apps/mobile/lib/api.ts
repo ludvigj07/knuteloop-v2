@@ -121,7 +121,8 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
       // Body wasn't JSON (proxy error, empty body) — fall back to the generic message.
     }
     const fallback = `API svarte ${res.status} ${res.statusText}.`
-    const devHint = res.status === 401 ? ' Token utløpt? Re-kjør dev:token.' : ''
+    const devHint =
+      res.status === 401 ? ' Token utløpt? Velg bruker på nytt under «Bytt bruker (dev)».' : ''
     throw new ApiError(res.status, (serverMessage ?? fallback) + devHint)
   }
 
@@ -171,6 +172,12 @@ export type CreateSubmissionInput = {
   /** Omitted for text-only knuter (the caption is the evidence). */
   imageKey?: string
   caption?: string
+  /**
+   * ADR-0021: which submit button was pressed — «Del i feeden» ('shared') or
+   * «Send inn» ('private'). Required client-side so every call site makes the
+   * choice explicitly; the server treats a missing value as 'private'.
+   */
+  visibility: 'shared' | 'private'
 }
 
 export type CreatedSubmission = {
@@ -281,6 +288,10 @@ export type MyProfile = {
   russType: RussType
   quote: string | null
   points: number
+  /** The class this russ has claimed (null = ikke valgt ennå). */
+  classId: string | null
+  /** Display name of the claimed class (null when classId is null). */
+  className: string | null
   createdAt: string
 }
 export type MySubmission = {
@@ -311,6 +322,71 @@ export type MeResponse = {
 
 export function fetchMe(): Promise<MeResponse> {
   return apiFetch<MeResponse>('/api/me')
+}
+
+// ── Public profiles (within the school) — the «stalke»-flow ──────────────────
+// Tap a russ in the feed/leaderboard → their profile. Header and grid are two
+// endpoints so the screen can useQuery the header and useInfiniteQuery the
+// grid independently. The grid shows only APPROVED + SHARED submissions
+// (ADR-0021/0022 — filtered server-side), age-gated for the viewer.
+
+export type PublicProfile = {
+  user: {
+    id: string
+    russenavn: string
+    role: 'student' | 'knutesjef' | 'admin'
+    russType: RussType
+    quote: string | null
+    points: number
+    className: string | null
+    rank: number
+    rankTitle: string
+    /** Distinct approved knuter — counts private ones too (the achievement is public). */
+    completedCount: number
+    goldCount: number
+  }
+}
+
+export type ProfileGridItem = {
+  id: string
+  imageKey: string | null
+  /** Loadable thumbnail URL (null for text submissions + legacy placeholder keys). */
+  imageUrl: string | null
+  caption: string | null
+  createdAt: string
+  knuteTitle: string
+  knutePoints: number
+  evidenceType: 'media' | 'text'
+  isGold: boolean
+}
+export type ProfileGridResponse = { submissions: ProfileGridItem[]; nextCursor: string | null }
+
+export function fetchUserProfile(id: string): Promise<PublicProfile> {
+  return apiFetch<PublicProfile>(`/api/users/${id}`)
+}
+
+export function fetchUserSubmissions(id: string, cursor?: string | null): Promise<ProfileGridResponse> {
+  const params = cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''
+  return apiFetch<ProfileGridResponse>(`/api/users/${id}/submissions${params}`)
+}
+
+/** One of the school's classes (school_classes), for the «Velg klasse» picker. */
+export type SchoolClass = { id: string; name: string }
+export type SchoolClassesResponse = { classes: SchoolClass[] }
+
+export function fetchMyClasses(): Promise<SchoolClassesResponse> {
+  return apiFetch<SchoolClassesResponse>('/api/me/classes')
+}
+
+export type SetMyClassResponse = { classId: string | null; className: string | null }
+
+// Claim (or clear, with null) the caller's class. The server verifies the class
+// belongs to this school before writing.
+export function setMyClass(classId: string | null): Promise<SetMyClassResponse> {
+  return apiFetch<SetMyClassResponse>('/api/me/class', {
+    method: 'PATCH',
+    body: JSON.stringify({ classId }),
+  })
 }
 
 // The queue badge (knutesjef panel + tab bar): a cheap count(*) endpoint, NOT

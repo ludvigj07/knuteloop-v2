@@ -1,21 +1,19 @@
 import { Hono } from 'hono'
-import { and, count, desc, eq, inArray, lt, sql } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 import { auth, type AuthVariables } from '../middleware/auth.js'
 import { tenantContext } from '../middleware/tenant-context.js'
-import { requireRole } from '../middleware/require-role.js'
 import { knuter, submissions, users } from '../db/schema/index.js'
-import { ConflictError, NotFoundError, ValidationError } from '../lib/errors.js'
-import {
-  isValidImageKey,
-  newSubmissionImageKey,
-  PENDING_CARD_VARIANT,
-  publicUrlForKey,
-  requestOrigin,
-  uploadUrlForKey,
-} from '../lib/storage.js'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../lib/errors.js'
+import { newSubmissionImageKey, requestOrigin, uploadUrlForKey } from '../lib/storage.js'
+import { submissionReviewRoutes } from './submissions-review.js'
 import type { db } from '../db/client.js'
+
+// The student submit flow of /api/submissions. The knutesjef review side
+// (pending queue, count, approve, reject) lives in submissions-review.ts and
+// is composed in at the bottom — AFTER the auth + tenant .use() lines, which
+// therefore cover it too.
 
 type Variables = AuthVariables & {
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0]
@@ -29,18 +27,14 @@ const createSubmissionSchema = z.object({
   // validated against the knute's evidence_type in the handler (a DB lookup).
   imageKey: z.string().trim().min(1).max(500).optional(),
   caption: z.string().trim().max(500).optional(),
+  // ADR-0021: which submit button was pressed — «Del i feeden» (shared) or
+  // «Send inn» (private). Optional so pre-visibility clients keep working;
+  // omitted → 'private' (privacy by default — never publish by accident).
+  visibility: z.enum(['shared', 'private']).optional(),
 })
 
-const DEFAULT_PAGE_SIZE = 20
-const MAX_PAGE_SIZE = 50
-
-// Cursor = createdAt ISO of the last item on the previous page — the same
-// contract as /api/feed. A timestamp-only cursor can skip an item on an
-// exact-microsecond tie; acceptable for a review queue (pull-to-refresh
-// reconciles, and nothing is lost — the row stays pending).
-const pendingQuerySchema = z.object({
-  cursor: z.string().datetime({ offset: true }).optional(),
-  limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
+const visibilityPatchSchema = z.object({
+  visibility: z.enum(['shared', 'private']),
 })
 
 export const submissionRoutes = new Hono<{ Variables: Variables }>()
@@ -126,22 +120,39 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
         )
       }
 
-      // Evidence rule (ADR-0014): a text-only knute takes a written caption as proof
-      // (no photo possible/allowed); a media knute requires an uploaded image. Enforced
-      // here because it depends on the knute's evidence_type, not just the request shape.
+      // Two independent evidence axes (ADR-0021 rule 10 + ADR-0022):
+      //   VALID (points):    text knute → caption required, photo never accepted
+      //                      (content-safety floor, ADR-0019); media knute →
+      //                      caption OR image, at least one (v1's low threshold).
+      //   SHAREABLE (feed):  media required. Text knuter can never be shared —
+      //                      by construction the sensitive content stays off
+      //                      every public surface. Enforced HERE, not just in
+      //                      the UI: public-surface rules are server-side.
+      const visibility = input.visibility ?? 'private'
       let imageKey: string | null
       if (existing.evidenceType === 'text') {
         if (!input.caption) {
           throw new ValidationError('Denne knuten krever en beskrivelse i stedet for bilde')
         }
+        if (visibility === 'shared') {
+          throw new ValidationError(
+            'Denne knuten kan ikke deles i feeden — den sendes bare til knutesjefen',
+          )
+        }
         imageKey = null
       } else {
-        if (!input.imageKey) {
-          throw new ValidationError('Denne knuten krever et bilde')
+        if (!input.imageKey && !input.caption) {
+          throw new ValidationError('Legg ved et bilde eller skriv en beskrivelse')
         }
-        imageKey = input.imageKey
+        if (visibility === 'shared' && !input.imageKey) {
+          throw new ValidationError('Du må legge ved et bilde for å dele i feeden')
+        }
+        imageKey = input.imageKey ?? null
       }
 
+      // ADR-0021: born-shared rows get shared_at = now so the feed (which
+      // orders by share time) can serve them; private rows get it on first
+      // flip in PATCH /:id/visibility below.
       const inserted = await tx
         .insert(submissions)
         .values({
@@ -150,6 +161,8 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
           knuteId: input.knuteId,
           imageKey,
           caption: input.caption ?? null,
+          visibility,
+          sharedAt: visibility === 'shared' ? new Date() : null,
         })
         .returning()
         .catch((err: unknown) => {
@@ -173,15 +186,17 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
     },
   )
 
-  // GET /api/submissions/pending — knutesjef sees the school's pending queue,
-  // newest first, cursor-paginated (default 20, max 50 — same contract as
-  // /api/feed). Joins russenavn + knute title/points for one-shot display
-  // (no N+1). Served by the partial index submissions_pending_idx
-  // (school_id, created_at DESC) WHERE status = 'pending'.
-  .get(
-    '/pending',
-    requireRole('knutesjef', 'admin'),
-    zValidator('query', pendingQuerySchema, (result, c) => {
+  // PATCH /api/submissions/:id/visibility — the owner changes who may see the
+  // evidence, both directions, any status (ADR-0021 rule 6). Sharing a pending
+  // submission just means it will appear in the feed once approved.
+  //
+  // shared_at is first-share-wins: set on the first flip to 'shared', kept on
+  // hide/re-share — so re-sharing returns a post to its original feed position
+  // instead of bumping it to the top (ADR-0021 rule 7).
+  .patch(
+    '/:id/visibility',
+    zValidator('param', z.object({ id: z.string().uuid() })),
+    zValidator('json', visibilityPatchSchema, (result, c) => {
       if (!result.success) {
         return c.json(
           { error: { message: 'Invalid input', issues: result.error.flatten() } },
@@ -192,173 +207,46 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
     }),
     async (c) => {
       const tx = c.get('tx')
+      const userId = c.get('userId')
       const schoolId = c.get('schoolId')
-      const { cursor, limit } = c.req.valid('query')
+      const { id } = c.req.valid('param')
+      const { visibility } = c.req.valid('json')
 
-      const conditions = [
-        eq(submissions.schoolId, schoolId),
-        eq(submissions.status, 'pending'),
-      ]
-      if (cursor) {
-        conditions.push(lt(submissions.createdAt, new Date(cursor)))
-      }
-
-      // Fetch one extra row to know whether another page exists.
-      const rows = await tx
+      // Tenant-scoped lookup: another school's submission → zero rows → 404
+      // (no existence leak). A same-school non-owner gets an honest 403 —
+      // shared posts are already visible in the feed, so existence is public.
+      const [row] = await tx
         .select({
-          id: submissions.id,
           userId: submissions.userId,
-          knuteId: submissions.knuteId,
+          sharedAt: submissions.sharedAt,
           imageKey: submissions.imageKey,
-          caption: submissions.caption,
-          createdAt: submissions.createdAt,
-          russenavn: users.russenavn,
-          knuteTitle: knuter.title,
-          knutePoints: knuter.points,
-          evidenceType: knuter.evidenceType,
         })
         .from(submissions)
-        .innerJoin(users, eq(users.id, submissions.userId))
-        .innerJoin(knuter, eq(knuter.id, submissions.knuteId))
-        .where(and(...conditions))
-        .orderBy(desc(submissions.createdAt))
-        .limit(limit + 1)
-
-      const hasMore = rows.length > limit
-      const page = hasMore ? rows.slice(0, limit) : rows
-      const nextCursor = hasMore ? page[page.length - 1]!.createdAt.toISOString() : null
-
-      // Resolve each stored key to a loadable URL (null for legacy placeholder keys
-      // that aren't real uploads — the client shows a placeholder for those). The
-      // queue shows card-sized photos, so ask for the card variant — a no-op until
-      // the Bunny Optimizer add-on is enabled.
-      const origin = requestOrigin(c.req.url)
-      const withUrls = page.map((r) => ({
-        ...r,
-        imageUrl:
-          r.imageKey && isValidImageKey(r.imageKey)
-            ? publicUrlForKey(r.imageKey, origin, PENDING_CARD_VARIANT)
-            : null,
-      }))
-
-      return c.json({ submissions: withUrls, nextCursor })
-    },
-  )
-
-  // GET /api/submissions/pending/count — the queue badge (tab bar + knutesjef
-  // panel). The list endpoint is paginated, so badges use this count(*) instead
-  // of downloading the whole queue to measure its length. Same partial index.
-  .get('/pending/count', requireRole('knutesjef', 'admin'), async (c) => {
-    const tx = c.get('tx')
-    const schoolId = c.get('schoolId')
-
-    const [row] = await tx
-      .select({ count: count() })
-      .from(submissions)
-      .where(and(eq(submissions.schoolId, schoolId), eq(submissions.status, 'pending')))
-
-    return c.json({ count: row?.count ?? 0 })
-  })
-
-  // PATCH /api/submissions/:id/approve — knutesjef approves a pending submission.
-  // Multi-table transaction: flip status + record reviewer + award points to user.
-  .patch(
-    '/:id/approve',
-    requireRole('knutesjef', 'admin'),
-    zValidator('param', z.object({ id: z.string().uuid() })),
-    async (c) => {
-      const tx = c.get('tx')
-      const schoolId = c.get('schoolId')
-      const reviewerId = c.get('userId')
-      const { id } = c.req.valid('param')
-
-      // Load the submission + the knute's points in one query. RLS scopes
-      // to this school; an id from another school yields zero rows → 404.
-      const found = await tx
-        .select({
-          submissionUserId: submissions.userId,
-          submissionStatus: submissions.status,
-          knutePoints: knuter.points,
-        })
-        .from(submissions)
-        .innerJoin(knuter, eq(knuter.id, submissions.knuteId))
         .where(and(eq(submissions.id, id), eq(submissions.schoolId, schoolId)))
         .limit(1)
-      if (found.length === 0) throw new NotFoundError('Submission')
-      const row = found[0]!
-
-      if (row.submissionStatus !== 'pending') {
-        // Idempotency-ish — already reviewed. Treat as 404 to avoid leaking
-        // the prior state to the client.
-        throw new NotFoundError('Submission')
+      if (!row) throw new NotFoundError('Innsending')
+      if (row.userId !== userId) {
+        throw new ForbiddenError('Du kan bare endre synlighet på egne innsendinger')
       }
 
-      // Atomic guard against a double-approval race (S0-7): two knutesjefer can
-      // both read 'pending' above, but only ONE UPDATE will match status='pending'
-      // and flip the row. The other returns zero rows → we must NOT award points
-      // again. Points are awarded only when this UPDATE actually transitioned a row.
-      const updatedRows = await tx
-        .update(submissions)
-        .set({
-          status: 'approved',
-          reviewedBy: reviewerId,
-          reviewedAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(submissions.id, id),
-            eq(submissions.schoolId, schoolId),
-            eq(submissions.status, 'pending'),
-          ),
-        )
-        .returning()
-      if (updatedRows.length === 0) {
-        // Another reviewer approved/rejected it between our read and this write.
-        throw new NotFoundError('Submission')
+      // ADR-0022: the feed is a visual surface — a submission without media can
+      // never become shared (covers both text knuter and caption-only media
+      // submissions). Keeps the invariant shared ⇒ image_key IS NOT NULL.
+      if (visibility === 'shared' && row.imageKey === null) {
+        throw new ValidationError('Innsendinger uten bilde kan ikke deles i feeden')
       }
-      const updated = updatedRows[0]!
 
+      const sharedAt = visibility === 'shared' ? (row.sharedAt ?? new Date()) : row.sharedAt
       await tx
-        .update(users)
-        .set({ points: sql`${users.points} + ${row.knutePoints}` })
-        .where(and(eq(users.id, row.submissionUserId), eq(users.schoolId, schoolId)))
-
-      return c.json({ submission: updated })
-    },
-  )
-
-  // PATCH /api/submissions/:id/reject — knutesjef rejects. No points awarded.
-  .patch(
-    '/:id/reject',
-    requireRole('knutesjef', 'admin'),
-    zValidator('param', z.object({ id: z.string().uuid() })),
-    async (c) => {
-      const tx = c.get('tx')
-      const schoolId = c.get('schoolId')
-      const reviewerId = c.get('userId')
-      const { id } = c.req.valid('param')
-
-      const found = await tx
-        .select({ status: submissions.status })
-        .from(submissions)
-        .where(and(eq(submissions.id, id), eq(submissions.schoolId, schoolId)))
-        .limit(1)
-      if (found.length === 0 || found[0]!.status !== 'pending') {
-        throw new NotFoundError('Submission')
-      }
-
-      const [updated] = await tx
         .update(submissions)
-        .set({
-          status: 'rejected',
-          reviewedBy: reviewerId,
-          reviewedAt: new Date(),
-          updatedAt: new Date(),
-        })
+        .set({ visibility, sharedAt, updatedAt: new Date() })
         .where(and(eq(submissions.id, id), eq(submissions.schoolId, schoolId)))
-        .returning()
 
-      return c.json({ submission: updated })
+      return c.json({ id, visibility })
     },
   )
+
+  // Knutesjef review routes (pending/count/approve/reject) — see the header
+  // comment in submissions-review.ts for why they carry no own auth/tenant.
+  .route('/', submissionReviewRoutes)
+

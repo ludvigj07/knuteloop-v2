@@ -261,6 +261,9 @@ const odinKnute = insertedStOlavKnuter[3]! // "Lag en heiarop-video for klassen"
 const hetlandFirst = insertedHetlandKnuter[0]! // "Hetland: Lag papirfly i timen" — 10p
 const hetlandSecond = insertedHetlandKnuter[1]!
 
+// All seed rows are 'shared' (ADR-0021): approved ones must show in the feed,
+// and pending ones should land there the moment a dev approves them — so the
+// approve→feed flow is testable without the mobile visibility buttons (PR C).
 await supDb.insert(schema.submissions).values([
   // St. Olav — two approved (leaderboard), two pending (review queue).
   {
@@ -270,6 +273,8 @@ await supDb.insert(schema.submissions).values([
     imageKey: 'bunny/dev-seed/frokost-approved.webp',
     caption: 'Allerede godkjent — seed-data for topplisten',
     status: 'approved',
+    visibility: 'shared',
+    sharedAt: new Date(),
     reviewedBy: userLoke.id,
     reviewedAt: new Date(),
   },
@@ -280,6 +285,8 @@ await supDb.insert(schema.submissions).values([
     imageKey: 'bunny/dev-seed/heiarop-approved.webp',
     caption: 'Heiarop-video godkjent',
     status: 'approved',
+    visibility: 'shared',
+    sharedAt: new Date(),
     reviewedBy: userLoke.id,
     reviewedAt: new Date(),
   },
@@ -290,6 +297,8 @@ await supDb.insert(schema.submissions).values([
     imageKey: 'bunny/dev-seed/klassebilde.webp',
     caption: 'Klarte det i 1. time uten å bli tatt',
     status: 'pending',
+    visibility: 'shared',
+    sharedAt: new Date(),
   },
   {
     schoolId: stOlav.id,
@@ -298,6 +307,8 @@ await supDb.insert(schema.submissions).values([
     imageKey: 'bunny/dev-seed/rode-sokker.webp',
     caption: null,
     status: 'pending',
+    visibility: 'shared',
+    sharedAt: new Date(),
   },
   // Hetland — one approved (leaderboard), one pending (review queue).
   {
@@ -307,6 +318,8 @@ await supDb.insert(schema.submissions).values([
     imageKey: 'bunny/dev-seed/hetland-papirfly.webp',
     caption: 'Papirfly tvers over klasserommet',
     status: 'approved',
+    visibility: 'shared',
+    sharedAt: new Date(),
     reviewedBy: userBrage.id,
     reviewedAt: new Date(),
   },
@@ -317,6 +330,8 @@ await supDb.insert(schema.submissions).values([
     imageKey: 'bunny/dev-seed/hetland-snurr.webp',
     caption: null,
     status: 'pending',
+    visibility: 'shared',
+    sharedAt: new Date(),
   },
 ])
 
@@ -345,6 +360,8 @@ await supDb.insert(schema.submissions).values(
     imageKey: `bunny/dev-seed/loke-${i}.webp`,
     caption: null,
     status: 'approved' as const,
+    visibility: 'shared' as const,
+    sharedAt: c.day,
     reviewedBy: userLoke.id,
     reviewedAt: c.day,
     createdAt: c.day,

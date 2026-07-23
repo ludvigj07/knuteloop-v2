@@ -18,6 +18,7 @@ import {
 } from '../../components/primitives'
 import { KnutePreviewCard } from '../../components/submit/KnutePreviewCard'
 import { PhotoEvidence } from '../../components/submit/PhotoEvidence'
+import { SubmitActions, type SubmitChoice } from '../../components/submit/SubmitActions'
 import {
   createSubmission,
   fetchKnuter,
@@ -111,19 +112,33 @@ export default function KnuteDetailScreen() {
     }
   }
 
+  // The mutation takes the visibility choice as its variable — WHICH button was
+  // pressed (ADR-0021). React Query keeps it on submit.variables, so the
+  // success screen knows whether the post is headed for the feed.
   const submit = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (visibility: SubmitChoice) => {
       if (!id) throw new Error('Mangler knute-id')
       // Text-only knute: the caption is the evidence — no upload, no imageKey.
       if (isText) {
         if (!caption.trim()) throw new Error('Skriv en kort beskrivelse')
-        return createSubmission({ knuteId: id, caption: caption.trim() })
+        return createSubmission({ knuteId: id, caption: caption.trim(), visibility })
       }
-      if (!imageUri) throw new Error('Velg eller ta et bilde først')
+      // Media knute without a photo: valid as PRIVATE with a caption (ADR-0021
+      // rule 10) — sharing requires the photo (ADR-0022; UI enforces, we guard).
+      if (!imageUri) {
+        if (visibility === 'shared') throw new Error('Legg ved et bilde for å dele i feeden')
+        if (!caption.trim()) throw new Error('Legg ved et bilde eller skriv en beskrivelse')
+        return createSubmission({ knuteId: id, caption: caption.trim(), visibility })
+      }
       // upload-url → PUT the compressed photo → create the submission with the key.
       const { uploadUrl, imageKey } = await fetchUploadUrl()
       await uploadImageBinary(uploadUrl, imageUri)
-      return createSubmission({ knuteId: id, imageKey, caption: caption.trim() || undefined })
+      return createSubmission({
+        knuteId: id,
+        imageKey,
+        caption: caption.trim() || undefined,
+        visibility,
+      })
     },
     onSuccess: () => {
       void haptics.success()
@@ -166,6 +181,9 @@ export default function KnuteDetailScreen() {
   }
 
   if (submit.isSuccess) {
+    // Success copy follows the choice: shared posts announce the feed,
+    // private ones reassure that only the knutesjef sees it (ADR-0021).
+    const shared = submit.variables === 'shared'
     return (
       <View style={styles.root}>
         <Stack.Screen options={{ ...screenOptions, headerBackVisible: false }} />
@@ -175,8 +193,16 @@ export default function KnuteDetailScreen() {
               <Check size={sticker.icon.lg} color={sticker.color.success} strokeWidth={3} />
             </View>
           }
-          title="Sendt til godkjenning!"
-          body={`Knutesjefen får «${knute.title}» til vurdering. Du får varsel når den er godkjent.`}
+          title={shared ? 'Delt og sendt inn!' : 'Sendt til godkjenning!'}
+          body={
+            shared
+              ? `Knutesjefen får «${knute.title}» til vurdering — den legges i feeden når den er godkjent.`
+              : // Promise «kan deles senere» only when a photo exists — media-less
+                // submissions can never be shared (ADR-0022).
+                `Knutesjefen får «${knute.title}» til vurdering. Bare dere to ser den${
+                  !isText && imageUri !== null ? ' — du kan dele den i feeden senere' : ''
+                }.`
+          }
           actionLabel="Ferdig"
           actionVariant="accent"
           onAction={() => router.back()}
@@ -185,21 +211,22 @@ export default function KnuteDetailScreen() {
     )
   }
 
-  const busy = submit.isPending
-  const canSubmit =
-    (isText ? caption.trim().length > 0 : imageUri !== null) && lockReason === null && !busy
-
-  const submitLabel = lockReason
-    ? 'Allerede sendt inn'
-    : busy
-      ? 'Sender inn…'
-      : isText
-        ? caption.trim().length === 0
-          ? 'Skriv en beskrivelse'
-          : 'Send inn'
-        : !imageUri
-          ? 'Legg til et bilde'
-          : 'Send inn'
+  // Two evidence axes (ADR-0021 rule 10 + ADR-0022): VALID = caption or photo
+  // (text knuter: caption only); SHAREABLE = photo required. The hint line
+  // explains the current state — one line, no layout jump.
+  const hasText = caption.trim().length > 0
+  const hasImage = imageUri !== null
+  const canSend = isText ? hasText : hasText || hasImage
+  const canShare = !isText && hasImage
+  const hint = isText
+    ? hasText
+      ? 'Denne knuten deles ikke i feeden — bare knutesjefen ser den.'
+      : 'Skriv en beskrivelse for å sende inn.'
+    : !canSend
+      ? 'Legg til et bilde eller skriv en beskrivelse.'
+      : !hasImage
+        ? 'Legg ved bilde for å dele i feeden — «Send inn» funker uten.'
+        : 'Begge gir poeng — «Send inn» viser den bare til knutesjefen.'
 
   return (
     <View style={styles.root}>
@@ -264,28 +291,16 @@ export default function KnuteDetailScreen() {
           />
         </View>
 
-        <View style={styles.actions}>
-          <StickerButton
-            label={submitLabel}
-            variant="accent"
-            fullWidth
-            loading={busy}
-            disabled={!canSubmit}
-            icon={
-              canSubmit ? (
-                <Check size={sticker.icon.md} color={sticker.color.ink} strokeWidth={2.5} />
-              ) : undefined
-            }
-            onPress={() => submit.mutate()}
-          />
-          <StickerButton
-            label="Avbryt"
-            variant="ghost"
-            fullWidth
-            disabled={busy}
-            onPress={() => router.back()}
-          />
-        </View>
+        <SubmitActions
+          onSubmit={(visibility) => submit.mutate(visibility)}
+          onCancel={() => router.back()}
+          showShare={!isText}
+          canShare={canShare && lockReason === null}
+          canSend={canSend && lockReason === null}
+          hint={hint}
+          busyChoice={submit.isPending ? (submit.variables ?? null) : null}
+          locked={lockReason !== null}
+        />
       </ScrollView>
       <Toast message={toast.message} bottomOffset={insets.bottom + spacing.lg} />
     </View>
@@ -361,7 +376,6 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   inputDisabled: { backgroundColor: sticker.color.surfaceSoft, color: sticker.color.textMuted },
-  actions: { gap: spacing.sm, marginTop: spacing.xs },
   // Centered states
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
   centerCard: { width: '100%' },
