@@ -120,26 +120,39 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
         )
       }
 
-      // Evidence rule (ADR-0014): a text-only knute takes a written caption as proof
-      // (no photo possible/allowed); a media knute requires an uploaded image. Enforced
-      // here because it depends on the knute's evidence_type, not just the request shape.
+      // Two independent evidence axes (ADR-0021 rule 10 + ADR-0022):
+      //   VALID (points):    text knute → caption required, photo never accepted
+      //                      (content-safety floor, ADR-0019); media knute →
+      //                      caption OR image, at least one (v1's low threshold).
+      //   SHAREABLE (feed):  media required. Text knuter can never be shared —
+      //                      by construction the sensitive content stays off
+      //                      every public surface. Enforced HERE, not just in
+      //                      the UI: public-surface rules are server-side.
+      const visibility = input.visibility ?? 'private'
       let imageKey: string | null
       if (existing.evidenceType === 'text') {
         if (!input.caption) {
           throw new ValidationError('Denne knuten krever en beskrivelse i stedet for bilde')
         }
+        if (visibility === 'shared') {
+          throw new ValidationError(
+            'Denne knuten kan ikke deles i feeden — den sendes bare til knutesjefen',
+          )
+        }
         imageKey = null
       } else {
-        if (!input.imageKey) {
-          throw new ValidationError('Denne knuten krever et bilde')
+        if (!input.imageKey && !input.caption) {
+          throw new ValidationError('Legg ved et bilde eller skriv en beskrivelse')
         }
-        imageKey = input.imageKey
+        if (visibility === 'shared' && !input.imageKey) {
+          throw new ValidationError('Du må legge ved et bilde for å dele i feeden')
+        }
+        imageKey = input.imageKey ?? null
       }
 
       // ADR-0021: born-shared rows get shared_at = now so the feed (which
       // orders by share time) can serve them; private rows get it on first
       // flip in PATCH /:id/visibility below.
-      const visibility = input.visibility ?? 'private'
       const inserted = await tx
         .insert(submissions)
         .values({
@@ -203,13 +216,24 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
       // (no existence leak). A same-school non-owner gets an honest 403 —
       // shared posts are already visible in the feed, so existence is public.
       const [row] = await tx
-        .select({ userId: submissions.userId, sharedAt: submissions.sharedAt })
+        .select({
+          userId: submissions.userId,
+          sharedAt: submissions.sharedAt,
+          imageKey: submissions.imageKey,
+        })
         .from(submissions)
         .where(and(eq(submissions.id, id), eq(submissions.schoolId, schoolId)))
         .limit(1)
       if (!row) throw new NotFoundError('Innsending')
       if (row.userId !== userId) {
         throw new ForbiddenError('Du kan bare endre synlighet på egne innsendinger')
+      }
+
+      // ADR-0022: the feed is a visual surface — a submission without media can
+      // never become shared (covers both text knuter and caption-only media
+      // submissions). Keeps the invariant shared ⇒ image_key IS NOT NULL.
+      if (visibility === 'shared' && row.imageKey === null) {
+        throw new ValidationError('Innsendinger uten bilde kan ikke deles i feeden')
       }
 
       const sharedAt = visibility === 'shared' ? (row.sharedAt ?? new Date()) : row.sharedAt
