@@ -121,7 +121,8 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
       // Body wasn't JSON (proxy error, empty body) — fall back to the generic message.
     }
     const fallback = `API svarte ${res.status} ${res.statusText}.`
-    const devHint = res.status === 401 ? ' Token utløpt? Re-kjør dev:token.' : ''
+    const devHint =
+      res.status === 401 ? ' Token utløpt? Velg bruker på nytt under «Bytt bruker (dev)».' : ''
     throw new ApiError(res.status, (serverMessage ?? fallback) + devHint)
   }
 
