@@ -37,9 +37,11 @@ beforeAll(async () => {
     .returning()
   const k = insertedK[0]!
   const k2 = insertedK[1]!
+  // Both rows are 'shared' — this file's feed test reads them via /api/feed,
+  // which filters visibility='shared' and orders by shared_at (ADR-0021).
   await h.superDb.insert(submissions).values([
-    { schoolId: schoolAId, userId: user!.id, knuteId: k.id, imageKey: realKey, status: 'approved', reviewedAt: new Date() },
-    { schoolId: schoolAId, userId: user!.id, knuteId: k2.id, imageKey: 'placeholder/old.webp', status: 'approved', reviewedAt: new Date(new Date().getTime() - 1000) },
+    { schoolId: schoolAId, userId: user!.id, knuteId: k.id, imageKey: realKey, status: 'approved', visibility: 'shared', sharedAt: new Date(), reviewedAt: new Date() },
+    { schoolId: schoolAId, userId: user!.id, knuteId: k2.id, imageKey: 'placeholder/old.webp', status: 'approved', visibility: 'shared', sharedAt: new Date(new Date().getTime() - 1000), reviewedAt: new Date(new Date().getTime() - 1000) },
   ])
 
   tokenA = await signDevToken({ sub: user!.id, school_id: schoolAId, role: 'student' })
