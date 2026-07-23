@@ -4,7 +4,7 @@ import { FlashList, type ListRenderItemInfo } from '@shopify/flash-list'
 import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated'
 import { useQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Stack } from 'expo-router'
+import { Stack, useRouter } from 'expo-router'
 import { ChevronRight, X } from 'lucide-react-native'
 import { AppTabBar } from '../components/AppTabBar'
 import {
@@ -78,6 +78,7 @@ function getInitials(name: string) {
 
 export default function LeaderboardScreen() {
   const insets = useSafeAreaInsets()
+  const router = useRouter()
   const reduceMotion = useReducedMotion()
   const [view, setView] = useState<ViewKey>('skolen')
   // Klassekamp-drill: tap a class row to see THAT class's own list. Cleared by
@@ -102,6 +103,13 @@ export default function LeaderboardScreen() {
   const drillInto = useCallback((className: string) => {
     setDrilledClass(className)
   }, [])
+
+  // Tap a russ → their public profile («stalke»-flow). Stable handler so the
+  // memoized rows hold.
+  const openProfile = useCallback(
+    (userId: string) => router.push(`/user/${userId}`),
+    [router],
+  )
 
   const rows = useMemo<RowItem[]>(() => {
     if (view === 'klassekamp') {
@@ -128,13 +136,13 @@ export default function LeaderboardScreen() {
         }
       >
         {item.kind === 'russ' ? (
-          <LeaderRow entry={item.entry} displayRank={item.displayRank} />
+          <LeaderRow entry={item.entry} displayRank={item.displayRank} onOpen={openProfile} />
         ) : (
           <ClassRow standing={item.standing} onDrill={drillInto} />
         )}
       </Animated.View>
     ),
-    [reduceMotion, drillInto],
+    [reduceMotion, drillInto, openProfile],
   )
 
   if (isLoading) return <LoadingState />
@@ -299,23 +307,31 @@ function ViewSegment({
 }
 
 // One russ row. memo: a few hundred rows per school — parent re-renders
-// (view/refresh state) must not re-render them all. Non-pressable (public
-// profiles are not in v2), so the row is ONE screen-reader element.
+// (view/refresh state) must not re-render them all. Pressable since public
+// profiles landed (#86 + user/[id]): tap → the russ's profile. Stable onOpen
+// handler so memo holds; the whole row is ONE screen-reader element.
 const LeaderRow = memo(function LeaderRow({
   entry,
   displayRank,
+  onOpen,
 }: {
   entry: LeaderboardEntry
   displayRank: number
+  onOpen: (userId: string) => void
 }) {
   const medal = MEDAL_COLOR[displayRank]
   return (
-    <StickerCard radius="md" shadow="sm" padding="md">
-      <View
-        style={styles.row}
-        accessible
-        accessibilityLabel={`Plass ${formatNumber(displayRank)}, ${entry.russenavn}, ${entry.rankTitle}, ${formatNumber(entry.points)} poeng${entry.isCurrentUser ? ', det er deg' : ''}`}
-      >
+    <StickerCard
+      radius="md"
+      shadow="sm"
+      padding="md"
+      onPress={() => onOpen(entry.userId)}
+      haptic="light"
+      accessibilityRole="button"
+      accessibilityLabel={`Plass ${formatNumber(displayRank)}, ${entry.russenavn}, ${entry.rankTitle}, ${formatNumber(entry.points)} poeng${entry.isCurrentUser ? ', det er deg' : ''}`}
+      accessibilityHint="Åpner profilen"
+    >
+      <View style={styles.row}>
         <View style={[styles.rankBadge, medal ? { backgroundColor: medal } : null]}>
           <Text
             font="mono"
