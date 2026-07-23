@@ -2,6 +2,7 @@ import { createMiddleware } from 'hono/factory'
 import { sql } from 'drizzle-orm'
 import { db } from '../db/client.js'
 import { ForbiddenError } from '../lib/errors.js'
+import type { SchoolId } from '../lib/ids.js'
 
 // Opens a transaction, sets `app.school_id` for that transaction, exposes
 // the transaction as `c.var.tx` for handlers to use.
@@ -12,7 +13,7 @@ import { ForbiddenError } from '../lib/errors.js'
 export const tenantContext = () =>
   createMiddleware<{
     Variables: {
-      schoolId: string
+      schoolId: SchoolId
       tx: Parameters<Parameters<typeof db.transaction>[0]>[0]
     }
   }>(async (c, next) => {
