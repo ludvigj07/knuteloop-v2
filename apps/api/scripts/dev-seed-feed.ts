@@ -128,19 +128,27 @@ await supDb
 await supDb.delete(schema.submissions).where(inArray(schema.submissions.id, SEED_IDS))
 
 // Spread createdAt over the last week so the feed has a realistic timeline.
+// Seed rows are 'shared' with sharedAt = createdAt (ADR-0021) — the feed
+// filters visibility='shared' and orders by shared_at, so private/defaulted
+// rows would leave the dev feed empty.
 const now = Date.now()
-const batch = schoolKnuter.slice(3, 3 + BATCH_SIZE).map((k, i) => ({
-  id: SEED_IDS[i],
-  schoolId: stOlav.id,
-  userId: frida.id,
-  knuteId: k.id,
-  imageKey: seedImageKey(i),
-  caption: captions[i % captions.length] ?? null,
-  status: 'approved' as const,
-  reviewedBy: loke.id,
-  reviewedAt: new Date(now - i * 3 * 60 * 60 * 1000),
-  createdAt: new Date(now - i * 6 * 60 * 60 * 1000),
-}))
+const batch = schoolKnuter.slice(3, 3 + BATCH_SIZE).map((k, i) => {
+  const submittedAt = new Date(now - i * 6 * 60 * 60 * 1000)
+  return {
+    id: SEED_IDS[i],
+    schoolId: stOlav.id,
+    userId: frida.id,
+    knuteId: k.id,
+    imageKey: seedImageKey(i),
+    caption: captions[i % captions.length] ?? null,
+    status: 'approved' as const,
+    visibility: 'shared' as const,
+    sharedAt: submittedAt,
+    reviewedBy: loke.id,
+    reviewedAt: new Date(now - i * 3 * 60 * 60 * 1000),
+    createdAt: submittedAt,
+  }
+})
 
 await supDb.insert(schema.submissions).values(batch)
 

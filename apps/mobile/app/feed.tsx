@@ -10,9 +10,9 @@ import { Image } from 'expo-image'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useRouter } from 'expo-router'
-import { X } from 'lucide-react-native'
+import { ChevronRight, X } from 'lucide-react-native'
 import { AppTabBar } from '../components/AppTabBar'
-import { Chip, KnoteIcon, Skeleton, StickerButton, StickerCard, Text } from '../components/primitives'
+import { Chip, KnoteIcon, Pressable, Skeleton, StickerButton, StickerCard, Text } from '../components/primitives'
 import { fetchFeed, type FeedItem } from '../lib/api'
 import { formatNumber } from '../lib/format'
 import { animation, colors, fontSize, size, spacing, sticker } from '../lib/theme'
@@ -47,9 +47,15 @@ export default function FeedScreen() {
 
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<FeedItem>) => (
-      <FeedCard item={item} height={height} width={width} bottomInset={insets.bottom} />
+      <FeedCard
+        item={item}
+        height={height}
+        width={width}
+        bottomInset={insets.bottom}
+        onOpenProfile={() => router.push(`/user/${item.userId}`)}
+      />
     ),
-    [height, width, insets.bottom],
+    [height, width, insets.bottom, router],
   )
 
   return (
@@ -154,11 +160,13 @@ const FeedCard = memo(function FeedCard({
   height,
   width,
   bottomInset,
+  onOpenProfile,
 }: {
   item: FeedItem
   height: number
   width: number
   bottomInset: number
+  onOpenProfile: () => void
 }) {
   // imageUrl is null for legacy placeholder keys (no real upload) — show a
   // placeholder for those; render the photo when there's a real URL.
@@ -219,9 +227,20 @@ const FeedCard = memo(function FeedCard({
       >
         <StickerCard radius="lg" shadow="sm" padding="md">
           <View style={styles.infoContent}>
-            <Text font="display" weight="bold" size="lg" color={sticker.color.ink} numberOfLines={1}>
-              {item.russenavn}
-            </Text>
+            {/* The name is the profile tap target («stalke»-flow) — just the
+                name row, so the card body never fights the vertical swipe. */}
+            <Pressable
+              onPress={onOpenProfile}
+              haptic="light"
+              accessibilityRole="link"
+              accessibilityLabel={`Se profilen til ${item.russenavn}`}
+              style={styles.nameRow}
+            >
+              <Text font="display" weight="bold" size="lg" color={sticker.color.ink} numberOfLines={1} style={styles.nameText}>
+                {item.russenavn}
+              </Text>
+              <ChevronRight size={sticker.icon.sm} color={sticker.color.textMuted} strokeWidth={2.5} />
+            </Pressable>
             <Text size="sm" color={sticker.color.textSoft} numberOfLines={2}>
               {item.knuteTitle}
             </Text>
@@ -286,6 +305,14 @@ const styles = StyleSheet.create({
   },
   infoContent: {
     gap: spacing.xs,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  nameText: {
+    flexShrink: 1,
   },
   chipRow: {
     flexDirection: 'row',

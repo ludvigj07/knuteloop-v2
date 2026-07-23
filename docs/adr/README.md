@@ -93,3 +93,5 @@ What we are choosing. Be specific — name versions, libraries, vendors.
 | [0018](./0018-folders-as-primary-axis.md) | Folders as the primary browse axis ("Spotify for knuter"); refines 0013 + 0014 | Accepted | 2026-06-28 |
 | [0019](./0019-per-knute-evidence-type.md) | Per-knute evidence type (text/photo/video); restricted for sensitive knuter; supersedes 0009 + 0012 | Accepted | 2026-07-02 |
 | [0020](./0020-tiered-school-price-sponsor-revenue.md) | Tiered school price + sponsor-driven revenue model (supersedes ADR-0011's revenue assumptions) | Proposed | 2026-07-07 |
+| [0021](./0021-submission-visibility.md) | Per-submission visibility (delt/privat) + submission-flow rules; resolves the profile A/B/C question | Accepted | 2026-07-22 |
+| [0022](./0022-feed-requires-media.md) | Sharing requires media — the feed is a visual surface; refines 0021 | Accepted | 2026-07-23 |
