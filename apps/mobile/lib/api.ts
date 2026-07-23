@@ -171,6 +171,12 @@ export type CreateSubmissionInput = {
   /** Omitted for text-only knuter (the caption is the evidence). */
   imageKey?: string
   caption?: string
+  /**
+   * ADR-0021: which submit button was pressed — «Del i feeden» ('shared') or
+   * «Send inn» ('private'). Required client-side so every call site makes the
+   * choice explicitly; the server treats a missing value as 'private'.
+   */
+  visibility: 'shared' | 'private'
 }
 
 export type CreatedSubmission = {
