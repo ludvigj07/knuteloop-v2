@@ -141,6 +141,13 @@
       "when": 1783200757718,
       "tag": "0019_force_rls_school_classes",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1784752018083,
+      "tag": "0020_cold_silver_fox",
+      "breakpoints": true
     }
   ]
 }

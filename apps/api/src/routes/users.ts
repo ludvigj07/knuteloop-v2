@@ -23,12 +23,16 @@ type Variables = AuthVariables & {
 // leaderboard/feed and see who they are. Two endpoints so the client can
 // useQuery the header and useInfiniteQuery the grid independently.
 //
-// Privacy rules (locked with Ludvig 2026-07-05):
+// Privacy rules (locked with Ludvig 2026-07-05, visibility added 2026-07-22):
 //   - NO per-category aggregates (sensitive folders — sex-ringer etc. — are
 //     never exposed on someone else's profile; own-profile only).
-//   - The grid shows exactly what the feed already shows: APPROVED submissions,
+//   - The grid shows exactly what the feed already shows: APPROVED + SHARED
+//     submissions (ADR-0021 — private ones are owner+knutesjef only),
 //     age-gated for the VIEWER. Nothing becomes visible here that wasn't
 //     already visible in the feed — this is a re-grouping, not a new exposure.
+//   - Header aggregates (points, completed, gold) still count private
+//     submissions — the achievement is public, the evidence is not (ADR-0021
+//     rule 5). The grid may therefore show fewer items than completedCount.
 //   - Tenant-scoped everywhere: another school's user id → 404, never 403
 //     (no existence leak).
 
@@ -117,10 +121,11 @@ export const usersRoutes = new Hono<{ Variables: Variables }>()
     })
   })
 
-  // GET /api/users/:id/submissions — the profile grid: the user's APPROVED
-  // submissions, newest first, cursor-paginated (feed contract). Age-gated for
-  // the VIEWER exactly like the feed (ADR-0015): a non-adult never sees 18+
-  // knuter here either.
+  // GET /api/users/:id/submissions — the profile grid: the user's APPROVED +
+  // SHARED submissions (ADR-0021), newest first, cursor-paginated (feed
+  // contract; this grid keeps createdAt as its axis — it is the user's
+  // history, not a share timeline). Age-gated for the VIEWER exactly like the
+  // feed (ADR-0015): a non-adult never sees 18+ knuter here either.
   .get(
     '/:id/submissions',
     zValidator('param', paramSchema),
@@ -153,6 +158,7 @@ export const usersRoutes = new Hono<{ Variables: Variables }>()
         eq(submissions.schoolId, schoolId),
         eq(submissions.userId, id),
         eq(submissions.status, 'approved'),
+        eq(submissions.visibility, 'shared'),
       ]
       if (cursor) conditions.push(lt(submissions.createdAt, new Date(cursor)))
 

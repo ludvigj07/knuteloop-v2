@@ -36,6 +36,19 @@ export const submissions = pgTable(
     status: text('status', { enum: ['pending', 'approved', 'rejected'] })
       .notNull()
       .default('pending'),
+    // Who may SEE the evidence (ADR-0021). 'shared' = feed + public profile
+    // grid (once approved); 'private' = owner + knutesjef only. Points and
+    // streak count either way. Default 'private' = privacy by default (GDPR
+    // Art. 25 — some users are minors); the client sends the choice explicitly.
+    visibility: text('visibility', { enum: ['shared', 'private'] })
+      .notNull()
+      .default('private'),
+    // When the submission FIRST became shared: insert time for born-shared
+    // rows, first flip time for late shares. Drives feed ordering (share time,
+    // not submit time — a late-shared post surfaces at the top, not buried).
+    // Set once and kept on hide/re-share so re-sharing can't bump a post.
+    // Invariant (code-enforced): visibility = 'shared' ⇒ shared_at IS NOT NULL.
+    sharedAt: timestamp('shared_at', { withTimezone: true }),
     reviewedBy: uuid('reviewed_by').references(() => users.id),
     reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -60,9 +73,17 @@ export const submissions = pgTable(
     // Social feed: approved submissions newest-first within a school. Partial
     // index matches the feed query's WHERE status = 'approved' filter exactly,
     // so the feed never has to scan/sort pending+rejected rows.
+    // NOTE (ADR-0021): the feed now also filters visibility='shared' and sorts
+    // by shared_at — served by submissions_feed_shared_idx below. This index is
+    // kept for now (no drive-by removals); drop in a later cleanup migration.
     index('submissions_feed_approved_idx')
       .on(table.schoolId, table.createdAt.desc())
       .where(sql`status = 'approved'`),
+    // The feed query's exact shape after ADR-0021: approved AND shared, ordered
+    // by share time. Partial → pending/rejected/private rows never bloat it.
+    index('submissions_feed_shared_idx')
+      .on(table.schoolId, table.sharedAt.desc())
+      .where(sql`status = 'approved' and visibility = 'shared'`),
     // At most ONE active (pending OR approved) submission per (school, user, knute).
     // DB-level guard against the duplicate-submission race (S0-8): the application
     // read-then-insert check can be passed by two concurrent POSTs, but this unique
