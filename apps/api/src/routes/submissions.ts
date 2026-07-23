@@ -5,7 +5,7 @@ import { zValidator } from '@hono/zod-validator'
 import { auth, type AuthVariables } from '../middleware/auth.js'
 import { tenantContext } from '../middleware/tenant-context.js'
 import { knuter, submissions, users } from '../db/schema/index.js'
-import { ConflictError, NotFoundError, ValidationError } from '../lib/errors.js'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../lib/errors.js'
 import { newSubmissionImageKey, requestOrigin, uploadUrlForKey } from '../lib/storage.js'
 import { submissionReviewRoutes } from './submissions-review.js'
 import type { db } from '../db/client.js'
@@ -27,6 +27,14 @@ const createSubmissionSchema = z.object({
   // validated against the knute's evidence_type in the handler (a DB lookup).
   imageKey: z.string().trim().min(1).max(500).optional(),
   caption: z.string().trim().max(500).optional(),
+  // ADR-0021: which submit button was pressed — «Del i feeden» (shared) or
+  // «Send inn» (private). Optional so pre-visibility clients keep working;
+  // omitted → 'private' (privacy by default — never publish by accident).
+  visibility: z.enum(['shared', 'private']).optional(),
+})
+
+const visibilityPatchSchema = z.object({
+  visibility: z.enum(['shared', 'private']),
 })
 
 export const submissionRoutes = new Hono<{ Variables: Variables }>()
@@ -112,22 +120,39 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
         )
       }
 
-      // Evidence rule (ADR-0014): a text-only knute takes a written caption as proof
-      // (no photo possible/allowed); a media knute requires an uploaded image. Enforced
-      // here because it depends on the knute's evidence_type, not just the request shape.
+      // Two independent evidence axes (ADR-0021 rule 10 + ADR-0022):
+      //   VALID (points):    text knute → caption required, photo never accepted
+      //                      (content-safety floor, ADR-0019); media knute →
+      //                      caption OR image, at least one (v1's low threshold).
+      //   SHAREABLE (feed):  media required. Text knuter can never be shared —
+      //                      by construction the sensitive content stays off
+      //                      every public surface. Enforced HERE, not just in
+      //                      the UI: public-surface rules are server-side.
+      const visibility = input.visibility ?? 'private'
       let imageKey: string | null
       if (existing.evidenceType === 'text') {
         if (!input.caption) {
           throw new ValidationError('Denne knuten krever en beskrivelse i stedet for bilde')
         }
+        if (visibility === 'shared') {
+          throw new ValidationError(
+            'Denne knuten kan ikke deles i feeden — den sendes bare til knutesjefen',
+          )
+        }
         imageKey = null
       } else {
-        if (!input.imageKey) {
-          throw new ValidationError('Denne knuten krever et bilde')
+        if (!input.imageKey && !input.caption) {
+          throw new ValidationError('Legg ved et bilde eller skriv en beskrivelse')
         }
-        imageKey = input.imageKey
+        if (visibility === 'shared' && !input.imageKey) {
+          throw new ValidationError('Du må legge ved et bilde for å dele i feeden')
+        }
+        imageKey = input.imageKey ?? null
       }
 
+      // ADR-0021: born-shared rows get shared_at = now so the feed (which
+      // orders by share time) can serve them; private rows get it on first
+      // flip in PATCH /:id/visibility below.
       const inserted = await tx
         .insert(submissions)
         .values({
@@ -136,6 +161,8 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
           knuteId: input.knuteId,
           imageKey,
           caption: input.caption ?? null,
+          visibility,
+          sharedAt: visibility === 'shared' ? new Date() : null,
         })
         .returning()
         .catch((err: unknown) => {
@@ -156,6 +183,66 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
       const created = inserted[0]!
 
       return c.json({ submission: created }, 201)
+    },
+  )
+
+  // PATCH /api/submissions/:id/visibility — the owner changes who may see the
+  // evidence, both directions, any status (ADR-0021 rule 6). Sharing a pending
+  // submission just means it will appear in the feed once approved.
+  //
+  // shared_at is first-share-wins: set on the first flip to 'shared', kept on
+  // hide/re-share — so re-sharing returns a post to its original feed position
+  // instead of bumping it to the top (ADR-0021 rule 7).
+  .patch(
+    '/:id/visibility',
+    zValidator('param', z.object({ id: z.string().uuid() })),
+    zValidator('json', visibilityPatchSchema, (result, c) => {
+      if (!result.success) {
+        return c.json(
+          { error: { message: 'Invalid input', issues: result.error.flatten() } },
+          400,
+        )
+      }
+      return undefined
+    }),
+    async (c) => {
+      const tx = c.get('tx')
+      const userId = c.get('userId')
+      const schoolId = c.get('schoolId')
+      const { id } = c.req.valid('param')
+      const { visibility } = c.req.valid('json')
+
+      // Tenant-scoped lookup: another school's submission → zero rows → 404
+      // (no existence leak). A same-school non-owner gets an honest 403 —
+      // shared posts are already visible in the feed, so existence is public.
+      const [row] = await tx
+        .select({
+          userId: submissions.userId,
+          sharedAt: submissions.sharedAt,
+          imageKey: submissions.imageKey,
+        })
+        .from(submissions)
+        .where(and(eq(submissions.id, id), eq(submissions.schoolId, schoolId)))
+        .limit(1)
+      if (!row) throw new NotFoundError('Innsending')
+      if (row.userId !== userId) {
+        throw new ForbiddenError('Du kan bare endre synlighet på egne innsendinger')
+      }
+
+      // ADR-0022: the feed is a visual surface — a submission without media can
+      // never become shared (covers both text knuter and caption-only media
+      // submissions). Keeps the invariant shared ⇒ image_key IS NOT NULL.
+      if (visibility === 'shared' && row.imageKey === null) {
+        throw new ValidationError('Innsendinger uten bilde kan ikke deles i feeden')
+      }
+
+      const sharedAt = visibility === 'shared' ? (row.sharedAt ?? new Date()) : row.sharedAt
+      await tx
+        .update(submissions)
+        .set({ visibility, sharedAt, updatedAt: new Date() })
+        .where(and(eq(submissions.id, id), eq(submissions.schoolId, schoolId)))
+
+      return c.json({ id, visibility })
     },
   )
 

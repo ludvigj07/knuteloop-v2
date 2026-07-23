@@ -60,11 +60,13 @@ export const meRoutes = new Hono<{ Variables: Variables }>()
 
     if (!user) throw new NotFoundError('User')
 
-    // Last 20 submissions for the activity list.
+    // Last 20 submissions for the activity list. visibility rides along so the
+    // client can show the delt/privat state (and offer the toggle, ADR-0021).
     const mine = await tx
       .select({
         id: submissions.id,
         status: submissions.status,
+        visibility: submissions.visibility,
         knuteId: submissions.knuteId,
         imageKey: submissions.imageKey,
         caption: submissions.caption,

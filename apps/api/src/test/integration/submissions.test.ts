@@ -669,9 +669,17 @@ describe('POST /api/submissions — text-only knuter (ADR-0014)', () => {
     expect(body.submission.imageKey).toBeNull()
   })
 
-  it('rejects a media knute submitted with no image (400)', async () => {
-    const knuteId = await freshKnuteA('media-needs-image')
-    const res = await post({ knuteId, caption: 'glemte bildet' })
+  it('accepts a media knute with caption only — v1-loose validity (ADR-0021 rule 10)', async () => {
+    const knuteId = await freshKnuteA('media-caption-only')
+    const res = await post({ knuteId, caption: 'glemte bildet, men gjorde den!' })
+    expect(res.status).toBe(201)
+    const body = (await res.json()) as { submission: { imageKey: string | null } }
+    expect(body.submission.imageKey).toBeNull()
+  })
+
+  it('rejects a media knute with neither caption nor image (400)', async () => {
+    const knuteId = await freshKnuteA('media-empty')
+    const res = await post({ knuteId })
     expect(res.status).toBe(400)
   })
 })

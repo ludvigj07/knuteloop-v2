@@ -53,7 +53,7 @@ describe('apiFetch error handling', () => {
       json: async () => ({}),
     }) as unknown as typeof fetch
 
-    await expect(fetchKnuter()).rejects.toThrow('Re-kjør dev:token')
+    await expect(fetchKnuter()).rejects.toThrow('Velg bruker på nytt under «Bytt bruker (dev)»')
   })
 })
 
