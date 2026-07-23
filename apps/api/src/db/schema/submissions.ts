@@ -40,6 +40,8 @@ export const submissions = pgTable(
     // grid (once approved); 'private' = owner + knutesjef only. Points and
     // streak count either way. Default 'private' = privacy by default (GDPR
     // Art. 25 — some users are minors); the client sends the choice explicitly.
+    // Invariant (ADR-0022, code-enforced): 'shared' ⇒ image_key IS NOT NULL —
+    // the feed is a visual surface; text-only evidence can never be shared.
     visibility: text('visibility', { enum: ['shared', 'private'] })
       .notNull()
       .default('private'),
