@@ -30,13 +30,16 @@ function assertUuid(value: string, kind: string): void {
 }
 
 // Trust-boundary casts. Validate shape so a garbage claim can never become
-// a "trusted" branded ID.
+// a "trusted" branded ID, and NORMALIZE to lowercase: Postgres emits UUIDs
+// lowercase, and several handlers compare ids at the string level (e.g. the
+// submission-visibility ownership check) — an uppercase-variant claim that
+// only differs in case must not desync from DB values.
 export function asSchoolId(value: string): SchoolId {
   assertUuid(value, 'SchoolId')
-  return value as SchoolId
+  return value.toLowerCase() as SchoolId
 }
 
 export function asUserId(value: string): UserId {
   assertUuid(value, 'UserId')
-  return value as UserId
+  return value.toLowerCase() as UserId
 }
