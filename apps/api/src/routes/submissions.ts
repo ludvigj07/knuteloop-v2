@@ -106,6 +106,10 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
         .from(submissions)
         .where(
           and(
+            // schoolId is redundant with RLS + the fact that userId is a global
+            // PK — but critical rule 2 is BOTH layers on every tenant query, no
+            // exceptions (defense in depth; caught in review 2026-07-24).
+            eq(submissions.schoolId, schoolId),
             eq(submissions.userId, userId),
             eq(submissions.knuteId, input.knuteId),
             inArray(submissions.status, ['pending', 'approved']),

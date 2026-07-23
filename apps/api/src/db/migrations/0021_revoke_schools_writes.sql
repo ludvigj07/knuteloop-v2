@@ -1,0 +1,14 @@
+-- schools becomes read-only for app_role (database.md §1: shared tables are
+-- read-only from the app; only admin_role mutates them).
+--
+-- Why this matters more than it looks: every tenant table has
+-- school_id ... ON DELETE CASCADE, so before this REVOKE a single
+-- `DELETE FROM schools WHERE id = <any school>` from the app connection
+-- could erase an entire school's users, submissions — everything. The app
+-- has no legitimate write to schools (schools are provisioned by admin);
+-- SELECT remains (tenant lookup at login).
+--
+-- Surfaced by the adversarial review of PR #92 (2026-07-24); the rls-meta
+-- suite derives its read-only check from SHARED_TABLES, so schools joins
+-- that check the moment the exception list drops to empty (same PR).
+REVOKE INSERT, UPDATE, DELETE ON schools FROM app_role;
