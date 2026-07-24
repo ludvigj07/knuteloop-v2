@@ -64,7 +64,8 @@ export default function RootLayout() {
               contentStyle: { backgroundColor: colors.background },
             }}
           >
-            <Stack.Screen name="index" options={{ title: 'Knuter' }} />
+            <Stack.Screen name="index" options={{ title: 'Hjem' }} />
+            <Stack.Screen name="knuter" options={{ title: 'Knuter' }} />
           </Stack>
         </QueryClientProvider>
       </SafeAreaProvider>

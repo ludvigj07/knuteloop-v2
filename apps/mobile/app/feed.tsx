@@ -100,7 +100,7 @@ export default function FeedScreen() {
               <StickerButton
                 label="Se knutene"
                 variant="accent"
-                onPress={() => router.push('/')}
+                onPress={() => router.push('/knuter')}
                 accessibilityHint="Åpner knutekatalogen."
               />
             </View>

@@ -189,6 +189,9 @@ export const size = {
   progressBarHeight: 6,
   // Review queue — height of the evidence photo / text-quote / placeholder well.
   reviewEvidenceHeight: 220,
+  // Student home — enough room for real school activity without turning the
+  // opening screen into a fullscreen feed.
+  homeActivityMediaHeight: 220,
 } as const
 
 export const fontWeight = {
@@ -196,6 +199,10 @@ export const fontWeight = {
   medium: '500',
   semibold: '600',
   bold: '700',
+} as const
+
+export const minimumFontScale = {
+  compactNumber: 0.6,
 } as const
 
 // Motion tokens. Durations in ms; springs are Reanimated withSpring configs.
