@@ -318,6 +318,15 @@ export type MeResponse = {
   categories: CategoryRingData[]
 }
 
+export type DagensKnuteResponse = {
+  dagens: Pick<Knute, 'id' | 'title' | 'description' | 'points' | 'difficulty'> | null
+}
+
+/** Dagens knute — skolens deterministiske dagsvalg (v1-spec §3, Europe/Oslo-dag). */
+export function fetchDagensKnute(): Promise<DagensKnuteResponse> {
+  return apiFetch<DagensKnuteResponse>('/api/knuter/dagens')
+}
+
 export function fetchMe(): Promise<MeResponse> {
   return apiFetch<MeResponse>('/api/me')
 }
