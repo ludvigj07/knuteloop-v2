@@ -1,3 +1,4 @@
+import type { SchoolId } from '../../lib/ids.js'
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { eq } from 'drizzle-orm'
 import {
@@ -15,8 +16,8 @@ import { buildApp } from '../../app.js'
 
 let h: TestHandles
 let app: ReturnType<typeof buildApp>
-let schoolAId: string
-let schoolBId: string
+let schoolAId: SchoolId
+let schoolBId: SchoolId
 let knutesjefTokenA: string
 let studentTokenA: string
 let knutesjefTokenB: string

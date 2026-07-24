@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm'
+import type { SchoolId } from '../../lib/ids'
 import { pgTable, uuid, timestamp, unique, pgPolicy } from 'drizzle-orm/pg-core'
 import { schools } from './schools'
 import { users } from './users'
@@ -18,7 +19,8 @@ export const schoolLibraryImports = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     schoolId: uuid('school_id')
       .notNull()
-      .references(() => schools.id, { onDelete: 'cascade' }),
+      .references(() => schools.id, { onDelete: 'cascade' })
+      .$type<SchoolId>(),
     libraryKnuteId: uuid('library_knute_id')
       .notNull()
       .references(() => libraryKnuter.id, { onDelete: 'cascade' }),

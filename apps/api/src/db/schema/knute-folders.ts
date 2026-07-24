@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm'
+import type { SchoolId } from '../../lib/ids'
 import { pgTable, uuid, text, integer, timestamp, index, unique, pgPolicy } from 'drizzle-orm/pg-core'
 import { schools } from './schools'
 import { knuter } from './knuter'
@@ -12,7 +13,8 @@ export const knuteFolders = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     schoolId: uuid('school_id')
       .notNull()
-      .references(() => schools.id, { onDelete: 'cascade' }),
+      .references(() => schools.id, { onDelete: 'cascade' })
+      .$type<SchoolId>(),
     name: text('name').notNull(),
     // Optional lucide icon key (see @knuteloop/shared FOLDER_ICON_KEYS). Null =
     // the default folder icon. Validated against the shared key set in the route.
@@ -42,7 +44,8 @@ export const knuteFolderMemberships = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     schoolId: uuid('school_id')
       .notNull()
-      .references(() => schools.id, { onDelete: 'cascade' }),
+      .references(() => schools.id, { onDelete: 'cascade' })
+      .$type<SchoolId>(),
     knuteId: uuid('knute_id')
       .notNull()
       .references(() => knuter.id, { onDelete: 'cascade' }),

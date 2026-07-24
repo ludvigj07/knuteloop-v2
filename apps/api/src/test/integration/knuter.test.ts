@@ -1,3 +1,4 @@
+import type { SchoolId } from '../../lib/ids.js'
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { schools, users, knuter, knuteFolders, knuteFolderMemberships, submissions } from '../../db/schema/index.js'
 import { setupTestDb, type TestHandles } from '../helpers/test-db.js'
@@ -6,8 +7,8 @@ import { buildApp } from '../../app.js'
 
 let h: TestHandles
 let app: ReturnType<typeof buildApp>
-let schoolAId: string
-let schoolBId: string
+let schoolAId: SchoolId
+let schoolBId: SchoolId
 let knutesjefTokenA: string // Loke @ A — can read AND write
 let studentTokenA: string // Frida @ A — read only
 let knutesjefTokenB: string // Tor @ B — for cross-tenant tests

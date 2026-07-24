@@ -3,7 +3,13 @@
   "compilerOptions": {
     "rootDir": "./src",
     "outDir": "./dist",
-    "types": ["node"]
+    "types": ["node"],
+    // The API is an app, not a library — nobody consumes its .d.ts (the mobile
+    // client keeps its own contract types; no Hono RPC). Declaration emit is
+    // also what turns branded-ID columns into TS4023 naming errors, since the
+    // brand's unique symbol is deliberately not exported from lib/ids.ts.
+    "declaration": false,
+    "declarationMap": false
   },
   "include": ["src/**/*"]
 }

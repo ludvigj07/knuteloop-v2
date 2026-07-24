@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm'
+import type { SchoolId } from '../../lib/ids'
 import {
   pgTable,
   uuid,
@@ -24,7 +25,8 @@ export const knuter = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     schoolId: uuid('school_id')
       .notNull()
-      .references(() => schools.id, { onDelete: 'cascade' }),
+      .references(() => schools.id, { onDelete: 'cascade' })
+      .$type<SchoolId>(),
     title: text('title').notNull(),
     description: text('description'),
     points: integer('points').notNull(),

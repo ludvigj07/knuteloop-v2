@@ -1,3 +1,4 @@
+import type { SchoolId } from '../../lib/ids.js'
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { schools, users, knuter, submissions } from '../../db/schema/index.js'
@@ -12,8 +13,8 @@ import { buildApp } from '../../app.js'
 
 let h: TestHandles
 let app: ReturnType<typeof buildApp>
-let schoolAId: string
-let schoolBId: string
+let schoolAId: SchoolId
+let schoolBId: SchoolId
 let ownerId: string
 let ownerToken: string // studentA — owns every submission created here
 let otherTokenA: string // same school, NOT the owner

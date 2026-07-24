@@ -1,3 +1,4 @@
+import type { SchoolId } from '../../lib/ids.js'
 import { randomUUID } from 'node:crypto'
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { schools, users, knuter, submissions } from '../../db/schema/index.js'
@@ -7,7 +8,7 @@ import { buildApp } from '../../app.js'
 
 let h: TestHandles
 let app: ReturnType<typeof buildApp>
-let schoolAId: string
+let schoolAId: SchoolId
 let tokenA: string
 
 type UploadUrlResponse = { uploadUrl: string; imageKey: string }

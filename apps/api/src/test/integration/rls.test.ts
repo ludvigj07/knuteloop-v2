@@ -1,11 +1,12 @@
+import type { SchoolId } from '../../lib/ids.js'
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { sql } from 'drizzle-orm'
 import { schools, users, knuter, submissions, libraryKnuter, schoolLibraryImports } from '../../db/schema/index.js'
 import { setupTestDb, type TestHandles } from '../helpers/test-db.js'
 
 let h: TestHandles
-let schoolAId: string
-let schoolBId: string
+let schoolAId: SchoolId
+let schoolBId: SchoolId
 let lib2Id: string
 let bCopyId: string
 
