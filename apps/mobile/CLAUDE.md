@@ -8,7 +8,7 @@ You are working in the **frontend** (Expo + React Native + TypeScript). Claude C
 
 ## The behavioural contract
 
-When building UI for a feature that existed in v1 (leaderboard, knute catalog, feed, profiles, badges, streak), the exact data shapes, rank titles, badge tiers, and category structure are in:
+When building UI for a feature that existed in v1 (leaderboard, knute catalog, feed, profiles, rank titles, daily knute), the exact data shapes, rank titles, and category structure are in:
 
 @../../docs/v1-spec.md
 
@@ -28,16 +28,14 @@ The five knute folders, for example, are exactly: Generelle, Dobbelknuter, Alkoh
 
 ## Brand reminders
 
-- **Polish is the moat.** Press feedback, list stagger, rank-up toast, badge-unlock modal, confetti on approval — these aren't extras, they're the product. See `frontend.md` §7.
+- **Polish is the moat — and it is QUIET (ADR-0023).** Press feedback, list stagger, skeletons, smooth transitions — these aren't extras, they're the product. NO sound, NO confetti, NO unlock shows/toasts, NO streak. Badges await a joint redesign with Ludvig — don't build them. See `frontend.md` §7.
 - **Feed app first, camera second, identity third.** Optimize the feed scroll and the submit flow above all else.
 - **Skeletons, not spinners. Bottom sheets, not modals. FlashList, not FlatList. expo-image, not Image.**
 
 ## Animation that's mandatory (not optional)
 
 - Every Pressable: scale to 0.96 + haptic on press
-- Submission approved: confetti + success haptic
-- Leaderboard rank change: animated count-up + rank-up toast
-- Badge tier unlock: zoom-in modal + heavy haptic
+- Submission approved: success haptic + calm confirmation (NO confetti, NO sound — ADR-0023)
 - All of it respects `useReducedMotion()`
 
 ## What v1 modeled that v2 keeps
