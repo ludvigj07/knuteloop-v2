@@ -32,7 +32,6 @@ type MeResponse = {
   counts: { approved: number; pending: number; rejected: number }
   completedCount: number
   goldCount: number
-  streak: number
   categories: CategoryRing[]
 }
 
@@ -92,8 +91,8 @@ beforeAll(async () => {
   const knuteSchoolB = insertedKnuter[4]!
 
   const now = Date.now()
-  // Frida: approved frokost YESTERDAY + approved gull TODAY → 2-day streak.
-  // Plus one pending and one rejected (all-time counts must include these).
+  // Frida: approved frokost yesterday + approved gull today (spread across days
+  // on purpose). Plus one pending and one rejected (all-time counts include these).
   await h.superDb.insert(submissions).values([
     {
       schoolId: schoolAId,
@@ -185,12 +184,6 @@ describe('GET /api/me', () => {
     const body = (await res.json()) as MeResponse
     expect(body.completedCount).toBe(2) // frokost + gull (distinct)
     expect(body.goldCount).toBe(1) // the is_gold knute — counted despite being only 15p
-  })
-
-  it('streak counts consecutive Oslo days of approved submissions', async () => {
-    const res = await app.request('/api/me', { headers: { Authorization: `Bearer ${fridaTokenA}` } })
-    const body = (await res.json()) as MeResponse
-    expect(body.streak).toBe(2) // yesterday + today
   })
 
   it('category rings: totals exclude inactive knuter; completed is a subset of total', async () => {

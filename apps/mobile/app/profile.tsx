@@ -124,7 +124,7 @@ export default function ProfileScreen() {
     )
   }
 
-  const { user, submissions, completedCount, goldCount, streak, categories } = meQuery.data
+  const { user, submissions, completedCount, goldCount, categories } = meQuery.data
   const myEntry = leaderboardQuery.data?.leaderboard.find((e) => e.isCurrentUser)
   const totalRanked = leaderboardQuery.data?.leaderboard.length ?? 0
   const others = (leaderboardQuery.data?.leaderboard ?? [])
@@ -156,7 +156,7 @@ export default function ProfileScreen() {
         </Animated.View>
 
         <Animated.View entering={section(1)}>
-          <StatTrio streak={streak} points={user.points} rank={myEntry?.rank ?? null} totalRanked={totalRanked} />
+          <StatDuo points={user.points} rank={myEntry?.rank ?? null} totalRanked={totalRanked} />
         </Animated.View>
 
         <Animated.View entering={section(2)}>
@@ -263,24 +263,17 @@ function IdentityCard({ user }: { user: MeResponse['user'] }) {
   )
 }
 
-function StatTrio({
-  streak,
+function StatDuo({
   points,
   rank,
   totalRanked,
 }: {
-  streak: number
   points: number
   rank: number | null
   totalRanked: number
 }) {
   return (
     <View style={styles.statRow}>
-      <StatCard
-        value={<CountUp value={streak} font="mono" size="2xl" weight="bold" color={sticker.color.warning} {...FIT_NUMBER} />}
-        label="dagers streak"
-        accessibilityLabel={`Streak: ${streak} dager`}
-      />
       <StatCard
         value={<CountUp value={points} font="mono" size="2xl" weight="bold" color={sticker.color.primary} {...FIT_NUMBER} />}
         label="poeng"

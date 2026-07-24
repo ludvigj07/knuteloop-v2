@@ -314,8 +314,6 @@ export type MeResponse = {
   completedCount: number
   /** Distinct completed knuter worth >= 30 points. */
   goldCount: number
-  /** Consecutive Europe/Oslo days with an approved submission (ending today/yesterday). */
-  streak: number
   /** Always the five folders, in display order. */
   categories: CategoryRingData[]
 }
