@@ -1,7 +1,9 @@
 # App Store-opprydding av knutebiblioteket
 
-**Status:** Godkjent av Ludvig 2026-07-24, inkludert 50/50-gruppen. Selve
-oppryddingen er ikke utført ennå.
+**Status:** UTFØRT 2026-07-24 (branch `chore/app-store-vask`). Godkjent av Ludvig
+samme dag, inkludert 50/50-gruppen. Seed + kildedokument vasket i sync:
+**186 → 111 knuter** (75 fjernet: 21 Sex + 23 Alkohol + 10 tobakk/snus/narkotika +
+5 vold/tyveri + 7 naken/intim + 2 kroppsmodifikasjon + 7 femti/femti).
 **Dato:** 2026-06-23
 **Linje valgt:** «Bare det forbudte» — fjern kun det Apple alltid avviser uansett
 aldersgrense. Behold rå-men-ufarlig russehumor. Sikt på aldersgrense **17+**
@@ -100,6 +102,8 @@ Tatovering/piercing er ulovlig under 18 i Norge.
 
 Disse er ulovlige-light eller ekle nok til at Apple *kan* reagere, men de er ikke
 like opplagte. Si fra om noen skal beholdes.
+
+**Avgjørelse 2026-07-24: Ludvig valgte å fjerne alle 7.**
 
 - **FTP** — kyss en politibetjent (uønsket kyss = trakassering)
 - **L** — sett «L»-lapp på en politibil (tukling med politibil)

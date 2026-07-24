@@ -384,10 +384,12 @@ await supDb.update(schema.users).set({ points: hetlandFirst.points }).where(eq(s
   const text = librarySeedKnuter.filter((k) => k.evidenceType === 'text').length
   const adult = librarySeedKnuter.filter((k) => k.minAge === 18).length
   const stavanger = librarySeedKnuter.filter((k) => k.region === 'Stavanger').length
-  if (n !== 186) throw new Error(`library seed: expected 186 knuter, got ${n}`)
-  if (text !== 24) throw new Error(`library seed: expected 24 text-only, got ${text}`)
-  if (adult !== 21) throw new Error(`library seed: expected 21 adult-only (18+), got ${adult}`)
-  if (stavanger !== 5) throw new Error(`library seed: expected 5 Stavanger-region, got ${stavanger}`)
+  // Counts after the App Store content cleanup 2026-07-24 (186 → 111; the whole
+  // Sex + Alkohol folders removed, so no text-only or 18+ entries remain).
+  if (n !== 111) throw new Error(`library seed: expected 111 knuter, got ${n}`)
+  if (text !== 0) throw new Error(`library seed: expected 0 text-only, got ${text}`)
+  if (adult !== 0) throw new Error(`library seed: expected 0 adult-only (18+), got ${adult}`)
+  if (stavanger !== 3) throw new Error(`library seed: expected 3 Stavanger-region, got ${stavanger}`)
 }
 
 const difficultyFor = (p: number): 'Lett' | 'Medium' | 'Hard' | 'Valgfri' =>
@@ -409,17 +411,18 @@ const insertedLibrary = await supDb
   )
   .returning()
 
-// "Anbefalt starter" = everything except the Sex folder. A sensible default the
-// knutesjef curates later (no super-admin tool yet — edit it in library-seed-data.ts).
+// "Anbefalt starter" = the whole (cleaned) library. The App Store content cleanup
+// removed the Sex/Alkohol folders from the seed entirely, so no filter is needed;
+// the knutesjef curates further in-app later (no super-admin tool yet).
 const [starterPack] = await supDb
   .insert(schema.libraryPacks)
   .values({
     name: 'Anbefalt starter',
-    description: 'Et godt utgangspunkt — alt utenom Sex-mappa.',
+    description: 'Et godt utgangspunkt for skolens knutebok.',
     sortOrder: 0,
   })
   .returning()
-const starterMembers = insertedLibrary.filter((k) => k.suggestedFolder !== 'Sex')
+const starterMembers = insertedLibrary
 await supDb
   .insert(schema.libraryPackMemberships)
   .values(starterMembers.map((k) => ({ packId: starterPack!.id, libraryKnuteId: k.id })))
