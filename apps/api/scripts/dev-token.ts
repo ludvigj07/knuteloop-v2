@@ -48,14 +48,17 @@ try {
   }
 
   process.stdout.write('\n=== Knuteloop dev tokens ===\n')
-  process.stdout.write('TTL: 15m. Re-run this script to get fresh ones.\n\n')
+  process.stdout.write('TTL: 30d. Re-run this script to get fresh ones.\n\n')
 
   for (const r of rows) {
-    const token = await signDevToken({
-      sub: r.userId,
-      school_id: r.schoolId,
-      role: r.role as 'student' | 'knutesjef' | 'admin',
-    })
+    const token = await signDevToken(
+      {
+        sub: r.userId,
+        school_id: r.schoolId,
+        role: r.role as 'student' | 'knutesjef' | 'admin',
+      },
+      '30d',
+    )
     process.stdout.write(`School: ${r.schoolName}\n`)
     process.stdout.write(`  User:  ${r.russenavn} (${r.role})\n`)
     process.stdout.write(`  Token: ${token}\n\n`)

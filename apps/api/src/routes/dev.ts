@@ -57,7 +57,7 @@ export const devRoutes = new Hono().get('/users', async (c) => {
         role: r.role,
         schoolId: r.schoolId,
         schoolName: r.schoolName,
-        token: await signDevToken({ sub: r.userId, school_id: r.schoolId, role: r.role }, '8h'),
+        token: await signDevToken({ sub: r.userId, school_id: r.schoolId, role: r.role }, '30d'),
       })),
     )
 
