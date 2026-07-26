@@ -1,48 +1,84 @@
-import { View, Text, StyleSheet, Pressable } from 'react-native'
+import { StyleSheet } from 'react-native'
+import { Home, Play, Shield, Trophy, UserRound } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { borderWidth, colors, fontSize, fontWeight, opacity, radius, size, spacing } from '../lib/theme'
+import { KnoteIcon, Pressable, Stack, Text } from './primitives'
+import {
+  borderWidth,
+  colors,
+  opacity,
+  radius,
+  size,
+  spacing,
+  sticker,
+} from '../lib/theme'
 
-export type AppTabKey = 'knuter' | 'toppliste' | 'oyeblikk' | 'knutesjef' | 'profil'
+export type AppTabKey = 'home' | 'knuter' | 'toppliste' | 'oyeblikk' | 'knutesjef' | 'profil'
 
 type TabItem = {
   key: AppTabKey
-  href: '/' | '/leaderboard' | '/feed' | '/review' | '/profile'
+  href: '/' | '/knuter' | '/leaderboard' | '/feed' | '/admin' | '/profile'
   label: string
 }
 
-const TAB_ITEMS: readonly TabItem[] = [
-  { key: 'knuter', href: '/', label: 'Knuter' },
-  { key: 'toppliste', href: '/leaderboard', label: 'Toppliste' },
-  { key: 'oyeblikk', href: '/feed', label: 'Øyeblikk' },
-  // Lands in the knutesjef WORLD (Kø | Biblioteket | Knuteboka — its own tab
-  // bar, see KnutesjefTabBar). The queue is the main job, so it is the door.
-  { key: 'knutesjef', href: '/review', label: 'Knutesjef' },
-  { key: 'profil', href: '/profile', label: 'Profil' },
-]
+const HOME_TAB: TabItem = { key: 'home', href: '/', label: 'Hjem' }
+const KNUTER_TAB: TabItem = { key: 'knuter', href: '/knuter', label: 'Knuter' }
+const FEED_TAB: TabItem = { key: 'oyeblikk', href: '/feed', label: 'Øyeblikk' }
+const LEADERBOARD_TAB: TabItem = {
+  key: 'toppliste',
+  href: '/leaderboard',
+  label: 'Toppliste',
+}
+const PROFILE_TAB: TabItem = { key: 'profil', href: '/profile', label: 'Profil' }
+const KNUTESJEF_TAB: TabItem = {
+  key: 'knutesjef',
+  href: '/admin',
+  label: 'Knutesjef',
+}
+
+const STUDENT_TABS = [HOME_TAB, KNUTER_TAB, FEED_TAB, LEADERBOARD_TAB, PROFILE_TAB] as const
+
+const KNUTESJEF_TABS = [HOME_TAB, KNUTER_TAB, FEED_TAB, LEADERBOARD_TAB, KNUTESJEF_TAB] as const
 
 export function AppTabBar({ active }: { active: AppTabKey }) {
   const insets = useSafeAreaInsets()
   const router = useRouter()
+  const tabs = active === 'knutesjef' ? KNUTESJEF_TABS : STUDENT_TABS
 
   return (
-    <View
-      style={[styles.wrap, { bottom: insets.bottom + size.bottomNavBottomOffset }]}
+    <Stack
+      style={[
+        styles.wrap,
+        {
+          right: insets.right + spacing.sm,
+          bottom: insets.bottom + size.bottomNavBottomOffset,
+          left: insets.left + spacing.sm,
+        },
+      ]}
+      align="center"
       pointerEvents="box-none"
     >
-      <View style={styles.bar} accessibilityRole="tablist" accessibilityLabel="Hovednavigasjon">
-        {TAB_ITEMS.map((item) => {
+      <Stack
+        direction="row"
+        align="center"
+        justify="center"
+        gap="xs"
+        padding="xs"
+        style={styles.bar}
+        accessibilityRole="tablist"
+        accessibilityLabel="Hovednavigasjon"
+      >
+        {tabs.map((item) => {
           const isActive = item.key === active
 
           return (
             <Pressable
               key={item.key}
-              style={[styles.tabItem, isActive && styles.tabItemActive]}
-              // replace, not push: tab switches swap the screen instead of
-              // stacking a new copy per tap (memory + a sane back button).
+              style={[styles.tabItem, isActive ? styles.tabItemActive : null]}
               onPress={() => {
                 if (!isActive) router.replace(item.href)
               }}
+              haptic="selection"
               accessibilityRole="tab"
               accessibilityLabel={item.label}
               accessibilityHint={`Åpner ${item.label.toLocaleLowerCase('nb-NO')}.`}
@@ -50,88 +86,64 @@ export function AppTabBar({ active }: { active: AppTabKey }) {
               hitSlop={spacing.xs}
             >
               <TabIcon name={item.key} active={isActive} />
-              {isActive ? <Text style={styles.activeLabel}>{item.label}</Text> : null}
+              {isActive ? (
+                <Text
+                  size="xs"
+                  weight="bold"
+                  color={sticker.color.textInverse}
+                  numberOfLines={1}
+                  style={styles.activeLabel}
+                >
+                  {item.label}
+                </Text>
+              ) : null}
             </Pressable>
           )
         })}
-      </View>
-    </View>
+      </Stack>
+    </Stack>
   )
 }
 
 function TabIcon({ name, active }: { name: AppTabKey; active: boolean }) {
-  if (name === 'knuter') return <StackIcon active={active} />
-  if (name === 'toppliste') return <TrophyIcon active={active} />
-  if (name === 'oyeblikk') return <PlayIcon active={active} />
-  if (name === 'knutesjef') return <ShieldIcon active={active} />
-  return <PersonIcon active={active} />
-}
+  const color = active ? sticker.color.textInverse : sticker.color.ink
+  const iconProps = {
+    size: size.bottomNavIcon,
+    color,
+    strokeWidth: borderWidth.medium,
+  }
 
-function StackIcon({ active }: { active: boolean }) {
   return (
-    <View style={styles.iconBox} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <View style={[styles.stackLine, active && styles.iconFillActive]} />
-      <View style={[styles.stackLine, styles.stackLineShort, active && styles.iconFillActive]} />
-      <View style={[styles.stackLine, active && styles.iconFillActive]} />
-    </View>
-  )
-}
-
-function TrophyIcon({ active }: { active: boolean }) {
-  return (
-    <View style={styles.iconBox} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <View style={[styles.trophyCup, active && styles.iconStrokeActive]} />
-      <View style={[styles.trophyStem, active && styles.iconFillActive]} />
-      <View style={[styles.trophyBase, active && styles.iconFillActive]} />
-    </View>
-  )
-}
-
-function PlayIcon({ active }: { active: boolean }) {
-  return (
-    <View style={styles.iconBox} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <View style={[styles.playTriangle, active && styles.playTriangleActive]} />
-    </View>
-  )
-}
-
-function PersonIcon({ active }: { active: boolean }) {
-  return (
-    <View style={styles.iconBox} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <View style={[styles.personHead, active && styles.iconStrokeActive]} />
-      <View style={[styles.personShoulders, active && styles.iconStrokeActive]} />
-    </View>
-  )
-}
-
-function ShieldIcon({ active }: { active: boolean }) {
-  return (
-    <View style={styles.iconBox} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <View style={[styles.shield, active && styles.iconStrokeActive]}>
-        <View style={[styles.shieldMark, active && styles.iconFillActive]} />
-      </View>
-    </View>
+    <Stack
+      style={styles.iconBox}
+      align="center"
+      justify="center"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      {name === 'home' ? <Home {...iconProps} /> : null}
+      {name === 'knuter' ? (
+        <KnoteIcon name="knute" size={size.bottomNavIcon} color={color} />
+      ) : null}
+      {name === 'oyeblikk' ? <Play {...iconProps} /> : null}
+      {name === 'toppliste' ? <Trophy {...iconProps} /> : null}
+      {name === 'knutesjef' ? <Shield {...iconProps} /> : null}
+      {name === 'profil' ? <UserRound {...iconProps} /> : null}
+    </Stack>
   )
 }
 
 const styles = StyleSheet.create({
   wrap: {
     position: 'absolute',
-    left: spacing.sm,
-    right: spacing.sm,
     alignItems: 'center',
   },
   bar: {
     minHeight: size.bottomNavMinHeight,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    padding: spacing.xs,
     borderRadius: radius.full,
     borderWidth: borderWidth.thick,
-    borderColor: colors.borderInk,
-    backgroundColor: colors.tabBar.surface,
+    borderColor: sticker.color.ink,
+    backgroundColor: sticker.color.card,
     shadowColor: colors.tabBar.shadow,
     shadowOffset: { width: spacing.none, height: size.bottomNavShadowOffsetY },
     shadowOpacity: opacity.shadow,
@@ -143,107 +155,26 @@ const styles = StyleSheet.create({
     minHeight: size.bottomNavButton,
     borderRadius: radius.full,
     borderWidth: borderWidth.medium,
-    borderColor: colors.borderInk,
-    backgroundColor: colors.surface,
+    borderColor: sticker.color.ink,
+    backgroundColor: sticker.color.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
   tabItemActive: {
-    width: size.bottomNavActiveWidth,
+    // minWidth (not width): the pill must grow with the label —
+    // adjustsFontSizeToFit is a no-op on react-native-web, so shrinking
+    // the text can never be the overflow fix here.
+    minWidth: size.bottomNavActiveWidth,
     flexDirection: 'row',
     gap: size.bottomNavContentGap,
     paddingHorizontal: spacing.sm,
-    backgroundColor: colors.tabBar.active,
+    backgroundColor: sticker.color.primary,
   },
   activeLabel: {
-    color: colors.text.inverse,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
+    flexShrink: 1,
   },
   iconBox: {
     width: size.bottomNavIcon,
     height: size.bottomNavIcon,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing['2xs'],
-  },
-  stackLine: {
-    width: size.iconLineLong,
-    height: size.iconLineHeight,
-    borderRadius: radius.full,
-    backgroundColor: colors.tabBar.icon,
-  },
-  stackLineShort: {
-    width: size.iconLineShort,
-  },
-  trophyCup: {
-    width: size.iconTrophyCupWidth,
-    height: size.iconTrophyCupHeight,
-    borderWidth: borderWidth.medium,
-    borderColor: colors.tabBar.icon,
-    borderRadius: radius.sm,
-  },
-  trophyStem: {
-    width: size.iconTrophyStemWidth,
-    height: size.iconTrophyStemHeight,
-    backgroundColor: colors.tabBar.icon,
-  },
-  trophyBase: {
-    width: size.iconTrophyBaseWidth,
-    height: size.iconTrophyBaseHeight,
-    borderRadius: radius.full,
-    backgroundColor: colors.tabBar.icon,
-  },
-  playTriangle: {
-    width: spacing.none,
-    height: spacing.none,
-    borderTopWidth: size.iconPlayTop,
-    borderBottomWidth: size.iconPlayTop,
-    borderLeftWidth: size.iconPlayLeft,
-    borderTopColor: colors.transparent,
-    borderBottomColor: colors.transparent,
-    borderLeftColor: colors.tabBar.icon,
-  },
-  playTriangleActive: {
-    borderLeftColor: colors.text.inverse,
-  },
-  personHead: {
-    width: size.iconPersonHead,
-    height: size.iconPersonHead,
-    borderRadius: radius.full,
-    borderWidth: borderWidth.medium,
-    borderColor: colors.tabBar.icon,
-  },
-  personShoulders: {
-    width: size.iconPersonShouldersWidth,
-    height: size.iconPersonShouldersHeight,
-    borderTopLeftRadius: radius.full,
-    borderTopRightRadius: radius.full,
-    borderWidth: borderWidth.medium,
-    borderColor: colors.tabBar.icon,
-  },
-  shield: {
-    width: size.iconShieldWidth,
-    height: size.iconShieldHeight,
-    borderWidth: borderWidth.medium,
-    borderColor: colors.tabBar.icon,
-    borderTopLeftRadius: radius.sm,
-    borderTopRightRadius: radius.sm,
-    borderBottomLeftRadius: radius.lg,
-    borderBottomRightRadius: radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shieldMark: {
-    width: size.iconShieldMark,
-    height: size.iconShieldMark,
-    borderRadius: radius.full,
-    backgroundColor: colors.tabBar.icon,
-  },
-  iconFillActive: {
-    backgroundColor: colors.text.inverse,
-  },
-  iconStrokeActive: {
-    borderColor: colors.text.inverse,
   },
 })

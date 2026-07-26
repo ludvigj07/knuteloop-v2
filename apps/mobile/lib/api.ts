@@ -95,6 +95,10 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
       ...init,
       headers: {
         Authorization: `Bearer ${token}`,
+        // Dev-only: when the API is reached through a localtunnel/ngrok URL these
+        // headers skip the provider's browser interstitial, which would otherwise
+        // answer HTML to a fetch expecting JSON. No effect on a direct API URL.
+        ...(__DEV__ ? { 'bypass-tunnel-reminder': '1', 'ngrok-skip-browser-warning': '1' } : {}),
         ...(init?.body ? { 'content-type': 'application/json' } : {}),
         ...(init?.headers ?? {}),
       },
@@ -423,7 +427,10 @@ export type DevUsersResponse = { users: DevUser[] }
 // endpoint is gated to non-production server-side, and this is how you OBTAIN a
 // token, so it sits outside apiFetch.
 export async function fetchDevUsers(): Promise<DevUsersResponse> {
-  const res = await fetch(`${API_URL}/api/dev/users`)
+  const res = await fetch(`${API_URL}/api/dev/users`, {
+    // Same tunnel-interstitial bypass as apiFetch (dev-only helper anyway).
+    headers: { 'bypass-tunnel-reminder': '1', 'ngrok-skip-browser-warning': '1' },
+  })
   if (!res.ok) {
     throw new ApiError(res.status, `Dev-login utilgjengelig (${res.status}). Kjører API-en i dev-modus?`)
   }
