@@ -95,3 +95,4 @@ What we are choosing. Be specific — name versions, libraries, vendors.
 | [0020](./0020-tiered-school-price-sponsor-revenue.md) | Tiered school price + sponsor-driven revenue model (supersedes ADR-0011's revenue assumptions) | Proposed | 2026-07-07 |
 | [0021](./0021-submission-visibility.md) | Per-submission visibility (delt/privat) + submission-flow rules; resolves the profile A/B/C question | Accepted | 2026-07-22 |
 | [0022](./0022-feed-requires-media.md) | Sharing requires media — the feed is a visual surface; refines 0021 | Accepted | 2026-07-23 |
+| [0023](./0023-calm-app-no-celebration-layer.md) | Calm app — no sound, no confetti, no streak; badges await a joint redesign | Accepted | 2026-07-24 |

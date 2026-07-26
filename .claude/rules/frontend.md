@@ -66,8 +66,7 @@ apps/mobile/
 │   ├── feed/                       # FeedItem, FeedHeader, etc.
 │   ├── knute/
 │   ├── leaderboard/
-│   ├── profile/
-│   └── celebrations/               # Confetti, badge-unlock, rank-up
+│   └── profile/
 ├── hooks/                          # useXxx
 ├── lib/
 │   ├── api.ts                      # Typed fetch wrapper
@@ -262,7 +261,7 @@ type TextProps = {
 ```tsx
 // apps/mobile/components/primitives/Pressable.tsx
 // Wraps RN's Pressable with:
-// - Built-in haptic feedback (light for tap, medium for important actions, heavy for celebrations)
+// - Built-in haptic feedback (light for tap, medium for important actions)
 // - Scale-down animation on press (0.96, springs back)
 // - Disabled state styling
 // - accessibilityRole, accessibilityHint props required
@@ -399,9 +398,12 @@ Use **React Native Reanimated v4** for performance (runs on UI thread). **Moti**
 - **Modal/sheet entry:** use `@gorhom/bottom-sheet` with spring physics, NOT default modals.
 - **List item appearance:** when a new feed item appears (refresh), it fades + slides in subtly.
 - **Number changes:** points, leaderboard ranks animate using `react-native-redash` interpolation (smooth count-up).
-- **Success states:** submission approved → confetti (use `react-native-confetti-cannon`), haptic medium, sound (optional).
-- **Rank-up:** if user passes someone on leaderboard → toast with their previous rank and new rank, animated.
-- **Badge unlock:** when achievement crosses tier → modal with badge zoom-in, haptic heavy.
+- **Success states:** submission approved → success haptic + a calm, stationary confirmation (e.g. a status chip settling in).
+
+> **ADR-0023 ("calm app"):** NO sound, NO confetti, NO unlock shows — no rank-up
+> toasts, no badge-zoom modals, anywhere in the app. Celebration is quiet: haptics
+> and settled states, never spectacle. If an older instruction anywhere still asks
+> for confetti/sound, ADR-0023 wins.
 
 **Animation primitives:**
 
@@ -426,7 +428,7 @@ export const timings = {
 **Animation rules:**
 - Spring for positional changes (entering, scaling, layout).
 - Timing for opacity, color.
-- Duration < 500ms unless intentional (celebrations are exceptions).
+- Duration < 500ms.
 - Stagger lists with `entering={FadeInDown.delay(index * 50)}`.
 - Respect `prefers-reduced-motion`: read with `useReducedMotion()` and use timings instead of springs, durations shorter.
 
@@ -454,7 +456,7 @@ export const haptics = {
 **When to use:**
 - `light` — any button press (built into Pressable primitive)
 - `medium` — confirming an action (submit, approve, save)
-- `heavy` — celebration (badge unlock, rank-up)
+- `heavy` — reserved for rare emphatic moments (no celebration shows — ADR-0023)
 - `success` — submission approved by knutesjef
 - `warning` — confirmation dialog open
 - `error` — form validation failed

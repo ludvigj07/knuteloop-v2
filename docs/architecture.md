@@ -42,7 +42,7 @@ Plus: sponsor-funded knuter (the revenue model), and an admin panel for knutesje
 │    /api/submissions submit, list mine, review queue (knutesjef)    │
 │    /api/feed        social feed, paginated                         │
 │    /api/leaderboard school ranking + rank titles                   │
-│    /api/me          profile, stats, streak                         │
+│    /api/me          profile, stats                                 │
 │    /healthz         liveness (DB ping)                             │
 │                                                                    │
 │  Planned: /api/auth (real login — today a dev-only stub identity), │
@@ -91,7 +91,7 @@ A russ taps "Submit" on a knute:
 16. API: requireRole('knutesjef') middleware
 17. API: transaction { UPDATE submission, UPDATE user.points, INSERT auditLog }
 18. API: TanStack Query on submitter's device invalidates → UI refreshes
-19. Submitter sees confetti + haptic
+19. Submitter sees a calm confirmation + success haptic (no confetti/sound — ADR-0023)
 ```
 
 Every step has at least one rule attached to it in `.claude/rules/`.
