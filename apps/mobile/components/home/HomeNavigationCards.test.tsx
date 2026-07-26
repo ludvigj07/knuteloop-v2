@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
-import { HomeCatalogCard, HomeKnutesjefCard } from './HomeNavigationCards'
+import { HomeCatalogCard } from './HomeNavigationCards'
 
 describe('HomeNavigationCards', () => {
   it('opens the separate catalog and announces the real available count', () => {
@@ -31,14 +31,5 @@ describe('HomeNavigationCards', () => {
     )
 
     expect(screen.getByText('Én knute er klar for deg.')).toBeTruthy()
-  })
-
-  it('gives knutesjefen a calm route to the review queue', () => {
-    const onOpen = jest.fn()
-    render(<HomeKnutesjefCard pendingCount={2} isLoading={false} onOpen={onOpen} />)
-
-    expect(screen.getByText('2 innsendinger venter.')).toBeTruthy()
-    fireEvent.press(screen.getByLabelText('For knutesjef. 2 innsendinger venter.'))
-    expect(onOpen).toHaveBeenCalledTimes(1)
   })
 })

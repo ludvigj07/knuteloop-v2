@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native'
-import { BookOpen, ChevronRight, ShieldCheck } from 'lucide-react-native'
+import { BookOpen, ChevronRight } from 'lucide-react-native'
 import { Skeleton, Stack, StickerCard, Text } from '../primitives'
 import { formatNumber } from '../../lib/format'
 import { size, spacing, sticker } from '../../lib/theme'
@@ -72,76 +72,12 @@ export function HomeCatalogCard({
   )
 }
 
-export function HomeKnutesjefCard({
-  pendingCount,
-  isLoading,
-  onOpen,
-}: {
-  pendingCount: number | null
-  isLoading: boolean
-  onOpen: () => void
-}) {
-  const summary =
-    pendingCount == null
-      ? 'Åpne verktøyene for skolen.'
-      : pendingCount === spacing.none
-        ? 'Ingen innsendinger venter.'
-        : pendingCount === 1
-          ? 'Én innsending venter.'
-          : `${formatNumber(pendingCount)} innsendinger venter.`
-
-  return (
-    <StickerCard
-      tone="soft"
-      shadow="sm"
-      onPress={onOpen}
-      haptic="light"
-      accessibilityRole="link"
-      accessibilityLabel={`For knutesjef. ${summary}`}
-      accessibilityHint="Åpner køen og knutesjef-verktøyene."
-    >
-      <Stack direction="row" align="center" gap="md">
-        <Stack style={styles.leadIconTile} align="center" justify="center">
-          <ShieldCheck
-            size={sticker.icon.md}
-            color={sticker.color.primary}
-            strokeWidth={sticker.borderWidth}
-          />
-        </Stack>
-        <Stack style={styles.copy} gap="xs">
-          <Text font="display" size="lg" weight="bold" color={sticker.color.ink}>
-            For knutesjef
-          </Text>
-          {isLoading ? (
-            <Skeleton style={styles.summarySkeleton} />
-          ) : (
-            <Text size="sm" color={sticker.color.textMuted}>
-              {summary}
-            </Text>
-          )}
-        </Stack>
-        <ChevronRight
-          size={sticker.icon.md}
-          color={sticker.color.textMuted}
-          strokeWidth={sticker.borderWidth}
-        />
-      </Stack>
-    </StickerCard>
-  )
-}
-
 const styles = StyleSheet.create({
   iconTile: {
     width: size.otherAvatar,
     height: size.otherAvatar,
     borderRadius: sticker.radius.md,
     backgroundColor: sticker.color.primary,
-  },
-  leadIconTile: {
-    width: size.otherAvatar,
-    height: size.otherAvatar,
-    borderRadius: sticker.radius.md,
-    backgroundColor: sticker.color.primaryBg,
   },
   copy: {
     flex: 1,
