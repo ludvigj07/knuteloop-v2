@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { type ReactNode, useEffect } from 'react'
 import {
   Pressable as RNPressable,
   StyleSheet,
@@ -7,12 +7,16 @@ import {
   type ViewStyle,
 } from 'react-native'
 import Animated, {
+  cancelAnimation,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
   withTiming,
 } from 'react-native-reanimated'
-import { sticker, spacing } from '../../lib/theme'
+import { animation, opacity, sticker, spacing } from '../../lib/theme'
 import { haptics, type HapticKind } from '../../lib/haptics'
 
 // The signature "sticker" surface — a white (or tinted) card with a 2px ink
@@ -26,7 +30,8 @@ import { haptics, type HapticKind } from '../../lib/haptics'
 // translated the surface 4px on press, which made edge/small taps miss.)
 
 type ShadowSize = 'sm' | 'base' | 'lg' | 'none'
-type Tone = 'surface' | 'soft' | 'media' | 'primary' | 'accent' | 'danger'
+type Tone = 'surface' | 'soft' | 'media' | 'primary' | 'accent' | 'danger' | 'daily'
+type Frame = 'default' | 'featured'
 
 const TONE_BG: Record<Tone, string> = {
   surface: sticker.color.card,
@@ -35,12 +40,15 @@ const TONE_BG: Record<Tone, string> = {
   primary: sticker.color.primary,
   accent: sticker.color.accent,
   danger: sticker.color.danger,
+  daily: sticker.color.dailyKnot,
 }
 
 export type StickerCardProps = {
   tone?: keyof typeof TONE_BG
   radius?: keyof typeof sticker.radius
   shadow?: ShadowSize
+  /** Featured cards get a royal-blue outer frame, gold inner keyline and a quiet glint. */
+  frame?: Frame
   /** Inner padding token. 'none' for hairline-separated list cards. */
   padding?: keyof typeof spacing
   onPress?: () => void
@@ -61,6 +69,7 @@ export function StickerCard({
   tone = 'surface',
   radius = 'lg',
   shadow = 'base',
+  frame = 'default',
   padding = 'base',
   onPress,
   haptic = 'light',
@@ -75,13 +84,44 @@ export function StickerCard({
   const offset = shadow === 'none' ? 0 : sticker.shadowOffset[shadow]
   const borderRadius = sticker.radius[radius]
   const pressed = useSharedValue(0)
+  const frameFlash = useSharedValue<number>(opacity.featuredFrameIdle)
   const reduceMotion = useReducedMotion()
 
   const shadowAnimStyle = useAnimatedStyle(() => ({ opacity: 1 - pressed.value }))
+  const frameFlashStyle = useAnimatedStyle(() => ({ opacity: frameFlash.value }))
+
+  useEffect(() => {
+    if (frame !== 'featured' || reduceMotion) {
+      frameFlash.value = opacity.featuredFrameIdle
+      return
+    }
+
+    frameFlash.value = withRepeat(
+      withSequence(
+        withTiming(opacity.featuredFrameBright, {
+          duration: animation.duration.fast,
+        }),
+        withTiming(opacity.featuredFrameIdle, {
+          duration: animation.duration.slow,
+        }),
+        withDelay(
+          animation.attention.idlePause,
+          withTiming(opacity.featuredFrameIdle, {
+            duration: animation.duration.instant,
+          }),
+        ),
+      ),
+      -1,
+      false,
+    )
+
+    return () => cancelAnimation(frameFlash)
+  }, [frame, frameFlash, reduceMotion])
 
   const surfaceStyle: ViewStyle = {
-    borderWidth: sticker.borderWidth,
-    borderColor: sticker.color.ink,
+    borderWidth:
+      frame === 'featured' ? sticker.featuredFrame.borderWidth : sticker.borderWidth,
+    borderColor: frame === 'featured' ? sticker.color.primary : sticker.color.ink,
     borderRadius,
     backgroundColor: TONE_BG[tone],
     padding: spacing[padding],
@@ -95,12 +135,39 @@ export function StickerCard({
       transform: [{ translateX: offset }, { translateY: offset }],
     },
   ]
+  const featuredFrameStyle: ViewStyle = {
+    position: 'absolute',
+    top: sticker.featuredFrame.inset,
+    right: sticker.featuredFrame.inset,
+    bottom: sticker.featuredFrame.inset,
+    left: sticker.featuredFrame.inset,
+    borderWidth: sticker.borderWidth,
+    borderColor: sticker.color.gold,
+    borderRadius: borderRadius - sticker.featuredFrame.inset,
+  }
+  const featuredFrameFlashStyle: ViewStyle = {
+    ...featuredFrameStyle,
+    borderColor: sticker.color.card,
+  }
+  const featuredFrame =
+    frame === 'featured' ? (
+      <>
+        <View pointerEvents="none" style={featuredFrameStyle} />
+        <Animated.View
+          pointerEvents="none"
+          style={[featuredFrameFlashStyle, frameFlashStyle]}
+        />
+      </>
+    ) : null
 
   if (!onPress) {
     return (
       <View style={[styles.outer, style]}>
         {offset > 0 ? <View pointerEvents="none" style={shadowBaseStyle} /> : null}
-        <View style={surfaceStyle}>{children}</View>
+        <View style={surfaceStyle}>
+          {featuredFrame}
+          {children}
+        </View>
       </View>
     )
   }
@@ -136,6 +203,7 @@ export function StickerCard({
           disabled ? styles.disabled : null,
         ]}
       >
+        {featuredFrame}
         {children}
       </RNPressable>
     </View>

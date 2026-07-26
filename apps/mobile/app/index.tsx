@@ -4,12 +4,19 @@ import { Stack as RouterStack, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { AppTabBar } from '../components/AppTabBar'
 import { HomeActivityCard } from '../components/home/HomeActivityCard'
+import { HomeDagensKnuteCard } from '../components/home/HomeDagensKnuteCard'
 import { HomeCatalogCard } from '../components/home/HomeNavigationCards'
 import { HomeOverviewCard } from '../components/home/HomeOverviewCard'
 import { HomeErrorState, HomeLoadingState } from '../components/home/HomeScreenStates'
 import { HomeTopThree } from '../components/home/HomeTopThree'
 import { Stack, Text } from '../components/primitives'
-import { fetchFeed, fetchKnuter, fetchLeaderboard, fetchMe } from '../lib/api'
+import {
+  fetchDagensKnute,
+  fetchFeed,
+  fetchKnuter,
+  fetchLeaderboard,
+  fetchMe,
+} from '../lib/api'
 import { size, spacing, sticker } from '../lib/theme'
 
 const HOME_LEADER_COUNT = 3
@@ -21,6 +28,10 @@ export default function HomeScreen() {
   const feedQuery = useQuery({ queryKey: ['feed', 'home'], queryFn: () => fetchFeed() })
   const leaderboardQuery = useQuery({ queryKey: ['leaderboard'], queryFn: fetchLeaderboard })
   const knuterQuery = useQuery({ queryKey: ['knuter'], queryFn: fetchKnuter })
+  const dagensKnuteQuery = useQuery({
+    queryKey: ['knuter', 'dagens'],
+    queryFn: fetchDagensKnute,
+  })
 
   const refresh = () => {
     void Promise.all([
@@ -28,6 +39,7 @@ export default function HomeScreen() {
       feedQuery.refetch(),
       leaderboardQuery.refetch(),
       knuterQuery.refetch(),
+      dagensKnuteQuery.refetch(),
     ])
   }
 
@@ -51,12 +63,15 @@ export default function HomeScreen() {
     .filter((entry) => entry.points > spacing.none)
     .slice(spacing.none, HOME_LEADER_COUNT)
   const knuter = knuterQuery.data?.knuter ?? []
+  const dagensKnute = dagensKnuteQuery.data?.dagens ?? null
+  const dagensKnuteStatus = knuter.find((knute) => knute.id === dagensKnute?.id)?.myStatus ?? null
   const availableKnuter = knuter.filter((knute) => knute.myStatus === null).length
   const isRefreshing =
     meQuery.isRefetching ||
     feedQuery.isRefetching ||
     leaderboardQuery.isRefetching ||
-    knuterQuery.isRefetching
+    knuterQuery.isRefetching ||
+    dagensKnuteQuery.isRefetching
 
   return (
     <Stack style={styles.root}>
@@ -96,6 +111,15 @@ export default function HomeScreen() {
             Her er det som skjer i russetiden på skolen din.
           </Text>
         </Stack>
+
+        <HomeDagensKnuteCard
+          knute={dagensKnute}
+          isLoading={dagensKnuteQuery.isLoading}
+          error={(dagensKnuteQuery.error as Error | null) ?? null}
+          isCompleted={dagensKnuteStatus !== null}
+          onRetry={() => void dagensKnuteQuery.refetch()}
+          onOpen={(knuteId) => router.push(`/knute/${knuteId}`)}
+        />
 
         <HomeActivityCard
           item={feedQuery.data?.feed[0] ?? null}
