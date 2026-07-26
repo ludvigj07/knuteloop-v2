@@ -16,7 +16,26 @@ import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import { eq } from 'drizzle-orm'
 import * as schema from '../src/db/schema/index.js'
 import { signDevToken } from '../src/lib/auth-dev.js'
+import { asSchoolId } from '../src/lib/ids.js'
 import { librarySeedKnuter } from './library-seed-data.js'
+
+// Stable ids across re-seeds. Dev tokens embed user + school ids, and the
+// browser's dev-login identity survives reloads (lib/auth localStorage). With
+// random ids, every `pnpm dev:setup` silently invalidated all existing tokens
+// — the app then 401-ed or showed an empty school until you re-picked a user.
+const SCHOOL_ID = {
+  stOlav: asSchoolId('a0000000-0000-4000-8000-000000000001'),
+  hetland: asSchoolId('a0000000-0000-4000-8000-000000000002'),
+} as const
+
+const USER_ID = {
+  loke: 'b0000000-0000-4000-8000-000000000001',
+  frida: 'b0000000-0000-4000-8000-000000000002',
+  odin: 'b0000000-0000-4000-8000-000000000003',
+  brage: 'b0000000-0000-4000-8000-000000000004',
+  tor: 'b0000000-0000-4000-8000-000000000005',
+  saga: 'b0000000-0000-4000-8000-000000000006',
+} as const
 
 const SUPERUSER_URL =
   process.env.SUPERUSER_DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5432/postgres'
@@ -74,7 +93,10 @@ process.stdout.write(`  grants applied\n`)
 // 3. Seed: two schools, one user each.
 const insertedSchools = await supDb
   .insert(schema.schools)
-  .values([{ name: 'St. Olav vgs' }, { name: 'Hetland vgs' }])
+  .values([
+    { id: SCHOOL_ID.stOlav, name: 'St. Olav vgs' },
+    { id: SCHOOL_ID.hetland, name: 'Hetland vgs' },
+  ])
   .returning()
 const stOlav = insertedSchools[0]!
 const hetland = insertedSchools[1]!
@@ -103,6 +125,7 @@ const insertedUsers = await supDb
     // the default; the dev-login screen switches between all of these.
     // russType + quote are seeded on a few users so the profile card has content.
     {
+      id: USER_ID.loke,
       schoolId: stOlav.id,
       russenavn: 'Loke',
       role: 'knutesjef',
@@ -111,13 +134,13 @@ const insertedUsers = await supDb
       isAdult: true,
       classId: class3STA.id,
     },
-    { schoolId: stOlav.id, russenavn: 'Frida', role: 'student', russType: 'blue', quote: 'Tar livet med ein klype Maarud.', isAdult: true, classId: class3STA.id },
+    { id: USER_ID.frida, schoolId: stOlav.id, russenavn: 'Frida', role: 'student', russType: 'blue', quote: 'Tar livet med ein klype Maarud.', isAdult: true, classId: class3STA.id },
     // Odin stays a minor (isAdult default false) so you can test the 18+ age gate.
-    { schoolId: stOlav.id, russenavn: 'Odin', role: 'student', russType: 'red', classId: class3MKA.id },
+    { id: USER_ID.odin, schoolId: stOlav.id, russenavn: 'Odin', role: 'student', russType: 'red', classId: class3MKA.id },
     // Brage has NO class — exercises the class-less path in the class views.
-    { schoolId: hetland.id, russenavn: 'Brage', role: 'knutesjef', russType: 'red', isAdult: true },
-    { schoolId: hetland.id, russenavn: 'Tor', role: 'student', russType: 'blue', classId: class3PBA.id },
-    { schoolId: hetland.id, russenavn: 'Saga', role: 'student', classId: class3PBA.id },
+    { id: USER_ID.brage, schoolId: hetland.id, russenavn: 'Brage', role: 'knutesjef', russType: 'red', isAdult: true },
+    { id: USER_ID.tor, schoolId: hetland.id, russenavn: 'Tor', role: 'student', russType: 'blue', classId: class3PBA.id },
+    { id: USER_ID.saga, schoolId: hetland.id, russenavn: 'Saga', role: 'student', classId: class3PBA.id },
   ])
   .returning()
 const userLoke = insertedUsers[0]!
@@ -437,14 +460,13 @@ process.stdout.write(`      ${userBrage.russenavn} (${userBrage.role})\n`)
 process.stdout.write(`      ${userTor.russenavn} (${userTor.role})\n`)
 process.stdout.write(`      ${userSaga.russenavn} (${userSaga.role})\n`)
 
-// 5. Inject a fresh Loke token into apps/mobile/.env so the mobile app's
-// bundled EXPO_PUBLIC_DEV_TOKEN matches the just-seeded user ids. Without
-// this, every dev:setup invalidates the old token and the mobile shows
-// either "0 knuter" (stale schoolId) or 401 (expired). TTL is 8h here —
-// longer than 15min so it survives a typical dev session.
+// 5. Inject a fresh Loke token into apps/mobile/.env so the mobile app has a
+// working EXPO_PUBLIC_DEV_TOKEN out of the box. Seed ids are stable, so old
+// tokens keep working across re-seeds — 30d TTL means you stop thinking about
+// it entirely (dev-only: the HS256 secret is committed and public anyway).
 const lokeToken = await signDevToken(
   { sub: userLoke.id, school_id: stOlav.id, role: 'knutesjef' },
-  '8h',
+  '30d',
 )
 
 const mobileEnvPath = new URL('../../mobile/.env', import.meta.url).pathname.replace(
