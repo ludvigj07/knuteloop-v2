@@ -335,11 +335,9 @@ await supDb.insert(schema.submissions).values([
   },
 ])
 
-// Loke is the default mobile identity, so give Loke a rich profile: a 3-day
-// streak across several folders plus one gold knute (>= 30p). createdAt is set
-// explicitly to past Oslo days — the streak is computed from the approved
-// submission's day, so these consecutive days produce a streak of 3, and the
-// spread across folders lights up multiple category rings.
+// Loke is the default mobile identity, so give Loke a rich profile: approved
+// submissions spread across several days and folders, plus one gold knute
+// (>= 30p). The folder spread lights up multiple category rings.
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 const now = new Date()
 const daysAgo = (n: number) => new Date(now.getTime() - n * MS_PER_DAY)

@@ -28,6 +28,9 @@
 
 Source: `index.mjs` (constants ~L167–181, bonus calc ~L1155–1166, streak calc ~L1369–1381).
 
+- **[V2 SUPERSEDES: ADR-0023 — calm app.]** The streak is removed from V2 entirely:
+  no streak display, no daily bonus points, ever. This section remains as v1 history.
+
 - **Timezone:** `STREAK_TIME_ZONE = 'Europe/Oslo'`. Day-key = Oslo date `YYYY-MM-DD`.
 - **Daily bonus cap:** `STREAK_DAILY_BONUS_CAP = 6` points max bonus per submission.
 - **Bonus tiers** (by current streak length in consecutive qualified days):
@@ -172,7 +175,7 @@ Built in V1, status in V2 noted:
 - **Leaderboard** — school-wide ✅ V2; **class ("Klasse kamp")** ❌ V2; hot-movers ❌ V2
 - **Rank titles** (§6) ❌ V2
 - **Badges** (§7) ❌ V2
-- **Streak + daily bonus** (§2) — streak display ✅ V2; bonus points ❌ V2
+- **Streak + daily bonus** (§2) — ❌ removed from V2 entirely (ADR-0023, calm app); never build
 - **Daily knute** (§3) ❌ V2
 - **Profiles** (§9, public profile cards, profile history) ⚠️ partial V2 (own profile only)
 - **Dåp reveal gate** (§10) ❌ V2

@@ -6,7 +6,6 @@ import { auth, type AuthVariables } from '../middleware/auth.js'
 import { tenantContext } from '../middleware/tenant-context.js'
 import { users, submissions, knuter, schoolClasses } from '../db/schema/index.js'
 import { NotFoundError } from '../lib/errors.js'
-import { computeStreak } from '../lib/streak.js'
 import type { db } from '../db/client.js'
 
 type Variables = AuthVariables & {
@@ -28,7 +27,7 @@ export const meRoutes = new Hono<{ Variables: Variables }>()
   .use('*', tenantContext())
 
   // GET /api/me — the data behind the merged profile + status screen:
-  // identity (russenavn, role, russType, quote), headline stats (points, streak,
+  // identity (russenavn, role, russType, quote), headline stats (points,
   // completed, gold), per-category rings, all-time status counts, and the user's
   // last 20 submissions. Every query is tenant-scoped by an explicit school_id
   // filter AND by RLS (defense in depth — backend.md §5).
@@ -155,33 +154,12 @@ export const meRoutes = new Hono<{ Variables: Variables }>()
       completed: completedByCat.get(category) ?? 0,
     }))
 
-    // Streak: distinct Europe/Oslo days with an approved submission, run-counted
-    // in computeStreak(). Oslo day-key computed in SQL → DST-safe, host-tz-independent.
-    const dayRows = await tx
-      .selectDistinct({
-        day: sql<string>`(${submissions.createdAt} AT TIME ZONE 'Europe/Oslo')::date::text`,
-      })
-      .from(submissions)
-      .where(
-        and(
-          eq(submissions.schoolId, schoolId),
-          eq(submissions.userId, userId),
-          eq(submissions.status, 'approved'),
-        ),
-      )
-    const todayResult = await tx.execute(
-      sql`SELECT (now() AT TIME ZONE 'Europe/Oslo')::date::text AS today`,
-    )
-    const todayOslo = (todayResult as unknown as Array<{ today: string }>)[0]?.today ?? ''
-    const streak = todayOslo ? computeStreak(dayRows.map((r) => r.day), todayOslo) : 0
-
     return c.json({
       user,
       submissions: mine,
       counts,
       completedCount,
       goldCount,
-      streak,
       categories,
     })
   })
