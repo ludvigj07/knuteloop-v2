@@ -141,6 +141,9 @@ export const fontSize = {
 
 export const size = {
   bottomNavButton: 44,
+  // Shrink floor for inactive tab pills — with six tabs (knutesjef) the bar
+  // must compress to survive 320 px wide screens.
+  bottomNavButtonMin: 34,
   bottomNavActiveWidth: 104,
   bottomNavMinHeight: 60,
   bottomNavIcon: 24,

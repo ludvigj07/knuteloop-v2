@@ -1,7 +1,9 @@
 import { StyleSheet } from 'react-native'
 import { Home, Play, Shield, Trophy, UserRound } from 'lucide-react-native'
+import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { fetchMe } from '../lib/api'
 import { KnoteIcon, Pressable, Stack, Text } from './primitives'
 import {
   borderWidth,
@@ -38,12 +40,18 @@ const KNUTESJEF_TAB: TabItem = {
 
 const STUDENT_TABS = [HOME_TAB, KNUTER_TAB, FEED_TAB, LEADERBOARD_TAB, PROFILE_TAB] as const
 
-const KNUTESJEF_TABS = [HOME_TAB, KNUTER_TAB, FEED_TAB, LEADERBOARD_TAB, KNUTESJEF_TAB] as const
+const KNUTESJEF_TABS = [...STUDENT_TABS, KNUTESJEF_TAB] as const
 
 export function AppTabBar({ active }: { active: AppTabKey }) {
   const insets = useSafeAreaInsets()
   const router = useRouter()
-  const tabs = active === 'knutesjef' ? KNUTESJEF_TABS : STUDENT_TABS
+  // Shares the ['me'] cache with the screens — no extra request in practice.
+  const meQuery = useQuery({ queryKey: ['me'], queryFn: fetchMe })
+  const role = meQuery.data?.user.role
+  // `active === 'knutesjef'` keeps the tab (and its selected state) while the
+  // role is still loading on a direct /admin visit.
+  const showKnutesjef = role === 'knutesjef' || role === 'admin' || active === 'knutesjef'
+  const tabs = showKnutesjef ? KNUTESJEF_TABS : STUDENT_TABS
 
   return (
     <Stack
@@ -151,7 +159,11 @@ const styles = StyleSheet.create({
     elevation: size.bottomNavElevation,
   },
   tabItem: {
+    // width acts as the flex basis; flexShrink + minWidth let six tabs
+    // (knutesjef) compress evenly instead of overflowing on 320 px screens.
     width: size.bottomNavButton,
+    flexShrink: 1,
+    minWidth: size.bottomNavButtonMin,
     minHeight: size.bottomNavButton,
     borderRadius: radius.full,
     borderWidth: borderWidth.medium,

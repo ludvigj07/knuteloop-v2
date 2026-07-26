@@ -4,12 +4,12 @@ import { Stack as RouterStack, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { AppTabBar } from '../components/AppTabBar'
 import { HomeActivityCard } from '../components/home/HomeActivityCard'
-import { HomeCatalogCard, HomeKnutesjefCard } from '../components/home/HomeNavigationCards'
+import { HomeCatalogCard } from '../components/home/HomeNavigationCards'
 import { HomeOverviewCard } from '../components/home/HomeOverviewCard'
 import { HomeErrorState, HomeLoadingState } from '../components/home/HomeScreenStates'
 import { HomeTopThree } from '../components/home/HomeTopThree'
 import { Stack, Text } from '../components/primitives'
-import { fetchFeed, fetchKnuter, fetchLeaderboard, fetchMe, tryFetchPendingCount } from '../lib/api'
+import { fetchFeed, fetchKnuter, fetchLeaderboard, fetchMe } from '../lib/api'
 import { size, spacing, sticker } from '../lib/theme'
 
 const HOME_LEADER_COUNT = 3
@@ -21,12 +21,6 @@ export default function HomeScreen() {
   const feedQuery = useQuery({ queryKey: ['feed', 'home'], queryFn: () => fetchFeed() })
   const leaderboardQuery = useQuery({ queryKey: ['leaderboard'], queryFn: fetchLeaderboard })
   const knuterQuery = useQuery({ queryKey: ['knuter'], queryFn: fetchKnuter })
-  const isKnutesjef = meQuery.data?.user.role === 'knutesjef' || meQuery.data?.user.role === 'admin'
-  const pendingQuery = useQuery({
-    queryKey: ['submissions', 'pending', 'count'],
-    queryFn: tryFetchPendingCount,
-    enabled: isKnutesjef,
-  })
 
   const refresh = () => {
     void Promise.all([
@@ -34,7 +28,6 @@ export default function HomeScreen() {
       feedQuery.refetch(),
       leaderboardQuery.refetch(),
       knuterQuery.refetch(),
-      ...(isKnutesjef ? [pendingQuery.refetch()] : []),
     ])
   }
 
@@ -63,8 +56,7 @@ export default function HomeScreen() {
     meQuery.isRefetching ||
     feedQuery.isRefetching ||
     leaderboardQuery.isRefetching ||
-    knuterQuery.isRefetching ||
-    pendingQuery.isRefetching
+    knuterQuery.isRefetching
 
   return (
     <Stack style={styles.root}>
@@ -133,13 +125,6 @@ export default function HomeScreen() {
           onOpenLeaderboard={() => router.replace('/leaderboard')}
         />
 
-        {isKnutesjef ? (
-          <HomeKnutesjefCard
-            pendingCount={pendingQuery.data ?? null}
-            isLoading={pendingQuery.isLoading}
-            onOpen={() => router.push('/review')}
-          />
-        ) : null}
       </ScrollView>
       <AppTabBar active="home" />
     </Stack>
