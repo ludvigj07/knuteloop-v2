@@ -1,47 +1,70 @@
 # AGENTS.md — Rules for AI tools other than Claude Code
 
-This file governs AI coding tools (Codex etc.) working in this repo. Scope is
-intentionally narrow: **visual design work in the mobile app only**. Backend,
-auth, and data-layer work happens exclusively in Claude Code with its hook
-system and human review pipeline — do not cross that line.
+This file governs AI coding tools (Codex etc.) working in this repo. Scope:
+**frontend work in the mobile app** (`apps/mobile/**`). Backend, auth, and
+data-layer work happens exclusively in Claude Code with its hook system and
+review pipeline — do not cross that line.
+
+If anything here conflicts with `CLAUDE.md` or `.claude/rules/*.md`, those win.
+Full frontend detail: `.claude/rules/frontend.md`. Past decisions:
+`docs/adr/README.md` — read the relevant ADR before changing what it covers.
+Domain vocabulary: `docs/glossary.md`.
 
 ## Hard boundaries — files you may NEVER touch
 
 - `apps/api/**` — backend (multi-tenant security lives here)
 - `packages/shared/**` — shared types consumed by backend
-- `apps/mobile/lib/api.ts` and `apps/mobile/lib/auth*` — API/auth client
-- `.env*` anywhere — secrets
+- `apps/mobile/lib/auth*` — auth client
+- `.env*` anywhere — secrets (the repo is public; never commit one)
 - `.claude/**`, `CLAUDE.md`, `AGENTS.md` — agent configuration
 - `docs/adr/**` — accepted architecture decisions (immutable)
-- Any `package.json` / lockfile — **no new dependencies, ever.** If a design
+- Any `package.json` / lockfile — **no new dependencies, ever.** If a feature
   needs a library, STOP and write a note for the maintainer instead.
 - Git config / CI workflows
 
-If a task seems to require touching any of these: stop, explain why, and wait.
+`apps/mobile/lib/api.ts` (the typed API client): additions for new screens are
+OK **after the endpoint already exists in the backend**; follow the existing
+fetch-wrapper patterns exactly. Never invent endpoints, never change auth or
+header logic.
+
+If a task seems to require crossing any of these lines: stop, explain why, and
+wait for the maintainer.
 
 ## What you MAY do
 
-Visual design inside `apps/mobile/`: colors, spacing, typography, layout,
-component styling, screen composition, animation polish, copy tweaks.
+Frontend work inside `apps/mobile/`: screens, components, hooks, styling,
+layout, animation polish, copy, and component tests. Wiring new screens to
+existing endpoints with TanStack Query is fine.
 
-## Design system rules (non-negotiable)
+## Frontend rules (non-negotiable)
 
 1. **All raw values live in `apps/mobile/lib/theme.ts`** — colors, spacing,
    radii, font sizes/weights. A hex code or pixel number anywhere else is a
-   bug. To introduce a new color: add a named token to theme.ts, then use the
-   token. Components import from theme, always.
-2. **`StyleSheet.create` for styles** — no inline style objects with raw values.
-3. **TypeScript strict.** No `any`. The project must pass
-   `pnpm typecheck && pnpm lint` from the repo root after every change.
-4. **State/data patterns are off-limits for design work:** don't convert
-   TanStack Query usage to useEffect/fetch, don't add state libraries, don't
-   restructure data flow. Style the components; leave the wiring alone.
+   bug. The `sticker` namespace is the current design system (ADR-0017).
+2. **Use the project primitives** from `components/primitives/` — `Stack`,
+   `Text`, `Pressable`, `Button`, `StickerCard`, `StickerButton`, `Chip`,
+   `Badge`, `StatTile`, `Toast`. Never raw `View`/`Text`/`TouchableOpacity`
+   in screens. `StyleSheet.create` for styles — no inline raw values.
+3. **TypeScript strict.** No `any`. `pnpm typecheck && pnpm lint && pnpm test`
+   must pass from the repo root before every PR.
+4. **Server state = TanStack Query.** Never `useEffect` + `fetch`. Mutations
+   invalidate their queries. Don't add state libraries (no Zustand/Redux).
+5. **Calm app (ADR-0023):** no sound, no confetti, no streaks, no celebration
+   shows anywhere. Quiet polish only: haptics, springs, settled states.
+6. **Lists > 20 items use FlashList** (not FlatList). **Images use expo-image.**
+   Loading states are skeletons (not spinners); error states get a retry
+   action; empty states get a friendly bokmål message.
+7. **Tests in the same PR** as the feature — `@testing-library/react-native`,
+   behavior not snapshots.
+8. One screen per route file; extract components past ~200 lines. No file
+   over 500 lines.
 
 ## Language — Bokmål contract
 
 - ALL user-facing strings are Norwegian bokmål. No English, no mixing.
 - Domain terms stay Norwegian and untranslated: **russ, knute, knuter,
   knutesjef, russenavn, russetid, toppliste**.
+- Code and comments are English.
 - Numbers: `Intl.NumberFormat('nb-NO')` (1 234, not 1,234).
   Dates: `Intl.DateTimeFormat('nb-NO')` (27. mai 2026).
 
@@ -56,8 +79,7 @@ brand IS inclusion)
   `allowFontScaling={false}`.
 - Respect safe areas (`useSafeAreaInsets`) on every screen edge you style.
 - No all-caps headings (the founder is dyslexic; readability is a feature).
-- Animations respect reduced-motion settings; durations under 500ms except
-  deliberate celebrations.
+- Animations respect reduced-motion settings; durations under 500ms.
 
 ## Privacy — absolute
 
@@ -67,19 +89,24 @@ brand IS inclusion)
 
 ## Workflow
 
-1. Work on a feature branch (`design/<short-name>`), never on `main`.
-2. Keep diffs small and single-purpose — one screen or one concern per branch.
-3. After changes, run from the repo root and ensure both pass:
-   `pnpm typecheck && pnpm lint`
-4. Summarize what changed and why in plain language in the final message —
-   the maintainer reviews visually, so list which screens to look at.
-5. Never commit directly to `main`; never push; leave commits for the
-   maintainer to review and push.
+1. Branch from `main` (`feat/<short-name>` or `design/<short-name>`).
+   **Never commit to or push `main` directly.** All changes land via
+   PR → CI green → squash merge.
+2. Keep diffs small and single-purpose — one screen or one concern per PR.
+3. Before opening a PR, run from the repo root and ensure all pass:
+   `pnpm typecheck && pnpm lint && pnpm test`
+4. Commit messages: conventional commits; Norwegian summaries are fine
+   (e.g. `feat(mobile): dagens knute-kort på hjem`).
+5. In the PR description, summarize what changed in plain language and list
+   which screens to look at — review starts visually.
 
 ## Quick reference — where things live
 
 - Design tokens: `apps/mobile/lib/theme.ts` (the ONLY file with raw values)
+- Primitives: `apps/mobile/components/primitives/`
 - Screens: `apps/mobile/app/*.tsx` (Expo Router, one screen per file)
+- Feature components: `apps/mobile/components/<area>/` (e.g. `home/`, `knute/`)
+- API client: `apps/mobile/lib/api.ts` (see boundary note above)
 - Norwegian formatting helpers: use `Intl` APIs directly
 - The fullscreen feed: `apps/mobile/app/feed.tsx` (dark backdrop, tokens under
   `colors.feed.*`)
