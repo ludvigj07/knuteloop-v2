@@ -81,6 +81,10 @@ export const submissionReviewRoutes = new Hono<{ Variables: Variables }>()
           imageKey: submissions.imageKey,
           caption: submissions.caption,
           createdAt: submissions.createdAt,
+          // ADR-0021: the queue splits on visibility — a shared submission ends
+          // up in the public feed on approval, a private one does not, so the
+          // knutesjef reviews them with different care.
+          visibility: submissions.visibility,
           russenavn: users.russenavn,
           knuteTitle: knuter.title,
           knutePoints: knuter.points,

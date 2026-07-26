@@ -59,6 +59,8 @@ export type PendingSubmission = {
   imageUrl: string | null
   caption: string | null
   createdAt: string
+  /** ADR-0021: shared ends up in the feed on approval; private stays personal. */
+  visibility: 'shared' | 'private'
   russenavn: string
   knuteTitle: string
   knutePoints: number

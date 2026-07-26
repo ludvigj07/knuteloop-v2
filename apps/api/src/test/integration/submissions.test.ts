@@ -305,6 +305,7 @@ describe('GET /api/submissions/pending', () => {
         knuteTitle: string
         knutePoints: number
         caption: string | null
+        visibility: 'shared' | 'private'
       }[]
     }
 
@@ -314,6 +315,9 @@ describe('GET /api/submissions/pending', () => {
     expect(matching?.russenavn).toBe('StudentA')
     expect(matching?.knuteTitle).toBe('A: pending queue')
     expect(matching?.knutePoints).toBe(10)
+    // ADR-0021: the queue exposes visibility so the client can split it in two
+    // (feed-bound vs. private). No visibility in the POST body → private.
+    expect(matching?.visibility).toBe('private')
   })
 
   it('cross-tenant: school B knutesjef does NOT see school A pending', async () => {

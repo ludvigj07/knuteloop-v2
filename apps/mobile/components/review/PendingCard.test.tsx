@@ -10,6 +10,7 @@ const SUB: PendingSubmission = {
   imageUrl: 'https://cdn.example/photo.jpg',
   caption: 'Tok bilde utenfor skolen',
   createdAt: '2026-07-02T10:00:00.000Z',
+  visibility: 'private',
   russenavn: 'Loke',
   knuteTitle: 'Spis frokost under pulten',
   knutePoints: 15,
