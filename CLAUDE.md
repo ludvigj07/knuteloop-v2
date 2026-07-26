@@ -28,7 +28,7 @@ See `docs/glossary.md` for domain vocabulary.
 - **Storage:** Bunny Storage + Bunny CDN, EU regions
 - **Compute:** Hetzner Helsinki via Caddy + systemd (Coolify optional)
 - **Observability:** Sentry EU, Plausible EU, Pino structured logs
-- **Repo:** Private GitHub, monorepo (`apps/mobile`, `apps/api`, `packages/shared`)
+- **Repo:** GitHub monorepo (`apps/mobile`, `apps/api`, `packages/shared`) — public since July 2026, back to private ~Nov 2026. No secrets have ever been in history (verified 2026-07-26).
 
 ## 2. CRITICAL RULES (violations are catastrophic — hooks enforce most of these)
 
