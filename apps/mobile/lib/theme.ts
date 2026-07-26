@@ -89,6 +89,9 @@ export const borderWidth = {
 export const opacity = {
   disabled: 0.5,
   shadow: 0.18,
+  shine: 0.72,
+  featuredFrameIdle: 0,
+  featuredFrameBright: 0.82,
   // Skeleton shimmer pulses between these two opacities.
   shimmerLow: 0.45,
   shimmerHigh: 1,
@@ -195,6 +198,7 @@ export const size = {
   // Student home — enough room for real school activity without turning the
   // opening screen into a fullscreen feed.
   homeActivityMediaHeight: 220,
+  dailyKnotShineTravel: 160,
 } as const
 
 export const fontWeight = {
@@ -212,11 +216,15 @@ export const minimumFontScale = {
 // pressScale is the brand "tap" feel — every Pressable primitive scales to this.
 export const animation = {
   duration: {
+    instant: 1,
     fast: 150,
     base: 250,
     slow: 400,
     // One half-cycle of the skeleton shimmer pulse.
     shimmer: 900,
+  },
+  attention: {
+    idlePause: 3200,
   },
   spring: {
     gentle: { damping: 25, stiffness: 150 },
@@ -285,6 +293,7 @@ export const sticker = {
     accent: '#FFCD29', // golden yellow (hsl 46 100% 58%)
     accentBg: '#FFF7DD', // pale amber tint (sensitive folder tiles)
     accentStrong: '#7B6A2C', // readable text/icon on amber tints
+    dailyKnot: '#F0DDBD', // Fargerike Pudder FR1114 — warm daily-feature surface
 
     line: 'rgba(27, 33, 45, 0.16)', // hairline dividers
     lineStrong: '#1B212D',
@@ -324,6 +333,10 @@ export const sticker = {
   },
   tap: { size: 52, min: 44 },
   icon: { sm: 18, md: 22, lg: 28 },
+  featuredFrame: {
+    borderWidth: 3,
+    inset: 3,
+  },
 } as const
 
-export type StickerTone = 'surface' | 'soft' | 'media' | 'primary' | 'accent'
+export type StickerTone = 'surface' | 'soft' | 'media' | 'primary' | 'accent' | 'daily'
