@@ -1,3 +1,4 @@
+import type { SchoolId } from '../../lib/ids.js'
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { and, eq } from 'drizzle-orm'
 import {
@@ -17,9 +18,9 @@ import { buildApp } from '../../app.js'
 
 let h: TestHandles
 let app: ReturnType<typeof buildApp>
-let schoolAId: string
-let schoolBId: string
-let schoolCId: string
+let schoolAId: SchoolId
+let schoolBId: SchoolId
+let schoolCId: SchoolId
 let authA: Record<string, string> // knutesjef, school A — does the single-import tests
 let authB: Record<string, string> // knutesjef, school B — does the pack-import tests
 let authC: Record<string, string> // knutesjef, school C — partial-overlap test

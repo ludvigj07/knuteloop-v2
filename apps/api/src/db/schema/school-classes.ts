@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm'
+import type { SchoolId } from '../../lib/ids'
 import { pgTable, uuid, text, timestamp, unique, pgPolicy } from 'drizzle-orm/pg-core'
 import { schools } from './schools'
 
@@ -15,7 +16,8 @@ export const schoolClasses = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     schoolId: uuid('school_id')
       .notNull()
-      .references(() => schools.id, { onDelete: 'cascade' }),
+      .references(() => schools.id, { onDelete: 'cascade' })
+      .$type<SchoolId>(),
     name: text('name').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

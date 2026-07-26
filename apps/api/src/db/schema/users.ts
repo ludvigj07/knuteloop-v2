@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm'
+import type { SchoolId } from '../../lib/ids'
 import {
   pgTable,
   uuid,
@@ -21,7 +22,8 @@ export const users = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     schoolId: uuid('school_id')
       .notNull()
-      .references(() => schools.id, { onDelete: 'cascade' }),
+      .references(() => schools.id, { onDelete: 'cascade' })
+      .$type<SchoolId>(),
     russenavn: text('russenavn').notNull(),
     email: text('email'),
     role: text('role', { enum: ['student', 'knutesjef', 'admin'] })
