@@ -10,6 +10,13 @@ Full frontend detail: `.claude/rules/frontend.md`. Past decisions:
 `docs/adr/README.md` — read the relevant ADR before changing what it covers.
 Domain vocabulary: `docs/glossary.md`.
 
+New contributor? Machine setup lives in `docs/onboarding.md`; the working
+methods we expect are in `docs/ai-arbeidsmetoder.md`. Note: a human setting up
+their own local dev environment (installing Postgres, creating their local
+`apps/api/.env` from `.env.example`) is always fine — the hard boundaries below
+restrict what AI tools may edit in the repo, not what humans do on their own
+machines.
+
 ## Hard boundaries — files you may NEVER touch
 
 - `apps/api/**` — backend (multi-tenant security lives here)
