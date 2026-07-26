@@ -3,7 +3,7 @@
 // whatever the dev-login screen switched to.
 
 import type { FolderIconKey } from '@knuteloop/shared'
-import { getActiveToken } from './auth'
+import { getActiveToken, getActiveUser, setActiveIdentity } from './auth'
 
 // The API base URL. In PRODUCTION builds it MUST be provided explicitly via
 // EXPO_PUBLIC_API_URL (an https:// URL) — we deliberately do NOT fall back to
@@ -83,7 +83,38 @@ class ApiError extends Error {
   }
 }
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+// Dev-only self-heal: a 401 means the active token went stale — expired, or
+// minted before dev-setup stabilized the seed ids. The seeded identity itself
+// is stable, so silently re-adopt it from /api/dev/users and let apiFetch
+// retry. One shared promise so a burst of parallel 401s heals only once.
+let devRecovery: Promise<string | null> | null = null
+
+async function recoverDevIdentity(): Promise<string | null> {
+  if (!__DEV__) return null
+  const prev = getActiveUser()
+  if (!prev) return null
+  devRecovery ??= (async () => {
+    try {
+      const { users } = await fetchDevUsers()
+      // Ids are stable since the seed fix; the russenavn+school fallback still
+      // rescues identities stored before that fix landed.
+      const match =
+        users.find((u) => u.userId === prev.userId) ??
+        users.find((u) => u.russenavn === prev.russenavn && u.schoolName === prev.schoolName)
+      if (!match) return null
+      setActiveIdentity(match.token, match)
+      return match.token
+    } catch {
+      // API unreachable or not in dev mode — surface the original 401 instead.
+      return null
+    } finally {
+      devRecovery = null
+    }
+  })()
+  return devRecovery
+}
+
+async function apiFetch<T>(path: string, init?: RequestInit, retried = false): Promise<T> {
   const token = getActiveToken()
   if (!token) {
     throw new ApiError(0, 'Ingen token. Sett EXPO_PUBLIC_DEV_TOKEN i apps/mobile/.env, eller velg en bruker via «Bytt bruker (dev)».')
@@ -108,6 +139,10 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!res.ok) {
+    if (res.status === 401 && !retried) {
+      const freshToken = await recoverDevIdentity()
+      if (freshToken) return apiFetch<T>(path, init, true)
+    }
     // The API formats domain errors as { error: { message, requestId? } } (and
     // 400s as { error: { message, issues } }). Surface that Norwegian message —
     // e.g. "Knuten er allerede importert" — instead of a generic status string.
