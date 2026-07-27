@@ -17,6 +17,22 @@ their own local dev environment (installing Postgres, creating their local
 restrict what AI tools may edit in the repo, not what humans do on their own
 machines.
 
+## ⏳ TEMPORARY (28 July – ~18 Aug 2026): work on `dev`, not `main`
+
+Ludvig is away (military). `dev` is the working trunk in the meantime — it IS
+the default branch now, so everything targets it automatically. Rules while
+this banner is up:
+
+- **Branch from `dev`. Open PRs into `dev`. Merge your own PR once CI is green**
+  — you never wait for a human to merge. (`gh pr create` defaults to `dev`; if
+  you ever pass `--base`, use `--base dev`.)
+- **Never target `main`.** It is frozen for Ludvig's review; he merges
+  `dev → main` when he's back.
+- Everything else below (frontend-only scope, primitives, tokens, bokmål,
+  tests-in-PR, calm-app) is unchanged.
+- Unwind guide (for when Ludvig returns) lives in
+  `docs/dev-arbeidsflyt-away.md`. Delete this banner then.
+
 ## Hard boundaries — files you may NEVER touch
 
 - `apps/api/**` — backend (multi-tenant security lives here)
