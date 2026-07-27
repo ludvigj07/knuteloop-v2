@@ -404,6 +404,16 @@ Use **React Native Reanimated v4** for performance (runs on UI thread). **Moti**
 > toasts, no badge-zoom modals, anywhere in the app. Celebration is quiet: haptics
 > and settled states, never spectacle. If an older instruction anywhere still asks
 > for confetti/sound, ADR-0023 wins.
+>
+> **Motion clarification (Ludvig, 2026-07-27):** ADR-0023 bans the *celebration
+> layer*, not motion — animation is welcome and part of the brand ("alive").
+> The line is **unbounded idle loops**: decorative attention effects (glints,
+> nudges, highlight sweeps) run a *bounded* number of times — on appear, on
+> refresh, on a state change — then settle. Never `withRepeat(..., -1)` on an
+> attention effect: after day two the eye filters it out, and perpetual motion
+> next to text is genuinely hard on dyslexic/ADHD readers (most never enable
+> reduced-motion). The skeleton shimmer is the one exempt idle loop.
+> "Alive on arrival, settled afterwards."
 
 **Animation primitives:**
 

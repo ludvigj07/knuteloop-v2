@@ -57,7 +57,11 @@ existing endpoints with TanStack Query is fine.
 4. **Server state = TanStack Query.** Never `useEffect` + `fetch`. Mutations
    invalidate their queries. Don't add state libraries (no Zustand/Redux).
 5. **Calm app (ADR-0023):** no sound, no confetti, no streaks, no celebration
-   shows anywhere. Quiet polish only: haptics, springs, settled states.
+   shows anywhere. Animation itself is welcome — the app should feel alive —
+   but decorative attention effects (glints, nudges, highlights) run a
+   *bounded* number of times (on appear/refresh/state change), never as
+   infinite idle loops (`withRepeat(..., -1)`). Skeleton shimmer is the one
+   exempt idle loop. "Alive on arrival, settled afterwards."
 6. **Lists > 20 items use FlashList** (not FlatList). **Images use expo-image.**
    Loading states are skeletons (not spinners); error states get a retry
    action; empty states get a friendly bokmål message.
@@ -96,6 +100,10 @@ brand IS inclusion)
 
 ## Workflow
 
+0. **Session start:** if the user hasn't named a task yet, offer to check the
+   repo's open GitHub issues — the maintainers keep a curated queue of scoped
+   tasks there (`gh issue list --state open`, or the Issues tab). Don't nag;
+   one natural offer is enough.
 1. Branch from `main` (`feat/<short-name>` or `design/<short-name>`).
    **Never commit to or push `main` directly.** All changes land via
    PR → CI green → squash merge.
