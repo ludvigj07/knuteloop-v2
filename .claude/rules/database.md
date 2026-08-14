@@ -274,7 +274,7 @@ Knuter live on TWO sides. The schema files (`apps/api/src/db/schema/*.ts`) are t
 
 **Library side (shared across ALL schools — no `school_id`, no RLS):**
 
-- **`library_knuter`** — the curated catalog: title, points, difficulty, `evidence_type`, `min_age`, `suggested_folder` (theme axis — becomes the school folder on import), `region` (discovery filter only).
+- **`library_knuter`** — the curated catalog: title, points, `evidence_type`, `min_age`, `suggested_folder` (theme axis — becomes the school folder on import), `region` (discovery filter only).
 - **`library_packs`** + **`library_pack_memberships`** — named bundles for one-tap bulk import.
 - Per §1, shared tables are **read-only for `app_role`**: the write REVOKE lives in migration `0014_library_force_rls_and_grants.sql`, and `library.test.ts` proves app_role cannot write. Only a Knuteloop super-admin (admin_role) curates. Deployment invariant: migrations run as a privileged role, never app_role (see the header comment in `schema/library.ts`).
 

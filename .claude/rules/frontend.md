@@ -295,7 +295,7 @@ type ButtonProps = {
 **Sticker design-system primitives** (ADR-0017), all exported from `components/primitives`:
 - `StickerCard` — the signature surface (2px ink border + cross-platform hard offset shadow; optional `onPress` presses it flat). `tone`: surface/soft/media/primary/accent/danger.
 - `StickerButton` — sticker-styled button (`variant`: primary/accent/secondary/destructive/ghost). The flat `Button` stays for pre-sticker screens.
-- `Chip` (points/difficulty/folder pills), `Badge` (18+/Tekst tags), `StatTile` (stat cards), `Eyebrow` (kicker), `Toast`/`useToast` (transient feedback — replaces `Alert.alert` for non-destructive messages), `KnoteIcon` (custom knot/category glyphs).
+- `Chip` (points/folder pills), `Badge` (18+/Tekst tags), `StatTile` (stat cards), `Eyebrow` (kicker), `Toast`/`useToast` (transient feedback — replaces `Alert.alert` for non-destructive messages), `KnoteIcon` (custom knot/category glyphs).
 - `Text` gained a `font` prop: `'sans' | 'display' | 'mono'`.
 
 Every primitive must:

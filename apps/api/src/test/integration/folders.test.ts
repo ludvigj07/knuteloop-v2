@@ -44,15 +44,15 @@ beforeAll(async () => {
   const [kA, kA2] = await h.superDb
     .insert(knuter)
     .values([
-      { schoolId: schoolAId, title: 'A: knute 1', points: 10, difficulty: 'Lett' },
-      { schoolId: schoolAId, title: 'A: knute 2', points: 15, difficulty: 'Lett' },
+      { schoolId: schoolAId, title: 'A: knute 1', points: 10 },
+      { schoolId: schoolAId, title: 'A: knute 2', points: 15 },
     ])
     .returning()
   knuteAId = kA!.id
 
   const [kB] = await h.superDb
     .insert(knuter)
-    .values({ schoolId: schoolBId, title: 'B: knute', points: 10, difficulty: 'Lett' })
+    .values({ schoolId: schoolBId, title: 'B: knute', points: 10 })
     .returning()
   knuteBId = kB!.id
 

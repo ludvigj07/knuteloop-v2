@@ -79,11 +79,11 @@ beforeAll(async () => {
   const insertedKnuter = await h.superDb
     .insert(knuter)
     .values([
-      { schoolId: schoolAId, title: 'Spis frokost under pulten', points: 10, difficulty: 'Lett', category: 'Generelle' },
-      { schoolId: schoolAId, title: 'Gullkongla', points: 15, difficulty: 'Hard', category: 'Generelle', isGold: true },
-      { schoolId: schoolAId, title: 'Lag tinderprofil', points: 25, difficulty: 'Medium', category: 'Sexknuter' },
-      { schoolId: schoolAId, title: 'Retired drikkeknute', points: 20, difficulty: 'Lett', category: 'Alkoholknuter', isActive: false },
-      { schoolId: schoolBId, title: 'B: noe annet', points: 50, difficulty: 'Hard', category: 'Generelle' },
+      { schoolId: schoolAId, title: 'Spis frokost under pulten', points: 10, category: 'Generelle' },
+      { schoolId: schoolAId, title: 'Gullkongla', points: 15, category: 'Generelle', isGold: true },
+      { schoolId: schoolAId, title: 'Lag tinderprofil', points: 25, category: 'Sexknuter' },
+      { schoolId: schoolAId, title: 'Retired drikkeknute', points: 20, category: 'Alkoholknuter', isActive: false },
+      { schoolId: schoolBId, title: 'B: noe annet', points: 50, category: 'Generelle' },
     ])
     .returning()
   const frokost = insertedKnuter[0]! // 10p Generelle, not gold

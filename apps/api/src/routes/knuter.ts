@@ -18,7 +18,6 @@ const createKnuteSchema = z.object({
   title: z.string().trim().min(1).max(200),
   description: z.string().trim().max(2000).optional(),
   points: z.number().int().min(0).max(1000),
-  difficulty: z.enum(['Lett', 'Medium', 'Hard', 'Valgfri']).default('Medium'),
   // Knutesjef marks special knuter as gold. Explicit flag, not a points rule.
   isGold: z.boolean().default(false),
 })
@@ -28,7 +27,6 @@ const updateKnuteSchema = z
     title: z.string().trim().min(1).max(200).optional(),
     description: z.string().trim().max(2000).nullable().optional(),
     points: z.number().int().min(0).max(1000).optional(),
-    difficulty: z.enum(['Lett', 'Medium', 'Hard', 'Valgfri']).optional(),
     isGold: z.boolean().optional(),
     isActive: z.boolean().optional(),
   })
@@ -100,7 +98,6 @@ export const knuterRoutes = new Hono<{ Variables: Variables }>()
           title: knuter.title,
           description: knuter.description,
           points: knuter.points,
-          difficulty: knuter.difficulty,
           evidenceType: knuter.evidenceType,
           minAge: knuter.minAge,
           isGold: knuter.isGold,
@@ -177,7 +174,6 @@ export const knuterRoutes = new Hono<{ Variables: Variables }>()
         title: knuter.title,
         description: knuter.description,
         points: knuter.points,
-        difficulty: knuter.difficulty,
       })
       .from(knuter)
       .where(and(...conditions))
@@ -218,7 +214,6 @@ export const knuterRoutes = new Hono<{ Variables: Variables }>()
           title: input.title,
           description: input.description ?? null,
           points: input.points,
-          difficulty: input.difficulty,
           isGold: input.isGold,
         })
         .returning()
@@ -255,7 +250,6 @@ export const knuterRoutes = new Hono<{ Variables: Variables }>()
         title?: string
         description?: string | null
         points?: number
-        difficulty?: 'Lett' | 'Medium' | 'Hard' | 'Valgfri'
         isGold?: boolean
         isActive?: boolean
         updatedAt: Date
@@ -263,7 +257,6 @@ export const knuterRoutes = new Hono<{ Variables: Variables }>()
       if (input.title !== undefined) patch.title = input.title
       if (input.description !== undefined) patch.description = input.description
       if (input.points !== undefined) patch.points = input.points
-      if (input.difficulty !== undefined) patch.difficulty = input.difficulty
       if (input.isGold !== undefined) patch.isGold = input.isGold
       if (input.isActive !== undefined) patch.isActive = input.isActive
 

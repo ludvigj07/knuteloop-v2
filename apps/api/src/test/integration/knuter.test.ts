@@ -18,7 +18,6 @@ type KnuteRow = {
   title: string
   description: string | null
   points: number
-  difficulty: 'Lett' | 'Medium' | 'Hard' | 'Valgfri'
   isGold: boolean
   evidenceType: 'media' | 'text'
   minAge: number
@@ -53,10 +52,10 @@ beforeAll(async () => {
   const tor = insertedUsers[2]!
 
   await h.superDb.insert(knuter).values([
-    { schoolId: schoolAId, title: 'A: Spis frokost under pulten', points: 10, difficulty: 'Lett' },
-    { schoolId: schoolAId, title: 'A: Klassebilde med solbriller', points: 25, difficulty: 'Medium' },
-    { schoolId: schoolAId, title: 'A: Retired', points: 0, difficulty: 'Lett', isActive: false },
-    { schoolId: schoolBId, title: 'B: Helt annerledes', points: 50, difficulty: 'Hard' },
+    { schoolId: schoolAId, title: 'A: Spis frokost under pulten', points: 10 },
+    { schoolId: schoolAId, title: 'A: Klassebilde med solbriller', points: 25 },
+    { schoolId: schoolAId, title: 'A: Retired', points: 0, isActive: false },
+    { schoolId: schoolBId, title: 'B: Helt annerledes', points: 50 },
   ])
 
   knutesjefTokenA = await signDevToken({ sub: loke.id, school_id: schoolAId, role: 'knutesjef' })
@@ -180,18 +179,6 @@ describe('POST /api/knuter', () => {
     expect(res.status).toBe(400)
   })
 
-  it('returns 400 with difficulty outside the enum', async () => {
-    const res = await app.request('/api/knuter', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${knutesjefTokenA}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({ title: 'Bad difficulty', points: 5, difficulty: 'Ekstrem' }),
-    })
-    expect(res.status).toBe(400)
-  })
-
   it('happy path — knutesjef creates a knute and it appears in subsequent GET', async () => {
     const res = await app.request('/api/knuter', {
       method: 'POST',
@@ -203,14 +190,12 @@ describe('POST /api/knuter', () => {
         title: 'A: Ny knute fra knutesjef',
         description: 'Lagt til via API',
         points: 42,
-        difficulty: 'Hard',
       }),
     })
     expect(res.status).toBe(201)
     const body = (await res.json()) as CreateResponse
     expect(body.knute.title).toBe('A: Ny knute fra knutesjef')
     expect(body.knute.points).toBe(42)
-    expect(body.knute.difficulty).toBe('Hard')
     expect(body.knute.schoolId).toBe(schoolAId)
 
     // Verify it shows up in the school's list
@@ -226,20 +211,6 @@ describe('POST /api/knuter', () => {
     })
     const otherBody = (await otherSchoolList.json()) as ListResponse
     expect(otherBody.knuter.some((k) => k.title === 'A: Ny knute fra knutesjef')).toBe(false)
-  })
-
-  it('defaults difficulty to Medium when omitted', async () => {
-    const res = await app.request('/api/knuter', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${knutesjefTokenA}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({ title: 'A: No difficulty given', points: 7 }),
-    })
-    expect(res.status).toBe(201)
-    const body = (await res.json()) as CreateResponse
-    expect(body.knute.difficulty).toBe('Medium')
   })
 
   it('defaults isGold to false, and accepts isGold: true', async () => {
@@ -269,7 +240,6 @@ describe('PATCH /api/knuter/:id', () => {
         schoolId: schoolAId,
         title,
         points: 10,
-        difficulty: 'Lett',
         ...overrides,
       })
       .returning()
@@ -316,18 +286,17 @@ describe('PATCH /api/knuter/:id', () => {
     expect(res.status).toBe(400)
   })
 
-  it('happy path — knutesjef updates title, points, difficulty', async () => {
+  it('happy path — knutesjef updates title and points', async () => {
     const k = await freshKnute('A: PATCH happy')
     const res = await app.request(`/api/knuter/${k.id}`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${knutesjefTokenA}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ title: 'Endret tittel', points: 42, difficulty: 'Hard' }),
+      body: JSON.stringify({ title: 'Endret tittel', points: 42 }),
     })
     expect(res.status).toBe(200)
     const body = (await res.json()) as CreateResponse
     expect(body.knute.title).toBe('Endret tittel')
     expect(body.knute.points).toBe(42)
-    expect(body.knute.difficulty).toBe('Hard')
   })
 
   it('soft-retire via isActive=false hides it from default GET', async () => {
@@ -409,7 +378,7 @@ describe('GET /api/knuter — age gate (ADR-0015)', () => {
       .returning()
     await h.superDb
       .insert(knuter)
-      .values({ schoolId: schoolAId, title: age18Title, points: 40, difficulty: 'Hard', minAge: 18 })
+      .values({ schoolId: schoolAId, title: age18Title, points: 40, minAge: 18 })
     adultTokenA = await signDevToken({ sub: adult!.id, school_id: schoolAId, role: 'student' })
   })
 

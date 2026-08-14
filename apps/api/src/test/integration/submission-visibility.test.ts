@@ -31,7 +31,7 @@ type FeedResponse = { feed: { id: string; imageKey: string }[]; nextCursor: stri
 async function freshKnuteA(label: string) {
   const [row] = await h.superDb
     .insert(knuter)
-    .values({ schoolId: schoolAId, title: `A: ${label}`, points: 10, difficulty: 'Lett' })
+    .values({ schoolId: schoolAId, title: `A: ${label}`, points: 10 })
     .returning()
   return row!.id
 }
@@ -87,7 +87,7 @@ beforeAll(async () => {
   // A school-B submission for the cross-tenant PATCH denial.
   const [knuteB] = await h.superDb
     .insert(knuter)
-    .values({ schoolId: schoolBId, title: 'B: Annen skole', points: 10, difficulty: 'Lett' })
+    .values({ schoolId: schoolBId, title: 'B: Annen skole', points: 10 })
     .returning()
   const seededB = await h.superDb
     .insert(submissions)
@@ -243,7 +243,6 @@ describe('sharing requires media (ADR-0022)', () => {
         schoolId: schoolAId,
         title: `A: tekst ${label}`,
         points: 20,
-        difficulty: 'Medium',
         evidenceType: 'text',
       })
       .returning()

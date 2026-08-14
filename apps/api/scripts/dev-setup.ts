@@ -154,12 +154,11 @@ const userSaga = insertedUsers[5]!
 // data here — NOT a production seed, never auto-applied to other envs).
 // Testskolen gets 3 distinct knuter so you can visually verify tenant isolation.
 //
-// Titles, points, difficulty come straight from v1-spec §2.
+// Titles and points come straight from v1-spec §2.
 type SeedKnute = {
   title: string
   description: string | null
   points: number
-  difficulty: 'Lett' | 'Medium' | 'Hard' | 'Valgfri'
 }
 
 type KnuteCategory = 'Generelle' | 'Dobbelknuter' | 'Alkoholknuter' | 'Sexknuter' | 'Fordervett-knuter'
@@ -179,55 +178,55 @@ function devCategory(title: string): KnuteCategory {
 }
 
 const stOlavKnuter: SeedKnute[] = [
-  { title: 'Spis frokost under pulten', description: null, points: 10, difficulty: 'Lett' },
-  { title: 'Ta klassebilde med matchende solbriller', description: null, points: 25, difficulty: 'Medium' },
-  { title: 'Møt opp med røde sokker hele dagen', description: null, points: 15, difficulty: 'Lett' },
-  { title: 'Lag en heiarop-video for klassen', description: null, points: 35, difficulty: 'Medium' },
-  { title: 'Spis lunsj utendørs med russebuksa på', description: null, points: 20, difficulty: 'Lett' },
-  { title: 'Arranger miniquiz om russetiden', description: null, points: 30, difficulty: 'Medium' },
-  { title: 'Gå i badetøy på beverlig', description: 'Fra St. Olav-listen.', points: 10, difficulty: 'Lett' },
-  { title: 'Bjeff 10 ganger i løpet av en time', description: 'Fra St. Olav-listen.', points: 10, difficulty: 'Lett' },
-  { title: 'Spis 3 bananer under en presentasjon', description: 'Fra St. Olav-listen.', points: 15, difficulty: 'Lett' },
-  { title: 'Spis 100 nuggets i en studietime', description: 'Fra St. Olav-listen.', points: 20, difficulty: 'Medium' },
-  { title: 'Popp en snus fra bakken', description: 'Fra St. Olav-listen.', points: 5, difficulty: 'Lett' },
-  { title: 'Røyk en sneip fra bakken', description: 'Fra St. Olav-listen.', points: 5, difficulty: 'Lett' },
-  { title: 'Få et russekort fra en unge', description: 'Fra St. Olav-listen.', points: 10, difficulty: 'Lett' },
-  { title: 'Spor om skruff 67', description: 'Fra St. Olav-listen.', points: 10, difficulty: 'Lett' },
-  { title: '5 club sandwich i kantinen', description: 'Fra St. Olav-listen.', points: 15, difficulty: 'Medium' },
-  { title: 'Baka', description: 'Fra St. Olav-listen.', points: 10, difficulty: 'Lett' },
-  { title: 'Be knutesjef om kiss or slap på knutesjef', description: 'Fra St. Olav-listen.', points: 15, difficulty: 'Medium' },
-  { title: 'Bli med på selvforsvars time på kampsportshuset', description: 'Fra St. Olav-listen.', points: 15, difficulty: 'Medium' },
-  { title: 'Frys skoen til noen på fest', description: 'Fra St. Olav-listen.', points: 10, difficulty: 'Lett' },
-  { title: 'Gå i komando under rusedressen en hel dag', description: 'Fra St. Olav-listen.', points: 15, difficulty: 'Medium' },
-  { title: 'Jenteknute: Lag til tok dans med lærer', description: 'Fra St. Olav-listen.', points: 20, difficulty: 'Medium' },
-  { title: 'Lag tinderprofil for noen', description: 'Fra St. Olav-listen.', points: 15, difficulty: 'Medium' },
-  { title: 'Hold pusten 2 min i løpet av timen', description: 'Fra St. Olav-listen.', points: 10, difficulty: 'Lett' },
-  { title: 'Si høyt at du må drite og løp ut av klasserommet', description: 'Fra St. Olav-listen.', points: 15, difficulty: 'Medium' },
-  { title: 'Kjop rosa hatt fra en tilfeldig selger', description: 'Fra St. Olav-listen.', points: 10, difficulty: 'Lett' },
-  { title: 'Perfekt week: barney', description: 'Fra St. Olav-listen.', points: 15, difficulty: 'Medium' },
-  { title: 'Ring men ikke spring', description: 'Fra St. Olav-listen.', points: 20, difficulty: 'Medium' },
-  { title: 'Jonern: overbevis noen om at de kjenner deg', description: 'Fra St. Olav-listen.', points: 15, difficulty: 'Medium' },
-  { title: 'Gave: surr opp bilen til en lærer med dorull', description: 'Fra St. Olav-listen.', points: 15, difficulty: 'Medium' },
-  { title: 'Superman: gå en hel dag med undertøy utenpå russedrakten', description: 'Fra St. Olav-listen.', points: 20, difficulty: 'Medium' },
-  { title: 'Bikkja: gå som en hund fra kannik til skolebygget', description: 'Fra St. Olav-listen.', points: 15, difficulty: 'Medium' },
-  { title: 'Russelue: gjennomfør russedåp med medruss', description: 'Fra St. Olav-listen.', points: 20, difficulty: 'Medium' },
-  { title: 'Jim Carrey: si ja til alt ein heil dag', description: 'Fra St. Olav-listen.', points: 25, difficulty: 'Hard' },
-  { title: 'Laettis alarm: få knutesjef til å le', description: 'Fra St. Olav-listen.', points: 10, difficulty: 'Lett' },
-  { title: 'Paparazzi: få autograf til 10 stykker du har klint med', description: 'Fra St. Olav-listen.', points: 25, difficulty: 'Hard' },
-  { title: 'Autograf: få autografen til en kjendis', description: 'Fra St. Olav-listen.', points: 30, difficulty: 'Hard' },
-  { title: 'Kong laettis: hold standup show i kinosal', description: 'Fra St. Olav-listen.', points: 30, difficulty: 'Hard' },
-  { title: 'Sommerkroppen: fullfør treningsøkt i kaentish minimum 15 min', description: 'Fra St. Olav-listen.', points: 20, difficulty: 'Medium' },
-  { title: 'Kvisten: fullfør en heil 6er i et tre', description: 'Fra St. Olav-listen.', points: 25, difficulty: 'Hard' },
-  { title: 'Klan leder: vinn mot lederen av St. Olav-klanen i Clash Royal', description: 'Fra St. Olav-listen.', points: 15, difficulty: 'Medium' },
-  { title: 'Gå edru hele rt', description: 'Fra St. Olav-listen.', points: 30, difficulty: 'Hard' },
-  { title: 'Handcuff deg til noen en hel skoledag', description: 'Fra St. Olav-listen.', points: 20, difficulty: 'Medium' },
-  { title: 'Ring 1881 og be dem velge 3 tall', description: 'Fra St. Olav-listen.', points: 20, difficulty: 'Medium' },
+  { title: 'Spis frokost under pulten', description: null, points: 10 },
+  { title: 'Ta klassebilde med matchende solbriller', description: null, points: 25 },
+  { title: 'Møt opp med røde sokker hele dagen', description: null, points: 15 },
+  { title: 'Lag en heiarop-video for klassen', description: null, points: 35 },
+  { title: 'Spis lunsj utendørs med russebuksa på', description: null, points: 20 },
+  { title: 'Arranger miniquiz om russetiden', description: null, points: 30 },
+  { title: 'Gå i badetøy på beverlig', description: 'Fra St. Olav-listen.', points: 10 },
+  { title: 'Bjeff 10 ganger i løpet av en time', description: 'Fra St. Olav-listen.', points: 10 },
+  { title: 'Spis 3 bananer under en presentasjon', description: 'Fra St. Olav-listen.', points: 15 },
+  { title: 'Spis 100 nuggets i en studietime', description: 'Fra St. Olav-listen.', points: 20 },
+  { title: 'Popp en snus fra bakken', description: 'Fra St. Olav-listen.', points: 5 },
+  { title: 'Røyk en sneip fra bakken', description: 'Fra St. Olav-listen.', points: 5 },
+  { title: 'Få et russekort fra en unge', description: 'Fra St. Olav-listen.', points: 10 },
+  { title: 'Spor om skruff 67', description: 'Fra St. Olav-listen.', points: 10 },
+  { title: '5 club sandwich i kantinen', description: 'Fra St. Olav-listen.', points: 15 },
+  { title: 'Baka', description: 'Fra St. Olav-listen.', points: 10 },
+  { title: 'Be knutesjef om kiss or slap på knutesjef', description: 'Fra St. Olav-listen.', points: 15 },
+  { title: 'Bli med på selvforsvars time på kampsportshuset', description: 'Fra St. Olav-listen.', points: 15 },
+  { title: 'Frys skoen til noen på fest', description: 'Fra St. Olav-listen.', points: 10 },
+  { title: 'Gå i komando under rusedressen en hel dag', description: 'Fra St. Olav-listen.', points: 15 },
+  { title: 'Jenteknute: Lag til tok dans med lærer', description: 'Fra St. Olav-listen.', points: 20 },
+  { title: 'Lag tinderprofil for noen', description: 'Fra St. Olav-listen.', points: 15 },
+  { title: 'Hold pusten 2 min i løpet av timen', description: 'Fra St. Olav-listen.', points: 10 },
+  { title: 'Si høyt at du må drite og løp ut av klasserommet', description: 'Fra St. Olav-listen.', points: 15 },
+  { title: 'Kjop rosa hatt fra en tilfeldig selger', description: 'Fra St. Olav-listen.', points: 10 },
+  { title: 'Perfekt week: barney', description: 'Fra St. Olav-listen.', points: 15 },
+  { title: 'Ring men ikke spring', description: 'Fra St. Olav-listen.', points: 20 },
+  { title: 'Jonern: overbevis noen om at de kjenner deg', description: 'Fra St. Olav-listen.', points: 15 },
+  { title: 'Gave: surr opp bilen til en lærer med dorull', description: 'Fra St. Olav-listen.', points: 15 },
+  { title: 'Superman: gå en hel dag med undertøy utenpå russedrakten', description: 'Fra St. Olav-listen.', points: 20 },
+  { title: 'Bikkja: gå som en hund fra kannik til skolebygget', description: 'Fra St. Olav-listen.', points: 15 },
+  { title: 'Russelue: gjennomfør russedåp med medruss', description: 'Fra St. Olav-listen.', points: 20 },
+  { title: 'Jim Carrey: si ja til alt ein heil dag', description: 'Fra St. Olav-listen.', points: 25 },
+  { title: 'Laettis alarm: få knutesjef til å le', description: 'Fra St. Olav-listen.', points: 10 },
+  { title: 'Paparazzi: få autograf til 10 stykker du har klint med', description: 'Fra St. Olav-listen.', points: 25 },
+  { title: 'Autograf: få autografen til en kjendis', description: 'Fra St. Olav-listen.', points: 30 },
+  { title: 'Kong laettis: hold standup show i kinosal', description: 'Fra St. Olav-listen.', points: 30 },
+  { title: 'Sommerkroppen: fullfør treningsøkt i kaentish minimum 15 min', description: 'Fra St. Olav-listen.', points: 20 },
+  { title: 'Kvisten: fullfør en heil 6er i et tre', description: 'Fra St. Olav-listen.', points: 25 },
+  { title: 'Klan leder: vinn mot lederen av St. Olav-klanen i Clash Royal', description: 'Fra St. Olav-listen.', points: 15 },
+  { title: 'Gå edru hele rt', description: 'Fra St. Olav-listen.', points: 30 },
+  { title: 'Handcuff deg til noen en hel skoledag', description: 'Fra St. Olav-listen.', points: 20 },
+  { title: 'Ring 1881 og be dem velge 3 tall', description: 'Fra St. Olav-listen.', points: 20 },
 ]
 
 const hetlandKnuter: SeedKnute[] = [
-  { title: 'Hetland: Lag papirfly i timen', description: null, points: 10, difficulty: 'Lett' },
-  { title: 'Hetland: Snurr rundt 5 ganger før du svarer på spørsmål', description: null, points: 15, difficulty: 'Lett' },
-  { title: 'Hetland: Bær lærerens sekk en hel dag', description: null, points: 20, difficulty: 'Medium' },
+  { title: 'Hetland: Lag papirfly i timen', description: null, points: 10 },
+  { title: 'Hetland: Snurr rundt 5 ganger før du svarer på spørsmål', description: null, points: 15 },
+  { title: 'Hetland: Bær lærerens sekk en hel dag', description: null, points: 20 },
 ]
 
 // A few traditional St. Olav knuter are gullknuter (test data). Indices into
@@ -413,9 +412,6 @@ await supDb.update(schema.users).set({ points: hetlandFirst.points }).where(eq(s
   if (stavanger !== 3) throw new Error(`library seed: expected 3 Stavanger-region, got ${stavanger}`)
 }
 
-const difficultyFor = (p: number): 'Lett' | 'Medium' | 'Hard' | 'Valgfri' =>
-  p === 0 ? 'Valgfri' : p < 20 ? 'Lett' : p <= 45 ? 'Medium' : 'Hard'
-
 const insertedLibrary = await supDb
   .insert(schema.libraryKnuter)
   .values(
@@ -423,7 +419,6 @@ const insertedLibrary = await supDb
       title: k.title,
       description: k.description,
       points: k.points,
-      difficulty: difficultyFor(k.points),
       evidenceType: k.evidenceType ?? ('media' as const),
       minAge: k.minAge ?? 17,
       suggestedFolder: k.folder,

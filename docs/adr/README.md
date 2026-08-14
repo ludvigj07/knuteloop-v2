@@ -97,3 +97,4 @@ What we are choosing. Be specific — name versions, libraries, vendors.
 | [0022](./0022-feed-requires-media.md) | Sharing requires media — the feed is a visual surface; refines 0021 | Accepted | 2026-07-23 |
 | [0023](./0023-calm-app-no-celebration-layer.md) | Calm app — no sound, no confetti, no streak; badges await a joint redesign | Accepted | 2026-07-24 |
 | [0024](./0024-rolig-streak-metningskurve.md) | Rolig streak med metningskurve (delvis supersede av 0023s streak-punkt) | Proposed | 2026-07-26 |
+| [0025](./0025-fjern-vanskelighetsgrad.md) | Fjern vanskelighetsgrad — poeng er eneste vanskelighetssignal | Accepted | 2026-08-14 |
