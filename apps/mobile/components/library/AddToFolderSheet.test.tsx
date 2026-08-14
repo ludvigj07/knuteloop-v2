@@ -22,7 +22,6 @@ const KNUTE: LibraryKnute = {
   title: 'Stoppeklokke',
   description: 'Drikk en halvliter på ti sekunder.',
   points: 25,
-  difficulty: 'Medium',
   evidenceType: 'media',
   minAge: 17,
   suggestedFolder: 'Alkohol',

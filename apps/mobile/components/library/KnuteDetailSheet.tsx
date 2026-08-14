@@ -4,7 +4,7 @@ import { Check, TriangleAlert } from 'lucide-react-native'
 import { Chip, Eyebrow, KnoteIcon, Sheet, StickerButton, StickerCard, Text } from '../primitives'
 import { GlyphTile } from '../knute/GlyphTile'
 import type { LibraryKnute } from '../../lib/api'
-import { difficultyTone, folderGlyph, isSensitiveKnute } from '../../lib/knute-ui'
+import { folderGlyph, isSensitiveKnute } from '../../lib/knute-ui'
 import { formatNumber } from '../../lib/format'
 import { sticker, spacing } from '../../lib/theme'
 
@@ -71,7 +71,6 @@ function Body({
 
       <View style={styles.chips}>
         <Chip label={`${formatNumber(knute.points)} P`} tone="accent" mono />
-        <Chip label={knute.difficulty} tone={difficultyTone(knute.difficulty)} />
       </View>
 
       {knute.description ? (
@@ -82,7 +81,6 @@ function Body({
 
       <View style={styles.grid}>
         <MetaCell label="Hjemmemappe" value={knute.suggestedFolder} />
-        <MetaCell label="Vanskelighet" value={knute.difficulty} />
         <MetaCell label="Bevis" value={isText ? 'Tekst' : 'Bilde / video'} />
         <MetaCell label="Alder" value={knute.minAge >= 18 ? '18+' : '17+'} />
       </View>

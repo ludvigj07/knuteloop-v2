@@ -35,7 +35,6 @@ export type Knute = {
   title: string
   description: string | null
   points: number
-  difficulty: 'Lett' | 'Medium' | 'Hard' | 'Valgfri'
   /** 'media' = photo required; 'text' = caption-only submission (no photo). */
   evidenceType: 'media' | 'text'
   /** Knutesjef-flagged gullknute (special/traditional). Drives gold styling. */
@@ -183,7 +182,6 @@ export type CreateKnuteInput = {
   title: string
   description?: string
   points: number
-  difficulty: 'Lett' | 'Medium' | 'Hard' | 'Valgfri'
   isGold?: boolean
 }
 
@@ -360,7 +358,7 @@ export type MeResponse = {
 }
 
 export type DagensKnuteResponse = {
-  dagens: Pick<Knute, 'id' | 'title' | 'description' | 'points' | 'difficulty'> | null
+  dagens: Pick<Knute, 'id' | 'title' | 'description' | 'points'> | null
 }
 
 /** Dagens knute — skolens deterministiske dagsvalg (v1-spec §3, Europe/Oslo-dag). */
@@ -481,7 +479,6 @@ export type LibraryKnute = {
   title: string
   description: string | null
   points: number
-  difficulty: 'Lett' | 'Medium' | 'Hard' | 'Valgfri'
   /** 'media' (photo/video) or 'text' (no media — legally sensitive knuter). */
   evidenceType: 'media' | 'text'
   /** 17 (all-ages) or 18 (adult-only). */

@@ -3,7 +3,7 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { Text } from './Text'
 import { sticker, spacing } from '../../lib/theme'
 
-// Small pill label used in the sticker UI for points, difficulty and folder
+// Small pill label used in the sticker UI for points and folder
 // tags. Non-interactive. Colour comes from a tone token, never raw values.
 
 export type ChipTone =

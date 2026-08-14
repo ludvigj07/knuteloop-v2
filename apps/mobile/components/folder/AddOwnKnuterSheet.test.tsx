@@ -11,7 +11,6 @@ const knute = (id: string, title: string): Knute => ({
   title,
   description: null,
   points: 10,
-  difficulty: 'Lett',
   evidenceType: 'media',
   isGold: false,
   isActive: true,

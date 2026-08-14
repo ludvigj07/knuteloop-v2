@@ -3,7 +3,6 @@ import { ChevronRight, Trash2 } from 'lucide-react-native'
 import { Badge, Chip, KnoteIcon, Pressable, StickerCard, Text } from '../primitives'
 import { GlyphTile } from './GlyphTile'
 import type { Knute } from '../../lib/api'
-import { difficultyTone } from '../../lib/knute-ui'
 import { formatNumber } from '../../lib/format'
 import { size, sticker, spacing } from '../../lib/theme'
 
@@ -37,7 +36,7 @@ export function SchoolKnuteRow({
         <Pressable
           onPress={onPress}
           haptic="light"
-          accessibilityLabel={`Rediger ${knute.isGold ? 'gullknute ' : ''}${knute.title}, ${formatNumber(knute.points)} poeng, ${knute.difficulty}${inactive ? ', arkivert' : ''}`}
+          accessibilityLabel={`Rediger ${knute.isGold ? 'gullknute ' : ''}${knute.title}, ${formatNumber(knute.points)} poeng${inactive ? ', arkivert' : ''}`}
           style={styles.openArea}
         >
           <GlyphTile size={44} tone={knute.isGold ? 'accent' : 'primary'}>
@@ -50,7 +49,6 @@ export function SchoolKnuteRow({
             </Text>
             <View style={styles.meta}>
               <Chip label={`${formatNumber(knute.points)} P`} tone="accent" mono />
-              <Chip label={knute.difficulty} tone={difficultyTone(knute.difficulty)} />
               {inactive ? <Badge label="Arkivert" /> : null}
             </View>
             {folderNames ? (

@@ -4,7 +4,7 @@ import { sticker, spacing } from '../../lib/theme'
 
 // Mini outline tag used for binary indicators on knute rows — "18+" (age gate)
 // and "Tekst" (text-only evidence). Outline, not filled, so it sits quietly
-// next to the louder points/difficulty Chips. Never colour-only: always a label.
+// next to the louder points Chips. Never colour-only: always a label.
 
 export type BadgeProps = {
   label: string
