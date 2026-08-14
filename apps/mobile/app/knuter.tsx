@@ -33,14 +33,6 @@ const STAGGER_MAX_STEPS = 8
 // height (1–2 title lines) used to size the scroll area before measuring.
 const ESTIMATED_CARD_HEIGHT = 84
 
-// Student-facing difficulty labels (the enum keeps v1's mixed vocabulary).
-const DIFFICULTY_LABEL: Record<Knute['difficulty'], string> = {
-  Lett: 'Lett',
-  Medium: 'Middels',
-  Hard: 'Vanskelig',
-  Valgfri: 'Valgfri',
-}
-
 export default function KnuterScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
@@ -81,7 +73,6 @@ export default function KnuterScreen() {
       const haystack = [
         knute.title,
         knute.description ?? '',
-        DIFFICULTY_LABEL[knute.difficulty],
         formatNumber(knute.points),
       ]
         .join(' ')
@@ -102,11 +93,7 @@ export default function KnuterScreen() {
             : FadeInDown.duration(animation.duration.base).delay(index * STAGGER_STEP_MS)
         }
       >
-        <KnuteListCard
-          knute={item}
-          difficultyLabel={DIFFICULTY_LABEL[item.difficulty]}
-          onPressKnute={openKnute}
-        />
+        <KnuteListCard knute={item} onPressKnute={openKnute} />
       </Animated.View>
     ),
     [reduceMotion, openKnute],

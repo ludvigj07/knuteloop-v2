@@ -1,23 +1,7 @@
-import type { ChipTone, KnoteGlyph } from '../components/primitives'
+import type { KnoteGlyph } from '../components/primitives'
 
 // Shared mappings for rendering knuter in the sticker UI (admin + library).
-// Keeps the difficulty→tone and folder→glyph vocabularies in one place.
-
-export type Difficulty = 'Lett' | 'Medium' | 'Hard' | 'Valgfri'
-
-export function difficultyTone(difficulty: Difficulty): ChipTone {
-  switch (difficulty) {
-    case 'Lett':
-      return 'success'
-    case 'Medium':
-      return 'warning'
-    case 'Hard':
-      return 'danger'
-    case 'Valgfri':
-    default:
-      return 'neutral'
-  }
-}
+// Keeps the folder→glyph vocabulary in one place.
 
 // Library `suggestedFolder` values (Generelle / Dobbel / Rampestrek / Alkohol /
 // Sex) → the matching custom knot glyph. Unknown folders fall back to the brand
