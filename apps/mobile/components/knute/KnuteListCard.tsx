@@ -4,7 +4,6 @@ import { ChevronRight } from 'lucide-react-native'
 import { Chip, KnoteIcon, StickerCard, Text } from '../primitives'
 import { GlyphTile } from './GlyphTile'
 import type { Knute } from '../../lib/api'
-import { difficultyTone } from '../../lib/knute-ui'
 import { formatNumber } from '../../lib/format'
 import { spacing, sticker } from '../../lib/theme'
 
@@ -20,12 +19,9 @@ const STATUS_LABEL = { approved: 'Godkjent', pending: 'Venter' } as const
 
 export const KnuteListCard = memo(function KnuteListCard({
   knute,
-  difficultyLabel,
   onPressKnute,
 }: {
   knute: Knute
-  /** Student-facing bokmål label (Medium → «Middels» etc.), mapped by the screen. */
-  difficultyLabel: string
   onPressKnute: (id: string) => void
 }) {
   const statusLabel = knute.myStatus ? STATUS_LABEL[knute.myStatus] : null
@@ -37,7 +33,7 @@ export const KnuteListCard = memo(function KnuteListCard({
       onPress={() => onPressKnute(knute.id)}
       haptic="light"
       accessibilityRole="link"
-      accessibilityLabel={`${knute.isGold ? 'Gullknute' : 'Knute'}: ${knute.title}, ${formatNumber(knute.points)} poeng, ${difficultyLabel}${statusLabel ? `, ${statusLabel.toLocaleLowerCase('nb-NO')}` : ''}`}
+      accessibilityLabel={`${knute.isGold ? 'Gullknute' : 'Knute'}: ${knute.title}, ${formatNumber(knute.points)} poeng${statusLabel ? `, ${statusLabel.toLocaleLowerCase('nb-NO')}` : ''}`}
       accessibilityHint="Åpner innsending for denne knuten."
     >
       <View style={styles.row}>
@@ -55,7 +51,6 @@ export const KnuteListCard = memo(function KnuteListCard({
           </Text>
           <View style={styles.meta}>
             <Chip label={`${formatNumber(knute.points)} P`} tone="accent" mono />
-            <Chip label={difficultyLabel} tone={difficultyTone(knute.difficulty)} />
             {knute.myStatus === 'approved' ? <Chip label="Godkjent ✓" tone="success" /> : null}
             {knute.myStatus === 'pending' ? <Chip label="Venter" tone="warning" /> : null}
           </View>

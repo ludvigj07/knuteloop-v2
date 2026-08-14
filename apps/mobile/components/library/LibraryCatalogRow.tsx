@@ -3,7 +3,7 @@ import { Check, Plus } from 'lucide-react-native'
 import { Badge, Chip, KnoteIcon, Pressable, Text } from '../primitives'
 import { GlyphTile } from '../knute/GlyphTile'
 import type { LibraryKnute } from '../../lib/api'
-import { difficultyTone, folderGlyph, isSensitiveKnute } from '../../lib/knute-ui'
+import { folderGlyph, isSensitiveKnute } from '../../lib/knute-ui'
 import { formatNumber } from '../../lib/format'
 import { size, sticker, spacing } from '../../lib/theme'
 
@@ -72,7 +72,6 @@ export function LibraryCatalogRow({
               ) : null}
               <View style={styles.meta}>
                 <Chip label={`${formatNumber(knute.points)} P`} tone="accent" mono />
-                <Chip label={knute.difficulty} tone={difficultyTone(knute.difficulty)} />
                 {isText ? <Badge label="Tekst" /> : null}
                 {isAdult ? <Badge label="18+" tone="age" /> : null}
               </View>

@@ -361,6 +361,23 @@ export function useApproveSubmission() {
 - Use `<Link href="..." />` from `expo-router`, not `navigation.navigate()`.
 - For programmatic navigation: `useRouter()` hook.
 
+**Sheets vs. pages — «ark for å se, side for å gjøre» (Ludvig endorsed, 2026-07-27):**
+
+Navigation is a commitment; a sheet on top is just a glance — the user never
+loses their place, so curiosity stays free and the app *feels* faster even
+though nothing loads quicker. The rule:
+
+> **A sheet to LOOK, a page to DO.** Anything that ends in an action (open a
+> knute → submit it) earns a full page. Anything you only peek at (a profile,
+> comments, a leaderboard row, sponsor info, notifications) is a sheet over the
+> current screen. Default to a sheet; promote to a page only when the
+> destination ends in a commit.
+
+Caveat for this repo: `@gorhom/bottom-sheet` and `Alert` are web-unreliable and
+Ludvig tests on web ([[ludvig-tests-on-web]]) — implement peek sheets with a
+plain in-app overlay/sheet that works on web, never gate a core flow behind a
+native modal.
+
 **Auth gating:**
 
 ```tsx

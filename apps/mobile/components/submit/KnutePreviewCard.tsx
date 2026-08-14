@@ -2,7 +2,6 @@ import { StyleSheet, View } from 'react-native'
 import { Badge, Chip, KnoteIcon, StickerCard, Text } from '../primitives'
 import { GlyphTile } from '../knute/GlyphTile'
 import type { Knute } from '../../lib/api'
-import { difficultyTone } from '../../lib/knute-ui'
 import { formatNumber } from '../../lib/format'
 import { sticker, spacing } from '../../lib/theme'
 
@@ -37,7 +36,6 @@ export function KnutePreviewCard({ knute }: { knute: Knute }) {
           </Text>
           <View style={styles.meta}>
             <Chip label={`${formatNumber(knute.points)} P`} tone="accent" mono />
-            <Chip label={knute.difficulty} tone={difficultyTone(knute.difficulty)} />
             {isText ? <Badge label="Tekst" /> : null}
           </View>
         </View>

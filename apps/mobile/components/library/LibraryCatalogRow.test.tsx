@@ -7,7 +7,6 @@ const KNUTE: LibraryKnute = {
   title: 'Spis en banan på ti sekunder',
   description: 'Hele bananen, foran minst tre medruss.',
   points: 15,
-  difficulty: 'Lett',
   evidenceType: 'media',
   minAge: 17,
   suggestedFolder: 'Generelle',

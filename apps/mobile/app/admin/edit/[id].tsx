@@ -24,9 +24,6 @@ import {
 } from '../../../lib/api'
 import { fontSize, sticker, spacing } from '../../../lib/theme'
 
-type Difficulty = 'Lett' | 'Medium' | 'Hard' | 'Valgfri'
-const DIFFICULTIES: Difficulty[] = ['Lett', 'Medium', 'Hard', 'Valgfri']
-
 export default function EditKnuteScreen() {
   // folderId (optional) = "Lag egen knute her" from a folder — pre-selects it.
   const { id, folderId: presetFolderId } = useLocalSearchParams<{ id: string; folderId?: string }>()
@@ -39,7 +36,6 @@ export default function EditKnuteScreen() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [pointsText, setPointsText] = useState('10')
-  const [difficulty, setDifficulty] = useState<Difficulty>('Medium')
   const [isGold, setIsGold] = useState(false)
   const [isActive, setIsActive] = useState(true)
   const [loaded, setLoaded] = useState(false)
@@ -59,7 +55,6 @@ export default function EditKnuteScreen() {
     setTitle(k.title)
     setDescription(k.description ?? '')
     setPointsText(String(k.points))
-    setDifficulty(k.difficulty)
     setIsGold(k.isGold)
     setIsActive(k.isActive)
     setLoaded(true)
@@ -145,9 +140,9 @@ export default function EditKnuteScreen() {
     }
     const descTrim = description.trim()
     if (isNew) {
-      create.mutate({ title: titleTrim, description: descTrim || undefined, points, difficulty, isGold })
+      create.mutate({ title: titleTrim, description: descTrim || undefined, points, isGold })
     } else {
-      update.mutate({ title: titleTrim, description: descTrim || null, points, difficulty, isGold, isActive })
+      update.mutate({ title: titleTrim, description: descTrim || null, points, isGold, isActive })
     }
   }
 
@@ -199,31 +194,9 @@ export default function EditKnuteScreen() {
           />
         </Field>
 
-        <Field label="Vanskelighet">
-          <View style={styles.diffRow}>
-            {DIFFICULTIES.map((d) => {
-              const active = difficulty === d
-              return (
-                <Pressable
-                  key={d}
-                  onPress={() => setDifficulty(d)}
-                  haptic="selection"
-                  accessibilityLabel={`Velg ${d}`}
-                  accessibilityState={{ selected: active }}
-                  style={[styles.diffChip, active ? styles.diffChipActive : styles.diffChipIdle]}
-                >
-                  <Text size="sm" weight="semibold" color={active ? sticker.color.textInverse : sticker.color.text}>
-                    {d}
-                  </Text>
-                </Pressable>
-              )
-            })}
-          </View>
-        </Field>
-
         {isNew && folders.length > 0 ? (
           <Field label="Mapper (valgfritt)">
-            <View style={styles.diffRow}>
+            <View style={styles.chipRow}>
               {folders.map((f) => {
                 const active = folderIds.includes(f.id)
                 return (
@@ -237,7 +210,7 @@ export default function EditKnuteScreen() {
                     haptic="selection"
                     accessibilityLabel={`Mappe ${f.name}`}
                     accessibilityState={{ selected: active }}
-                    style={[styles.diffChip, active ? styles.diffChipActive : styles.diffChipIdle]}
+                    style={[styles.chip, active ? styles.chipActive : styles.chipIdle]}
                   >
                     <Text
                       size="sm"
@@ -355,15 +328,15 @@ const styles = StyleSheet.create({
     color: sticker.color.text,
   },
   inputMulti: { minHeight: 100, textAlignVertical: 'top' },
-  diffRow: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
-  diffChip: {
+  chipRow: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
+  chip: {
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.sm,
     borderRadius: sticker.radius.full,
     borderWidth: sticker.borderWidth,
   },
-  diffChipIdle: { backgroundColor: sticker.color.card, borderColor: sticker.color.ink },
-  diffChipActive: { backgroundColor: sticker.color.ink, borderColor: sticker.color.ink },
+  chipIdle: { backgroundColor: sticker.color.card, borderColor: sticker.color.ink },
+  chipActive: { backgroundColor: sticker.color.ink, borderColor: sticker.color.ink },
   toggleCard: { marginTop: spacing.xs },
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.base },
   toggleText: { flex: 1, gap: spacing['2xs'] },
