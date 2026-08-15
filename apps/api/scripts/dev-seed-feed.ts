@@ -7,14 +7,19 @@
 // mobile token — safe to run while dev:all is up. Re-running replaces the
 // previous seed batch (idempotent), pending review-queue rows are untouched.
 //
-// Images: downloaded ONCE from picsum.photos (public test photos, DEV SEED
-// ONLY, no user data) into the local uploads dir with REAL storage keys, so
-// `imageUrl` resolves exactly like a real upload and the phone never talks to
-// picsum. First run needs internet; re-runs reuse the files on disk.
+// Images: drop your OWN portrait JPGs into scripts/seed-media/ (gitignored —
+// see its README) and they are copied into the local uploads dir under the
+// seed keys on every run, so the feed shows real content. With the folder
+// empty, falls back to picsum.photos (public test photos, DEV SEED ONLY,
+// downloaded once and reused). `imageUrl` resolves exactly like a real upload
+// either way — the phone never talks to picsum.
 
 import postgres from 'postgres'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { and, asc, eq, inArray, like, sum } from 'drizzle-orm'
+import { readdir, readFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import * as schema from '../src/db/schema/index.js'
 import { readLocalImage, writeLocalImage } from '../src/lib/storage.js'
 
@@ -41,10 +46,29 @@ const SEED_IDS = Array.from(
 )
 const seedImageKey = (i: number) => `submissions/${SEED_IDS[i]}.jpg`
 
+// Own photos: scripts/seed-media/*.jpg, sorted by filename, cycled if fewer
+// than BATCH_SIZE. JPG only — the seed keys end in .jpg, so other formats
+// would be served with a mismatched extension.
+const MEDIA_DIR = fileURLToPath(new URL('./seed-media/', import.meta.url))
+async function listSeedMedia(): Promise<string[]> {
+  try {
+    return (await readdir(MEDIA_DIR)).filter((f) => /\.jpe?g$/i.test(f)).sort()
+  } catch {
+    return [] // folder missing → picsum fallback
+  }
+}
+const mediaFiles = await listSeedMedia()
+
 // Portrait 9:16 so the fullscreen feed (and its blur-fill) renders like a
-// real phone photo. Downloaded to disk on first run, then reused.
+// real phone photo. Own photos are re-copied on EVERY run (so swapping a file
+// in seed-media/ takes effect); the picsum fallback downloads once and reuses.
 async function ensureSeedImage(i: number): Promise<void> {
   const key = seedImageKey(i)
+  if (mediaFiles.length > 0) {
+    const file = mediaFiles[i % mediaFiles.length]!
+    await writeLocalImage(key, new Uint8Array(await readFile(resolve(MEDIA_DIR, file))))
+    return
+  }
   if (await readLocalImage(key)) return
   const res = await fetch(`https://picsum.photos/seed/knute-${i}/900/1600`)
   if (!res.ok) throw new Error(`picsum ${res.status} for seed image ${i}`)
@@ -55,7 +79,7 @@ try {
   await Promise.all(Array.from({ length: BATCH_SIZE }, (_, i) => ensureSeedImage(i)))
 } catch (err) {
   process.stderr.write(
-    `Could not fetch seed images (first run needs internet): ${(err as Error).message}\n`,
+    `Could not seed images (first picsum run needs internet): ${(err as Error).message}\n`,
   )
   process.exit(1)
 }
@@ -173,7 +197,10 @@ for (const u of schoolUsers) {
 }
 
 process.stdout.write(
-  `Seeded ${batch.length} approved submissions for ${frida.russenavn} @ ${stOlav.name} (${pointsByUser.get(frida.id) ?? 0}p), images on local disk\n`,
+  `Seeded ${batch.length} approved submissions for ${frida.russenavn} @ ${stOlav.name} (${pointsByUser.get(frida.id) ?? 0}p), ` +
+    (mediaFiles.length > 0
+      ? `images from seed-media/ (${mediaFiles.length} egne bilder)\n`
+      : 'picsum images on local disk\n'),
 )
 
 await supSql.end({ timeout: 5 })

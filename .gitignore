@@ -72,6 +72,10 @@ apps/api/src/lib/aiven-ca.pem
 # Kept locally as a design reference only. NEVER commit.
 docs/v1-screenshots/
 
+# Egne demo-bilder til dev-feeden — bilder av ekte mennesker. NEVER commit.
+apps/api/scripts/seed-media/*
+!apps/api/scripts/seed-media/README.md
+
 # Misc
 *.tgz
 .eslintcache
