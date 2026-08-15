@@ -6,7 +6,6 @@ const knute = {
   title: 'Bad i sjøen før skoletid',
   description: 'Ta med en venn.',
   points: 20,
-  difficulty: 'Medium' as const,
 }
 
 const defaultProps = {
