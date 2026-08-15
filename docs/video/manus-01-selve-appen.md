@@ -40,7 +40,9 @@ Resten av design-bunken i idéboka venter til videoene som viser de flatene.
 
 ## Slik tas opptaket
 
-1. **Rigg demo-data:** `pnpm dev:setup` + `pnpm dev:seed-feed` — appen skal se levende ut med ekte bilder.
+1. **Rigg demo-data:** legg egne bilder i `apps/api/scripts/seed-media/` (se `docs/video/fotoliste.md`),
+   så `pnpm dev:setup` + `pnpm dev:seed-feed` — appen skal se levende ut med EKTE bilder, ikke plassholdere.
+   Grafikk-scenene (1/7/8) lages med `docs/video/claude-design-prompt.md`.
 2. **Mobilvisning:** nettleser mot `localhost:8081`, DevTools-mobilmodus 390×844 (eller ekte telefon senere).
 3. **Ta opp rått:** ett klipp per scene, 2–3 forsøk hver, navngitt `scene-02.mp4` osv. Brage/Linus klipper mot dette manuset.
 
