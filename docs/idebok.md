@@ -44,7 +44,20 @@ som me adde mer design-greier — mer cleen feel»**. Mindre støy, mer identite
 ## 🌍 Vekst & utad
 
 - **Nettside** — så folk kan søke opp Knuteloop (markedsside; skoler/foreldre/sponsorer
-  som googler oss skal finne noe ordentlig).
+  som googler oss skal finne noe ordentlig). _Høstens viktigste punkt: salg til
+  russestyrene starter når styrene dannes (tidlig høst 2026) — appen selges på
+  v1-tallene + demo, ikke på ferdigstillelse. Lansering er fortsatt russetid 2027._
+- **Video-serie for salg** (Ludvig, 15. aug — «lowkey overkommelig»): mange SMÅ
+  videoer (30–60 sek) i stedet for én lang. Lista:
+  1. **Selve appen** — innsending, feed, toppliste, godkjenning (hero på nettsida)
+  2. **Knutesjef-verktøyene** — «dette blir enkelt for deg»
+  3. **Personvern** — svarer foreldre/skolers GDPR-innvending før den kommer
+  4. + 1–2 småting (f.eks. kom-i-gang)
+
+  _Arbeidsdeling: Claude skriver manus + shot-liste + rigger demo-seed; Ludvig tar
+  skjermopptak; Brage/Linus klipper. Én video per perm-økt er tempoet._
+  _Bonus: videoene styrer design-poleringa — vi pusser kun skjermene kamera ser,
+  i den rekkefølgen videoene lages._
 - **Global feed + algoritme** — den kuraterte offentlige utstillingen på tvers av skoler.
   _Stor greie: trenger egen ADR (RLS-unntaket må designes som lift-out, aldri cross-tenant)._
 
