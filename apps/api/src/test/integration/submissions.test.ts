@@ -28,7 +28,6 @@ async function freshKnuteA(label: string) {
       schoolId: schoolAId,
       title: `A: ${label}`,
       points: 10,
-      difficulty: 'Lett',
     })
     .returning()
   return row!.id
@@ -74,8 +73,8 @@ beforeAll(async () => {
   const insertedKnuter = await h.superDb
     .insert(knuter)
     .values([
-      { schoolId: schoolAId, title: 'A: Spis frokost under pulten', points: 10, difficulty: 'Lett' },
-      { schoolId: schoolBId, title: 'B: Helt annerledes knute', points: 50, difficulty: 'Hard' },
+      { schoolId: schoolAId, title: 'A: Spis frokost under pulten', points: 10 },
+      { schoolId: schoolBId, title: 'B: Helt annerledes knute', points: 50 },
     ])
     .returning()
   knuteAId = insertedKnuter[0]!.id
@@ -605,7 +604,7 @@ describe('POST /api/submissions — age gate (ADR-0015)', () => {
     adultTokenA = await signDevToken({ sub: adult!.id, school_id: schoolAId, role: 'student' })
     const [k] = await h.superDb
       .insert(knuter)
-      .values({ schoolId: schoolAId, title: 'A: 18+ submit', points: 40, difficulty: 'Hard', minAge: 18 })
+      .values({ schoolId: schoolAId, title: 'A: 18+ submit', points: 40, minAge: 18 })
       .returning()
     age18KnuteId = k!.id
   })
@@ -637,7 +636,6 @@ describe('POST /api/submissions — text-only knuter (ADR-0014)', () => {
         schoolId: schoolAId,
         title: `A: tekst ${label}`,
         points: 20,
-        difficulty: 'Medium',
         evidenceType: 'text',
       })
       .returning()

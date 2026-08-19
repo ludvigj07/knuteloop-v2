@@ -107,7 +107,7 @@ schools  (uuid id, name)                          ← the tenant boundary itself
    │      └──< submissions  (school_id, user_id, knute_id, image_key — NULL for
    │                         text-only evidence, caption, status, reviewed_by/at)
    │
-   ├──< knuter    (school_id, title, points, difficulty, is_gold, evidence_type,
+   ├──< knuter    (school_id, title, points, is_gold, evidence_type,
    │               min_age, source_library_knute_id, is_active,
    │               category — legacy, removal planned per ADR-0014)
    │
@@ -118,7 +118,7 @@ schools  (uuid id, name)                          ← the tenant boundary itself
 
 Shared across ALL schools — no school_id, no RLS, READ-ONLY for app_role (ADR-0014):
 
-library_knuter   (title, points, difficulty, evidence_type, min_age,
+library_knuter   (title, points, evidence_type, min_age,
                   suggested_folder = theme axis, region = discovery filter)
 library_packs ──< library_pack_memberships >── library_knuter
 

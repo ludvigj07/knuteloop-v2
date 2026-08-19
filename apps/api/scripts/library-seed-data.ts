@@ -3,7 +3,7 @@
 // cleanup 2026-07-24 removed 75 entries incl. the whole Sex + Alkohol folders,
 // approved by Ludvig — see docs/app-store-content-review.md. 111 knuter remain.)
 // Defaults applied at seed time: evidenceType 'media', minAge 17, region null (Nasjonalt).
-// Only the exceptions are spelled out per entry. `difficulty` is derived from points by dev-setup.
+// Only the exceptions are spelled out per entry.
 export type LibraryFolder = 'Generelle' | 'Dobbel' | 'Rampestrek' | 'Alkohol' | 'Sex'
 
 export type LibrarySeedKnute = {

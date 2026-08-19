@@ -30,8 +30,8 @@
   Festival (Vaulen). **Skole-/person-spesifikke** (Gunnar, IB-toalettet/IB-linja, referanser til
   «russepresidenten») flagges for generalisering ved nasjonal kurering — ikke en region, men innhold
   som må omskrives før et bibliotek på tvers av skoler.
-- **`difficulty`** finnes ikke i kilden → utledes fra poeng: `< 20 = Lett`, `20–45 = Medium`, `> 45 = Hard`.
-  Sølibat (0p, meta) = `Valgfri`. Juster fritt i seeden.
+- **`difficulty`** fantes aldri i kilden og er fjernet fra produktet (ADR-0025) — poeng
+  ER vanskelighetsinfoen.
 - **Dobbeltnavn** ("Stjerneelev / Presis") lagres som hele tittel-strengen.
 - **Tråd-tier-knuter** (Bronsetråd/Sølvtråd/Gulltråd) seedes som vanlige navngitte knuter (v1-spec §5).
 - **Utelatt:** Treddis (mindreårige) + Karsk-løp (lages på nytt). A-laget krever at begge er 18+.

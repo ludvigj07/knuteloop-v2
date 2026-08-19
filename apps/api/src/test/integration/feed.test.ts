@@ -56,15 +56,15 @@ beforeAll(async () => {
   const insertedKnuter = await h.superDb
     .insert(knuter)
     .values([
-      { schoolId: schoolAId, title: 'A: Feed-knute 0', points: 10, difficulty: 'Lett' },
-      { schoolId: schoolAId, title: 'A: Feed-knute 1', points: 10, difficulty: 'Lett' },
-      { schoolId: schoolAId, title: 'A: Feed-knute 2', points: 10, difficulty: 'Lett' },
-      { schoolId: schoolAId, title: 'A: Feed-knute 3', points: 10, difficulty: 'Lett' },
-      { schoolId: schoolAId, title: 'A: Feed-knute 4', points: 10, difficulty: 'Lett' },
-      { schoolId: schoolAId, title: 'A: Pending-knute', points: 10, difficulty: 'Lett' },
-      { schoolId: schoolBId, title: 'B: Annen skole', points: 50, difficulty: 'Hard' },
-      { schoolId: schoolAId, title: 'A: 18+ knute', points: 20, difficulty: 'Medium', minAge: 18 },
-      { schoolId: schoolAId, title: 'A: Privat-knute', points: 15, difficulty: 'Lett' },
+      { schoolId: schoolAId, title: 'A: Feed-knute 0', points: 10 },
+      { schoolId: schoolAId, title: 'A: Feed-knute 1', points: 10 },
+      { schoolId: schoolAId, title: 'A: Feed-knute 2', points: 10 },
+      { schoolId: schoolAId, title: 'A: Feed-knute 3', points: 10 },
+      { schoolId: schoolAId, title: 'A: Feed-knute 4', points: 10 },
+      { schoolId: schoolAId, title: 'A: Pending-knute', points: 10 },
+      { schoolId: schoolBId, title: 'B: Annen skole', points: 50 },
+      { schoolId: schoolAId, title: 'A: 18+ knute', points: 20, minAge: 18 },
+      { schoolId: schoolAId, title: 'A: Privat-knute', points: 15 },
     ])
     .returning()
   const knuterA = insertedKnuter.slice(0, 5)

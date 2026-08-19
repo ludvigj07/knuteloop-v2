@@ -83,7 +83,6 @@ export const libraryRoutes = new Hono<{ Variables: Variables }>()
         title: libraryKnuter.title,
         description: libraryKnuter.description,
         points: libraryKnuter.points,
-        difficulty: libraryKnuter.difficulty,
         evidenceType: libraryKnuter.evidenceType,
         minAge: libraryKnuter.minAge,
         suggestedFolder: libraryKnuter.suggestedFolder,

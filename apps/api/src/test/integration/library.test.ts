@@ -101,7 +101,6 @@ beforeAll(async () => {
       schoolId: schoolAId,
       title: 'Bikkjå',
       points: 10,
-      difficulty: 'Lett',
       sourceLibraryKnuteId: bikkjaId,
     })
     .returning()

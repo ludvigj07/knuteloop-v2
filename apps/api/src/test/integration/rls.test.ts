@@ -38,8 +38,8 @@ beforeAll(async () => {
   const insertedKnuter = await h.superDb
     .insert(knuter)
     .values([
-      { schoolId: schoolAId, title: 'A-knute', points: 30, difficulty: 'Hard', category: 'Generelle' },
-      { schoolId: schoolBId, title: 'B-knute', points: 30, difficulty: 'Hard', category: 'Generelle' },
+      { schoolId: schoolAId, title: 'A-knute', points: 30, category: 'Generelle' },
+      { schoolId: schoolBId, title: 'B-knute', points: 30, category: 'Generelle' },
     ])
     .returning()
   await h.superDb.insert(submissions).values([
@@ -63,8 +63,8 @@ beforeAll(async () => {
   const copies = await h.superDb
     .insert(knuter)
     .values([
-      { schoolId: schoolAId, title: 'A-copy', points: 10, difficulty: 'Lett', category: 'Generelle', sourceLibraryKnuteId: libK.id },
-      { schoolId: schoolBId, title: 'B-copy', points: 10, difficulty: 'Lett', category: 'Generelle', sourceLibraryKnuteId: libK.id },
+      { schoolId: schoolAId, title: 'A-copy', points: 10, category: 'Generelle', sourceLibraryKnuteId: libK.id },
+      { schoolId: schoolBId, title: 'B-copy', points: 10, category: 'Generelle', sourceLibraryKnuteId: libK.id },
     ])
     .returning()
   bCopyId = copies[1]!.id

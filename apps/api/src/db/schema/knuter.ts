@@ -30,9 +30,6 @@ export const knuter = pgTable(
     title: text('title').notNull(),
     description: text('description'),
     points: integer('points').notNull(),
-    difficulty: text('difficulty', { enum: ['Lett', 'Medium', 'Hard', 'Valgfri'] })
-      .notNull()
-      .default('Medium'),
     // LEGACY theme axis (the five v1 folders). Real folders are knute_folders +
     // knute_folder_memberships (ADR-0014); this enum survives only because the
     // profile category rings (routes/me.ts) still read it. Slated for removal.

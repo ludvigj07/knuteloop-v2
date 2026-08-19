@@ -28,9 +28,9 @@ const [user] = await h.superDb
   .returning()
 
 await h.superDb.insert(schemas.knuter).values([
-  { schoolId: school!.id, title: 'Spis frokost under pulten', points: 10, difficulty: 'Lett' },
-  { schoolId: school!.id, title: 'Klassebilde med solbriller', points: 25, difficulty: 'Medium' },
-  { schoolId: school!.id, title: 'Heiarop-video', points: 35, difficulty: 'Medium' },
+  { schoolId: school!.id, title: 'Spis frokost under pulten', points: 10 },
+  { schoolId: school!.id, title: 'Klassebilde med solbriller', points: 25 },
+  { schoolId: school!.id, title: 'Heiarop-video', points: 35 },
 ])
 
 const token = await signDevToken({
@@ -47,12 +47,12 @@ process.stdout.write(`HTTP ${res.status} ${res.statusText}\n`)
 process.stdout.write(`Content-Type: ${res.headers.get('content-type')}\n\n`)
 
 const body = (await res.json()) as {
-  knuter: { title: string; points: number; difficulty: string }[]
+  knuter: { title: string; points: number }[]
 }
 
 process.stdout.write(`knuter for Demo High School (${body.knuter.length}):\n`)
 for (const k of body.knuter) {
-  process.stdout.write(`  - ${k.points.toString().padStart(3)}p  ${k.difficulty.padEnd(8)}  ${k.title}\n`)
+  process.stdout.write(`  - ${k.points.toString().padStart(3)}p  ${k.title}\n`)
 }
 
 await h.cleanup()
