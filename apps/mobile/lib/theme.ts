@@ -140,6 +140,10 @@ export const fontSize = {
 } as const
 
 export const size = {
+  // Apple HIG / Material minimum touch area. Elements are allowed to LOOK
+  // smaller than this — the Pressable primitive expands the invisible hit area
+  // with hitSlop instead of forcing the layout (docs/v1-detaljer.md §3).
+  minTapTarget: 44,
   bottomNavButton: 44,
   // Shrink floor for inactive tab pills — with six tabs (knutesjef) the bar
   // must compress to survive 320 px wide screens.
