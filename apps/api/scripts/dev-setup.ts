@@ -390,6 +390,29 @@ await supDb.insert(schema.submissions).values(
 )
 const lokePoints = lokeCompletions.reduce((sum, c) => sum + c.knute.points, 0)
 
+// One REJECTED submission for Loke. Without it two shipped behaviours are
+// invisible in dev: the red status stripe on the profile (nothing else in the
+// seed is rejected, so only green/yellow ever render) and the «ny runde»
+// wording on the confirmation screen, which only appears when you resubmit a
+// knute you were turned down on. Rejected does NOT lock the knute — so this row
+// also leaves «Arranger miniquiz om russetiden» open for testing that path.
+// visibility stays 'shared' with shared_at set (the invariant on submissions.ts
+// L54); a rejected row never reaches the feed, which filters on status.
+const lokeRejectedKnute = insertedStOlavKnuter[5]!
+await supDb.insert(schema.submissions).values({
+  schoolId: stOlav.id,
+  userId: userLoke.id,
+  knuteId: lokeRejectedKnute.id,
+  imageKey: 'bunny/dev-seed/loke-avvist.webp',
+  caption: 'Beviset viser ikke hele knuten — prøv igjen',
+  status: 'rejected',
+  visibility: 'shared',
+  sharedAt: daysAgo(3),
+  reviewedBy: userLoke.id,
+  reviewedAt: daysAgo(3),
+  createdAt: daysAgo(3),
+})
+
 // Match each leaderboard to its pre-approved seed submissions (the approve flow
 // normally awards points transactionally; here we set them directly).
 await supDb.update(schema.users).set({ points: lokePoints }).where(eq(schema.users.id, userLoke.id))
