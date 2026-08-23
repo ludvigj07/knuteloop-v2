@@ -33,7 +33,7 @@ import {
   type SchoolClass,
 } from '../lib/api'
 import { formatNumber, formatShortDate } from '../lib/format'
-import { animation, size, spacing, sticker } from '../lib/theme'
+import { animation, borderWidth, radius, size, spacing, sticker } from '../lib/theme'
 
 const ROLE_LABEL: Record<string, string> = {
   student: 'russ',
@@ -57,10 +57,19 @@ const CATEGORY_META: Record<KnuteCategory, { label: string; color: string; glyph
   'Fordervett-knuter': { label: 'Rampestrek', color: sticker.color.gold, glyph: 'fordervett' },
 }
 
-const STATUS_META: Record<MySubmission['status'], { label: string; tone: 'success' | 'warning' | 'danger' }> = {
-  approved: { label: 'Godkjent', tone: 'success' },
-  pending: { label: 'Venter', tone: 'warning' },
-  rejected: { label: 'Avvist', tone: 'danger' },
+// `spine` is the colored bar down the left of each row. «Mine innsendinger» is
+// the one list in the app that interleaves all three statuses (the catalog
+// splits them into tabs), so it is the one place where you need to read the
+// SHAPE of the list rather than each row. v1 did this with a 3px left border
+// and it let you take in a whole screen at a glance (docs/v1-detaljer.md §7).
+// The chip stays — colour is never the only signal (frontend.md §9).
+const STATUS_META: Record<
+  MySubmission['status'],
+  { label: string; tone: 'success' | 'warning' | 'danger'; spine: string }
+> = {
+  approved: { label: 'Godkjent', tone: 'success', spine: sticker.color.success },
+  pending: { label: 'Venter', tone: 'warning', spine: sticker.color.warning },
+  rejected: { label: 'Avvist', tone: 'danger', spine: sticker.color.danger },
 }
 
 const STAGGER_STEP_MS = 60
@@ -544,6 +553,7 @@ function SubmissionRow({ submission }: { submission: MySubmission }) {
   return (
     <StickerCard radius="md" shadow="sm" padding="md" style={styles.subRow}>
       <View style={styles.subInner}>
+        <View style={[styles.subSpine, { backgroundColor: meta.spine }]} />
         <View style={styles.subText}>
           <Text size="base" weight="semibold" color={sticker.color.ink} numberOfLines={2}>
             {submission.knuteTitle}
@@ -631,6 +641,9 @@ const styles = StyleSheet.create({
   },
   subRow: { marginHorizontal: H_PAD, marginTop: spacing.sm },
   subInner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  // Full-height status bar. `stretch` overrides the row's `center` so it spans
+  // the whole row however tall a two-line title makes it.
+  subSpine: { width: borderWidth.thick, alignSelf: 'stretch', borderRadius: radius.full },
   subText: { flex: 1, minWidth: spacing.none, gap: spacing['2xs'] },
   emptyInner: { alignItems: 'center', paddingVertical: spacing.lg },
   devRow: { paddingHorizontal: H_PAD, marginTop: spacing.lg },
