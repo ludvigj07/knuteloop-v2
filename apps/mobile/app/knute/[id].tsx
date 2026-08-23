@@ -27,6 +27,7 @@ import {
   uploadImageBinary,
 } from '../../lib/api'
 import { haptics } from '../../lib/haptics'
+import { pickSubmissionReceipt, type ReceiptContext } from '../../lib/microcopy'
 import { animation, fontSize, size, spacing, sticker } from '../../lib/theme'
 
 // Photos are compressed to ~1MB before upload: resize to max 1280px wide, JPEG
@@ -52,6 +53,9 @@ export default function KnuteDetailScreen() {
   const [caption, setCaption] = useState('')
   const [imageUri, setImageUri] = useState<string | null>(null)
   const [picking, setPicking] = useState(false)
+  // The confirmation headline, picked once in onSuccess. Held in state rather
+  // than derived during render so it can never reshuffle while it's on screen.
+  const [receipt, setReceipt] = useState<string | null>(null)
 
   const { data, isLoading } = useQuery({ queryKey: ['knuter'], queryFn: fetchKnuter })
   const knute = data?.knuter.find((k) => k.id === id)
@@ -72,6 +76,12 @@ export default function KnuteDetailScreen() {
       ? 'Du har allerede sendt inn denne — venter på godkjenning.'
       : 'Du har allerede fått godkjent denne knuten.'
     : null
+  // A rejected attempt doesn't lock the form — you're meant to try again. It
+  // does change the tone of the confirmation, though: this is a second go, and
+  // the copy should acknowledge that instead of greeting you like it's the first.
+  const isRetry = me.data?.submissions.some(
+    (s) => knute && s.knuteId === knute.id && s.status === 'rejected',
+  )
 
   async function pickImage(source: 'camera' | 'library') {
     try {
@@ -140,8 +150,14 @@ export default function KnuteDetailScreen() {
         visibility,
       })
     },
-    onSuccess: () => {
+    onSuccess: (_data, visibility) => {
       void haptics.success()
+      const context: ReceiptContext = isRetry
+        ? 'resubmission'
+        : visibility === 'shared'
+          ? 'shared'
+          : 'private'
+      setReceipt(pickSubmissionReceipt(context))
       void qc.invalidateQueries({ queryKey: ['me'] })
       void qc.invalidateQueries({ queryKey: ['submissions', 'pending'] })
       void qc.invalidateQueries({ queryKey: ['submissions', 'pending', 'count'] })
@@ -193,7 +209,10 @@ export default function KnuteDetailScreen() {
               <Check size={sticker.icon.lg} color={sticker.color.success} strokeWidth={3} />
             </View>
           }
-          title={shared ? 'Delt og sendt inn!' : 'Sendt til godkjenning!'}
+          // The headline varies (see lib/microcopy.ts); the body below always
+          // spells out who can see the submission, so nothing is lost when the
+          // words change. Falls back if the pick somehow hasn't landed.
+          title={receipt ?? (shared ? 'Delt og sendt inn!' : 'Sendt til godkjenning!')}
           body={
             shared
               ? `Knutesjefen får «${knute.title}» til vurdering — den legges i feeden når den er godkjent.`
