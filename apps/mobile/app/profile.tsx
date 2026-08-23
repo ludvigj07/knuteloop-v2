@@ -57,8 +57,8 @@ const CATEGORY_META: Record<KnuteCategory, { label: string; color: string; glyph
   'Fordervett-knuter': { label: 'Rampestrek', color: sticker.color.gold, glyph: 'fordervett' },
 }
 
-// `spine` is the colored bar down the left of each row. «Mine innsendinger» is
-// the one list in the app that interleaves all three statuses (the catalog
+// `spine` is the colored bar down the left of each row. «Siste innsendinger»
+// is the one list in the app that interleaves all three statuses (the catalog
 // splits them into tabs), so it is the one place where you need to read the
 // SHAPE of the list rather than each row. v1 did this with a 3px left border
 // and it let you take in a whole screen at a glance (docs/v1-detaljer.md §7).
