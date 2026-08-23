@@ -6,7 +6,7 @@
 > ligger trygt. Når et punkt faktisk skal bygges: scope det til en GitHub-issue
 > eller PR, og stryk det her.
 >
-> Sist oppdatert: **2026-08-15** (perm-helg).
+> Sist oppdatert: **2026-08-23**.
 
 ---
 
@@ -14,6 +14,11 @@
 
 Ludvigs retning, med hans egne ord: **«en generell less is more-vibe samtidig
 som me adde mer design-greier — mer cleen feel»**. Mindre støy, mer identitet.
+
+> 📐 **Detaljene fra V1 er nå skrevet ned:** [`docs/v1-detaljer.md`](./v1-detaljer.md).
+> ~40 småting som gjorde at V1 føltes gjennomført — sveip-kurven, haptikk-nivåene,
+> 44px-regelen, skeletons, «rivaler», ordene — med de **ekte tallene** fra kilden.
+> Les den før du polerer en skjerm. `v1-spec.md` er reglene; denne er følelsen.
 
 - **Hele hjem-skjermen** fikses/poleres.
   _Status: dagens knute-kort ligger klart i PR [#131](https://github.com/ludvigj07/knuteloop-v2/pull/131) og venter visuell QA._
