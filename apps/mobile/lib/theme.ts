@@ -226,6 +226,42 @@ export const animation = {
   pressScale: 0.96,
 } as const
 
+// Gesture + transient-UI constants calibrated against ~200 real russ during the
+// v1 season (2026). Sources and the reasoning behind each number are in
+// docs/v1-detaljer.md — prefer a value from here over inventing a new one.
+export const interaction = {
+  // Horizontal tab swipe. `settle` pairs with the easeOutQuint curve below:
+  // "snappy start, soft landing". Velocity is a rolling average over
+  // `velocityWindow` — a single sample makes fast flicks register unreliably.
+  swipe: {
+    settleDuration: 280,
+    settleEasing: [0.22, 1, 0.36, 1],
+    commitRatio: 0.13,
+    commitVelocity: 0.3,
+    edgeResistance: 0.32,
+    velocityWindow: 80,
+  },
+  // Press-and-hold to open a context action (e.g. a reaction picker).
+  longPress: {
+    delay: 500,
+    cancelDistance: 10,
+  },
+  doubleTapWindow: 280,
+  // Drag distance that commits a pull-to-refresh. Only armed at scroll offset 0,
+  // and the gesture direction is locked on the first noticeable movement so it
+  // never fights the horizontal tab swipe.
+  pullToRefreshDistance: 80,
+  backToTopThreshold: 800,
+  toast: {
+    visibleDuration: 3200,
+    // Extra time after hiding before the node is removed, so the exit animation
+    // finishes rather than being cut off.
+    exitDuration: 240,
+  },
+  // How long a destructive action stays undoable.
+  undoWindow: 2800,
+} as const
+
 // ============================================================
 // Font families — the three Google Fonts loaded in app/_layout.tsx.
 // Custom fonts in RN are single-weight files, so the weight is baked into the

@@ -459,6 +459,31 @@ export const timings = {
 - Stagger lists with `entering={FadeInDown.delay(index * 50)}`.
 - Respect `prefers-reduced-motion`: read with `useReducedMotion()` and use timings instead of springs, durations shorter.
 
+### V1-calibrated numbers — prefer these over inventing new ones
+
+These were tuned against ~200 real russ over a full season in v1. **A number
+from this table beats a number you make up.** Full inventory with sources and
+the "why" in `docs/v1-detaljer.md` — read it before polishing a screen.
+
+| Interaction | Value |
+|---|---|
+| Tab-swipe settle | **280ms** `cubic-bezier(0.22, 1, 0.36, 1)` ("snappy start, soft landing") |
+| Swipe commit threshold | **13 %** of width **OR** velocity > **0.3** px/ms |
+| Swipe velocity sampling | rolling average over the last **80ms** — a single sample makes flicks unreliable |
+| Swipe edge resistance | **0.32×** past the first/last page |
+| Press scale | **0.96–0.97** |
+| Toast | visible **3200ms**, unmount **+240ms** after; enters `translateY(20px) → 0` in **220ms** |
+| Back-to-top appears | after **800px** scroll; **180ms** in |
+| Pull-to-refresh | **80px**, only when `scrollTop === 0`, direction locked on first movement |
+| Long-press (context action) | **500ms**, cancelled by **10px** of movement |
+| Double-tap window | **280ms** |
+| Skeleton shimmer | **1.4s** — the one permitted infinite loop |
+| Undo window after delete | **2800ms** |
+
+**Two v1 details that must NOT be copied as-is** (both violate the motion line
+above): the 30-second idle icon wobble, which reschedules itself forever, and
+the new-content dot's `1.8s infinite` pulse. Keep the effects, bound them.
+
 ---
 
 ## 8. Haptics — every important touch has feel
@@ -488,6 +513,18 @@ export const haptics = {
 - `warning` — confirmation dialog open
 - `error` — form validation failed
 - `selection` — toggling, picker scroll
+
+**Grade the haptic by outcome, not just by control.** v1 used three distinct
+strengths for what looks like one gesture — tapping the tab bar:
+
+| Outcome | v1 (`navigator.vibrate`) | v2 equivalent |
+|---|---|---|
+| Tapped the tab you're already on | 8ms | `selection` |
+| Changed tab by tapping | 10ms | `light` |
+| Changed tab by swiping | 12ms | `medium` |
+
+Nobody consciously notices the difference. Everybody notices that it feels
+right. Apply the same thinking wherever one gesture has several outcomes.
 
 ---
 
