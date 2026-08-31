@@ -21,7 +21,7 @@ let adultTitleA: string
 let titleB: string
 
 type DagensResponse = {
-  dagens: { id: string; title: string; points: number; difficulty: string } | null
+  dagens: { id: string; title: string; points: number } | null
 }
 
 beforeAll(async () => {
@@ -51,14 +51,14 @@ beforeAll(async () => {
   allAgesTitleA = 'A: For alle'
   adultTitleA = 'A: Kun voksne'
   await h.superDb.insert(knuter).values([
-    { schoolId: schoolAId, title: allAgesTitleA, points: 10, difficulty: 'Lett' },
-    { schoolId: schoolAId, title: adultTitleA, points: 20, difficulty: 'Medium', minAge: 18 },
-    { schoolId: schoolAId, title: 'A: Pensjonert', points: 30, difficulty: 'Hard', isActive: false },
+    { schoolId: schoolAId, title: allAgesTitleA, points: 10 },
+    { schoolId: schoolAId, title: adultTitleA, points: 20, minAge: 18 },
+    { schoolId: schoolAId, title: 'A: Pensjonert', points: 30, isActive: false },
   ])
 
   titleB = 'B: Sin egen'
   await h.superDb.insert(knuter).values([
-    { schoolId: schoolBId, title: titleB, points: 15, difficulty: 'Lett' },
+    { schoolId: schoolBId, title: titleB, points: 15 },
   ])
 
   minorTokenA = await signDevToken({

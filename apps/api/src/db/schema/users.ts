@@ -30,7 +30,7 @@ export const users = pgTable(
       .notNull()
       .default('student'),
     // rødruss / blåruss. App-level enum (text column, no DB CHECK) — same pattern
-    // as `role`/`difficulty`. Glossary: anything other than 'red' coerces to 'blue'.
+    // as `role`. Glossary: anything other than 'red' coerces to 'blue'.
     russType: text('russ_type', { enum: ['blue', 'red'] })
       .notNull()
       .default('blue'),

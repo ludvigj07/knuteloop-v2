@@ -23,10 +23,6 @@ export const libraryKnuter = pgTable(
     title: text('title').notNull(),
     description: text('description'),
     points: integer('points').notNull(),
-    // Mirror `knuter` exactly so an import is a clean field-for-field copy.
-    difficulty: text('difficulty', { enum: ['Lett', 'Medium', 'Hard', 'Valgfri'] })
-      .notNull()
-      .default('Medium'),
     // 'media' (photo/video) or 'text' (no media — legally sensitive knuter). Copied
     // to the school's knute on import and unrelaxable by the school. ADR-0014.
     evidenceType: text('evidence_type', { enum: ['media', 'text'] }).notNull().default('media'),

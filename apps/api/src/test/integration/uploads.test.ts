@@ -32,8 +32,8 @@ beforeAll(async () => {
   const insertedK = await h.superDb
     .insert(knuter)
     .values([
-      { schoolId: schoolAId, title: 'A-knute', points: 10, difficulty: 'Lett', category: 'Generelle' },
-      { schoolId: schoolAId, title: 'A-knute 2', points: 10, difficulty: 'Lett', category: 'Generelle' },
+      { schoolId: schoolAId, title: 'A-knute', points: 10, category: 'Generelle' },
+      { schoolId: schoolAId, title: 'A-knute 2', points: 10, category: 'Generelle' },
     ])
     .returning()
   const k = insertedK[0]!
