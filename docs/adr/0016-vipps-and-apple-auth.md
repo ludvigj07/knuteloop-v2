@@ -1,12 +1,17 @@
 # ADR-0016: Vipps Login + Sign in with Apple for authentication (supersedes 0006)
 
-**Status:** Proposed
-**Date:** 2026-06-19
+**Status:** Accepted
+**Date:** 2026-06-19 (proposed) / 2026-08-31 (accepted)
 **Deciders:** Ludvig (+ Claude as advisor)
 
-> Supersedes **ADR-0006** (Microsoft Entra ID + russenavn allowlist). When this ADR is
-> Accepted, flip 0006 to **Superseded** (via `/supersede-adr`) and rewrite the auth section of
-> `.claude/rules/security.md` (Entra → Vipps). Do **not** edit 0006 before then.
+> Supersedes **ADR-0006** (Microsoft Entra ID + russenavn allowlist), which is now marked
+> Superseded. The auth section of `.claude/rules/security.md` still describes the Entra flow
+> and must be rewritten (Entra → Vipps) — tracked separately; until that lands, THIS ADR is the
+> source of truth for the auth model.
+>
+> **Accepted on the core model only** (Vipps Login as primary identity provider + Sign in with
+> Apple as a peer path + roster-gated eligibility). The "Open questions" section below is
+> unresolved and does NOT block building the session/token half — see the note there.
 
 ## Context
 
@@ -115,6 +120,15 @@ theirs.
 - `.claude/rules/security.md` auth section must be rewritten (Entra → Vipps) on acceptance.
 
 ## Open questions
+
+> **What these block (added on acceptance, 2026-08-31).** The auth work splits in two.
+> The **session/token half** — RS256 keypair + `/.well-known/jwks.json`, 15-min access token,
+> rotating refresh token stored as sha256, reuse detection, `token_version` revocation, device
+> sessions — is fully specified in `security.md` §2–§3 and is **independent of the identity
+> provider**. It can be built now.
+> The **roster half** is gated on the first two questions below: how the roster is keyed
+> (Vipps name + birthdate vs Apple email) determines the table shape, so
+> `school_roster_imports` / `school_roster_entries` cannot be modelled until that is answered.
 
 - **Apple ↔ Vipps coexistence for the same user.** Proposed model: Sign in with Apple opens/holds the
   account; Vipps adds verified identity + age. Do we *link* the two to one user, and what's the UX?

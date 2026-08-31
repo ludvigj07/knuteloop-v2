@@ -1,8 +1,13 @@
 # ADR-0006: Microsoft Entra ID per school + russenavn allowlist for authentication
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0016](./0016-vipps-and-apple-auth.md) (2026-08-31)
 **Date:** 2026-05-28
 **Deciders:** Ludvig (+ Claude as advisor)
+
+> **Superseded.** Knuteloop no longer uses Microsoft Entra ID for login. The three hard
+> requirements below still hold — only the identity provider changed (Entra → Vipps Login,
+> with Sign in with Apple as a peer path). Kept unedited below as the historical record of
+> why Entra was chosen and what changed the calculus. See ADR-0016.
 
 ## Context
 

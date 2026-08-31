@@ -4,7 +4,7 @@ you work under apps/api/). The "globs" frontmatter is intent-documentation only 
 Code does not auto-load by glob; it's here for Cursor compatibility.
 -->
 ---
-description: Security and auth rules — Entra ID, JWT, GDPR, secrets, vulnerabilities.
+description: Security and auth rules — Vipps Login + Sign in with Apple (ADR-0016), JWT, GDPR, secrets, vulnerabilities.
 globs:
   - apps/api/src/middleware/auth.ts
   - apps/api/src/routes/auth.ts
@@ -19,6 +19,24 @@ This file covers authentication, authorization, secret management, GDPR complian
 ---
 
 ## 1. The auth model in one paragraph
+
+> ⚠️ **STALE — the identity provider changed. Read [ADR-0016](../../docs/adr/0016-vipps-and-apple-auth.md) first.**
+> ADR-0006 (Entra ID) was **superseded on 2026-08-31**: login is now **Vipps Login** as the
+> primary identity provider, with **Sign in with Apple** as a true peer path (App Store 4.8).
+> Everything below that says "Entra" describes the retired model.
+>
+> **What still holds, unchanged:** the three hard requirements; the roster/allowlist — not the
+> identity provider — is what grants access; the russenavn is always read from the roster row,
+> never from the client; and the whole session model in §2–§3 (RS256, 15-min access token,
+> rotating refresh token, reuse detection, `token_version`, device sessions). The session half
+> is IdP-agnostic and is safe to build against today.
+>
+> **What does NOT hold:** §2's `verifyEntraToken` / per-school tenant-ID lookup, and §4's
+> email-keyed allowlist. Vipps matches on **verified name + birthdate**; Apple matches on
+> **email**. How the roster is keyed is an open question in ADR-0016 — do not model
+> `school_roster_imports` / `school_roster_entries` until it is answered.
+>
+> This section is rewritten in a follow-up PR once those questions are closed.
 
 A user authenticates via **Microsoft Entra ID** against their school's tenant. The backend validates the ID token using `jose` with the remote JWKS. The validated email is looked up against a **russenavn allowlist** that the school's knutesjef pasted in. Match → backend issues a Knuteloop JWT containing `userId`, `schoolId`, `russenavn`, `role`, `tokenVersion`, `deviceId`. The mobile app stores access + refresh tokens in `expo-secure-store`. Refresh rotates tokens server-side and tracks per-device sessions in `refresh_tokens` table.
 
