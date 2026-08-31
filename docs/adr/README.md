@@ -98,3 +98,5 @@ What we are choosing. Be specific — name versions, libraries, vendors.
 | [0023](./0023-calm-app-no-celebration-layer.md) | Calm app — no sound, no confetti, no streak; badges await a joint redesign | Accepted | 2026-07-24 |
 | [0024](./0024-rolig-streak-metningskurve.md) | Rolig streak med metningskurve (delvis supersede av 0023s streak-punkt) | Proposed | 2026-07-26 |
 | [0025](./0025-fjern-vanskelighetsgrad.md) | Fjern vanskelighetsgrad — poeng er eneste vanskelighetssignal | Accepted | 2026-08-14 |
+| [0026](./0026-moderering-rapport-og-utestenging.md) | Moderering — rapportering og utestenging (App Store-blokker) | Proposed | 2026-08-31 |
+| [0027](./0027-knuteloop-ansatt-plattformrolle.md) | Knuteloop-ansatt — plattformrolle med kryss-skole-tilgang; forutsetter 0026 | Proposed | 2026-08-31 |
