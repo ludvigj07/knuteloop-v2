@@ -203,10 +203,11 @@ En kø kan tømmes på tjue minutter; et dashboard må utforskes, og blir derfor
 ## Åpne spørsmål
 
 - **Tofaktor for ansattkontoer?** (Anbefaling: ja, men det er en avhengighet til auth-arbeidet.)
-- **Hvor mange ansatte** skal ha dette i 2027 — bare Ludvig, eller også Brage/Linus?
-  Dette tallet er premisset for punkt 6: to–tre bærer avgjørelsen, en moderator per region
-  velter den. Bekreft før ADR-en aksepteres.
-  Færre er tryggere.
+- ~~**Hvor mange ansatte** skal ha dette i 2027?~~ **Avklart 2026-09-02: tre.**
+  Det bekrefter premisset for punkt 6 — tre bærer valget om å la verktøyene bo i appen.
+  Utløseren for å revurdere står fast: vokser tallet vesentlig (f.eks. en moderator per
+  region), skal egen nettside opp igjen. Hvem de tre er, er en provisjoneringsdetalj og
+  ingen designforutsetning; kontoene opprettes uansett manuelt (punkt 5).
 - **Oppbevaringstid på `audit_log`** — hvor lenge, og hva sier GDPR-minimering her?
 - **Trenger vi et «bryt glasset»-nivå** over det rapport-scopede (f.eks. politiforespørsel),
   eller håndteres det manuelt i databasen med `admin_user`?
