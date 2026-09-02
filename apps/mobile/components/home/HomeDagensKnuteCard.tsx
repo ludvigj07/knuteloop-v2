@@ -6,8 +6,6 @@ import Animated, {
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
-  withDelay,
-  withRepeat,
   withSequence,
   withTiming,
 } from 'react-native-reanimated'
@@ -42,36 +40,18 @@ export function HomeDagensKnuteCard({
   useEffect(() => {
     if (reduceMotion || !knute || isCompleted) return
 
-    actionLift.value = withRepeat(
-      withSequence(
-        withTiming(-sticker.shadowOffset.sm, {
-          duration: animation.duration.fast,
-        }),
-        withTiming(spacing.none, {
-          duration: animation.duration.base,
-        }),
-        withDelay(
-          animation.attention.idlePause,
-          withTiming(spacing.none, { duration: animation.duration.instant }),
-        ),
-      ),
-      -1,
-      false,
+    actionLift.value = withSequence(
+      withTiming(-sticker.shadowOffset.sm, {
+        duration: animation.duration.fast,
+      }),
+      withTiming(spacing.none, {
+        duration: animation.duration.base,
+      }),
     )
 
-    shineX.value = withRepeat(
-      withSequence(
-        withTiming(size.dailyKnotShineTravel, {
-          duration: animation.duration.slow,
-        }),
-        withDelay(
-          animation.attention.idlePause,
-          withTiming(-spacing.lg, { duration: animation.duration.instant }),
-        ),
-      ),
-      -1,
-      false,
-    )
+    shineX.value = withTiming(size.dailyKnotShineTravel, {
+      duration: animation.duration.slow,
+    })
 
     return () => {
       cancelAnimation(actionLift)

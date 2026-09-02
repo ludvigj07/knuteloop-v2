@@ -11,8 +11,6 @@ import Animated, {
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
-  withDelay,
-  withRepeat,
   withSequence,
   withTiming,
 } from 'react-native-reanimated'
@@ -96,23 +94,13 @@ export function StickerCard({
       return
     }
 
-    frameFlash.value = withRepeat(
-      withSequence(
-        withTiming(opacity.featuredFrameBright, {
-          duration: animation.duration.fast,
-        }),
-        withTiming(opacity.featuredFrameIdle, {
-          duration: animation.duration.slow,
-        }),
-        withDelay(
-          animation.attention.idlePause,
-          withTiming(opacity.featuredFrameIdle, {
-            duration: animation.duration.instant,
-          }),
-        ),
-      ),
-      -1,
-      false,
+    frameFlash.value = withSequence(
+      withTiming(opacity.featuredFrameBright, {
+        duration: animation.duration.fast,
+      }),
+      withTiming(opacity.featuredFrameIdle, {
+        duration: animation.duration.slow,
+      }),
     )
 
     return () => cancelAnimation(frameFlash)

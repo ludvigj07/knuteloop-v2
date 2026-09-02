@@ -220,15 +220,11 @@ export const minimumFontScale = {
 // pressScale is the brand "tap" feel — every Pressable primitive scales to this.
 export const animation = {
   duration: {
-    instant: 1,
     fast: 150,
     base: 250,
     slow: 400,
     // One half-cycle of the skeleton shimmer pulse.
     shimmer: 900,
-  },
-  attention: {
-    idlePause: 3200,
   },
   spring: {
     gentle: { damping: 25, stiffness: 150 },
