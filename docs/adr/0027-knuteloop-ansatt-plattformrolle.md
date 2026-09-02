@@ -104,10 +104,71 @@ kommer fra Datatilsynet, ikke fra oss.
 Ansatte logger ikke inn via Vipps-som-russ (ADR-0016). Kontoene opprettes manuelt, og
 plattformtilgang gis manuelt av Ludvig. Ingen selvbetjening.
 
+### 6. Verktøyene bor i appen som finnes — ikke i en egen nettside
+
+**Ludvig avgjorde 2026-09-02.** Ansatt-verktøyene ligger som en skjult del av Knuteloop,
+synlig kun for kontoer med plattformstatus. Ingen egen `admin.knuteloop.no`.
+
+Begrunnelse: antall ansatte i 2027 er to–tre personer. En egen nettside med egen
+innlogging, eget bygg og egen utrulling er mye maskineri for så få brukere, og
+vedlikeholdet faller på et team som allerede er tynt.
+
+**Prisen vi betaler:** koden for ansatt-verktøyene ligger på hver installerte telefon.
+En egen nettside ville holdt den unna enheter helt. Vi aksepterer det fordi tiltakene
+under gjør den skjulte skjermen verdiløs for en angriper.
+
+**Den skjulte skjermen er IKKE sikkerheten.** Den er bekvemmelighet. Uten dette skillet
+arver vi ulempen ved å ligge i appen uten å få fordelen ved en egen nettside. Konkret:
+
+- **Serveren avgjør alt.** At appen skjuler en skjerm betyr ingenting. Hvert
+  plattform-endepunkt verifiserer selvstendig, ved hver forespørsel, mot
+  `platform_staff` i databasen (punkt 2). En som pakker opp appen og låser opp skjermen
+  får 403 på alt.
+- **Ingen kryss-skole-data når appen** uten at serveren allerede har bestemt å sende den.
+  Klienten kan ikke be om mer enn rollen tillater.
+- **Steg opp før farlige handlinger.** Fordelen en egen nettside ville gitt — strengere
+  innlogging for ansatte uten å plage elevene — hentes delvis inn ved å kreve
+  reautentisering før kryss-skole-handlinger.
+- **Lastes separat.** Ansatt-skjermene lastes dynamisk, ikke i hovedbunten
+  (`frontend.md` §10 beskriver allerede mønsteret for admin-skjermer).
+
+**Revurderes hvis** antallet ansatte vokser vesentlig (f.eks. en moderator per region),
+eller hvis en sikkerhetsgjennomgang finner at klientflaten er vanskelig å gjerde inn.
+Da er en egen nettside riktig, og denne ADR-en superseders.
+
+### 7. Formen er en kø, ikke et dashboard
+
+Ansattflaten viser **saker som venter på deg**, aldri fritt søk i skoler, brukere eller
+innsendinger. Måltilstanden er at den oftest sier «ingenting trenger deg».
+
+Dette er en sikkerhetsavgjørelse forkledd som en designavgjørelse. En flate der man kan
+bla fritt har et lekkasjepunkt på hver skjerm. En kø har det ikke, fordi ingenting vises
+uten at en konkret sak dro det inn — noe som gjør den rapport-scopede tilgangen i punkt 3
+til en egenskap ved formen, ikke noe som må håndheves med disiplin.
+
+To regler som følger av det:
+
+- **«Hvorfor ser eg dette?»** Alt kryss-skole-innhold på skjermen må kunne spores til en
+  sak-ID. Finnes ingen sak, finnes ingen skjerm som viser det.
+- **Begrunnelser er valg, ikke fritekst.** Hver handling plukker fra en fast liste, og
+  lista genererer beskjeden til den som rammes. Krever vi prosa hver gang, blir det ikke
+  gjort — og da faller den juridiske dokumentasjonen sammen.
+
+Det passer også hvordan Ludvig faktisk jobber: tjue minutter av gangen, ofte i tjeneste.
+En kø kan tømmes på tjue minutter; et dashboard må utforskes, og blir derfor aldri gjort.
+
 ## Alternativer vurdert
 
 - **Utvid `admin`-rollen.** Avvist — det er fella beskrevet over: hver skoles oppgraderte
   bruker ville blitt en kryss-skole-konto.
+- **Egen admin-nettside (`admin.knuteloop.no`).** Foreslått av en ekstern research-rapport.
+  Reelt bedre på ett punkt: ansatt-koden hadde aldri havnet på elevenes telefoner, og
+  sterkere innlogging for ansatte hadde vært gratis. Avvist for v1 (punkt 6) fordi det er
+  et eget bygg, egen utrulling og egen innlogging for to–tre brukere. Dette er den svakeste
+  avvisningen i denne ADR-en — se punkt 6 for når den skal revurderes.
+- **Fullt dashboard med fritt søk over skoler og brukere.** Avvist (punkt 7): hver
+  bla-skjerm er et lekkasjepunkt, og en flate som må utforskes blir aldri brukt av noen
+  med tjue minutter av gangen.
 - **Gi ansatte medlemskap i hver skole.** Da beholdes RLS urørt. Avvist: skalerer ikke til
   100+ skoler, og det slår beina under hastesaker — man må være medlem *før* problemet
   oppstår, og problemet oppstår typisk på en skole man ikke tenkte på.
@@ -143,6 +204,8 @@ plattformtilgang gis manuelt av Ludvig. Ingen selvbetjening.
 
 - **Tofaktor for ansattkontoer?** (Anbefaling: ja, men det er en avhengighet til auth-arbeidet.)
 - **Hvor mange ansatte** skal ha dette i 2027 — bare Ludvig, eller også Brage/Linus?
+  Dette tallet er premisset for punkt 6: to–tre bærer avgjørelsen, en moderator per region
+  velter den. Bekreft før ADR-en aksepteres.
   Færre er tryggere.
 - **Oppbevaringstid på `audit_log`** — hvor lenge, og hva sier GDPR-minimering her?
 - **Trenger vi et «bryt glasset»-nivå** over det rapport-scopede (f.eks. politiforespørsel),
