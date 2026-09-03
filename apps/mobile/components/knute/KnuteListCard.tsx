@@ -57,7 +57,7 @@ export const KnuteListCard = memo(function KnuteListCard({
         </View>
         {/* Sits where the chevron used to be, at the same icon size, so the row's
             layout is untouched. The whole card is the link; the chevron was decor. */}
-        <BookmarkButton knuteId={knute.id} bookmarked={knute.isBookmarked} compact />
+        <BookmarkButton knuteId={knute.id} bookmarked={knute.isBookmarked} />
       </View>
     </StickerCard>
   )

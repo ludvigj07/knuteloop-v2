@@ -1,27 +1,26 @@
-import { StyleSheet } from 'react-native'
 import { Bookmark } from 'lucide-react-native'
 import { Pressable } from '../primitives'
 import { useToggleBookmark } from '../../hooks/useBookmark'
-import { size, sticker } from '../../lib/theme'
+import { sticker } from '../../lib/theme'
 
 // The bookmark toggle for a knute. A bookmark, not a heart: it means «save this
 // so I find it again», never «I like this post» — there is no count and nothing
 // is published (ADR-0023). Filled with the accent when set, outlined when not.
-// The icon itself stays small; the Pressable primitive pads the hit area out
-// to 44 px invisibly.
+// Icon-sized on purpose so it never changes the layout it sits in; the
+// Pressable primitive pads the hit area out to 44 px invisibly.
 export function BookmarkButton({
   knuteId,
   bookmarked,
   color = sticker.color.ink,
-  compact = false,
+  hint,
 }: {
   knuteId: string
   bookmarked: boolean
   /** Outline colour for the unset state — ink on paper, white on the dark feed. */
   color?: string
-  /** Icon-sized only (no 40 px frame) — for list rows where the button must not
-      change the row's layout. The Pressable still pads the hit area to 44 px. */
-  compact?: boolean
+  /** Where the bookmark ends up — say it where that is not obvious (the feed),
+      leave it out where it is (inside the knutebok itself). */
+  hint?: string
 }) {
   const toggle = useToggleBookmark()
 
@@ -31,9 +30,8 @@ export function BookmarkButton({
       haptic="light"
       accessibilityRole="button"
       accessibilityLabel={bookmarked ? 'Fjern bokmerke' : 'Bokmerk knuten'}
-      accessibilityHint="Bokmerkede knuter ligger under «Bokmerker» i knuteboka."
+      accessibilityHint={hint}
       accessibilityState={{ selected: bookmarked }}
-      style={compact ? null : styles.button}
     >
       <Bookmark
         size={sticker.icon.md}
@@ -44,12 +42,3 @@ export function BookmarkButton({
     </Pressable>
   )
 }
-
-const styles = StyleSheet.create({
-  button: {
-    width: size.actionMinHeight,
-    height: size.actionMinHeight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-})
