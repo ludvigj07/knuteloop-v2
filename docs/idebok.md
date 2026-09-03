@@ -47,6 +47,8 @@ som me adde mer design-greier — mer cleen feel»**. Mindre støy, mer identite
 
 - **Knutebiblioteket og alle knutesjef-verktøyene** fikses/poleres som helhet.
   _Se [[knutesjef-operating-vision]]-minnet / handoffs — handlingsgrafen er låst («alt fra alt»)._
+- **Sensitiv knute** — knutesjefer må ha en tydelig knapp/bryter når de lager eller
+  redigerer en knute, slik at sensitive knuter behandles riktig i appen.
 - **Knute-kategorier** ses på.
   _Kontekst: legacy `category`-enumen er allerede planlagt fjernet (ADR-0014);
   mapper (knutemapper) er den ekte aksen. Avklar hva Ludvig vil her før arbeid._
@@ -70,6 +72,10 @@ som me adde mer design-greier — mer cleen feel»**. Mindre støy, mer identite
   i den rekkefølgen videoene lages._
 - **Global feed + algoritme** — den kuraterte offentlige utstillingen på tvers av skoler.
   _Stor greie: trenger egen ADR (RLS-unntaket må designes som lift-out, aldri cross-tenant)._
+- **Sponsede knuter** — et internt verktøy der Ludvig/Knuteloop kan opprette og
+  administrere sponsede knuter. Hver sponsede knute må kunne målrettes som
+  **global**, til et bestemt **område/en region**, eller bare til **én skole**.
+  Sponsor og målretting skal være tydelig i appen.
 
 ---
 
