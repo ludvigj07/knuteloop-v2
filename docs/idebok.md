@@ -6,7 +6,7 @@
 > ligger trygt. Når et punkt faktisk skal bygges: scope det til en GitHub-issue
 > eller PR, og stryk det her.
 >
-> Sist oppdatert: **2026-08-23**.
+> Sist oppdatert: **2026-09-03**.
 
 ---
 
@@ -30,6 +30,11 @@ som me adde mer design-greier — mer cleen feel»**. Mindre støy, mer identite
 - **Toppliste-skjermen** poleres.
 - **Profiler** poleres.
   _Status: offentlige profiler + innsendings-rutenett finnes delvis (#86, #100)._
+- **Brukertest: to nivåer for profilåpning i feeden.** Test med noen ekte brukere om
+  trykk på profilbildet bør åpne hele profilen direkte, mens trykk på russenavnet
+  fortsatt åpner den raske profiloversikten («half commitment»). Hypotese: den mer
+  krevende plasseringen av profilbildet gjør full navigasjon bevisst. Risiko: to
+  naboelementer med ulik oppførsel kan oppleves uforutsigbart. Ikke bygg før testen.
 
 ## 📹 Media-pipeline
 
