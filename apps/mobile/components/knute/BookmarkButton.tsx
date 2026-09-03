@@ -13,11 +13,15 @@ export function BookmarkButton({
   knuteId,
   bookmarked,
   color = sticker.color.ink,
+  compact = false,
 }: {
   knuteId: string
   bookmarked: boolean
   /** Outline colour for the unset state — ink on paper, white on the dark feed. */
   color?: string
+  /** Icon-sized only (no 40 px frame) — for list rows where the button must not
+      change the row's layout. The Pressable still pads the hit area to 44 px. */
+  compact?: boolean
 }) {
   const toggle = useToggleBookmark()
 
@@ -29,7 +33,7 @@ export function BookmarkButton({
       accessibilityLabel={bookmarked ? 'Fjern bokmerke' : 'Bokmerk knuten'}
       accessibilityHint="Bokmerkede knuter ligger under «Bokmerker» i knuteboka."
       accessibilityState={{ selected: bookmarked }}
-      style={styles.button}
+      style={compact ? null : styles.button}
     >
       <Bookmark
         size={sticker.icon.md}
