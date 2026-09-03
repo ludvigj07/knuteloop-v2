@@ -6,6 +6,7 @@ import Animated, {
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
+  withDelay,
   withSequence,
   withTiming,
 } from 'react-native-reanimated'
@@ -40,7 +41,20 @@ export function HomeDagensKnuteCard({
   useEffect(() => {
     if (reduceMotion || !knute || isCompleted) return
 
+    actionLift.value = spacing.none
+    shineX.value = -size.dailyKnotShineWidth
+
     actionLift.value = withSequence(
+      withTiming(-sticker.shadowOffset.sm, {
+        duration: animation.duration.fast,
+      }),
+      withTiming(spacing.none, {
+        duration: animation.duration.base,
+      }),
+      withDelay(
+        animation.attention.reminderPause,
+        withTiming(spacing.none, { duration: animation.duration.instant }),
+      ),
       withTiming(-sticker.shadowOffset.sm, {
         duration: animation.duration.fast,
       }),
@@ -49,9 +63,23 @@ export function HomeDagensKnuteCard({
       }),
     )
 
-    shineX.value = withTiming(size.dailyKnotShineTravel, {
-      duration: animation.duration.slow,
-    })
+    shineX.value = withSequence(
+      withDelay(
+        animation.attention.shineDelay,
+        withTiming(size.dailyKnotShineTravel, {
+          duration: animation.duration.slow,
+        }),
+      ),
+      withDelay(
+        animation.attention.secondShinePause,
+        withTiming(-size.dailyKnotShineWidth, {
+          duration: animation.duration.instant,
+        }),
+      ),
+      withTiming(size.dailyKnotShineTravel, {
+        duration: animation.duration.slow,
+      }),
+    )
 
     return () => {
       cancelAnimation(actionLift)
@@ -208,19 +236,43 @@ export function HomeDagensKnuteCard({
           <Stack style={styles.actionWrap}>
             <Stack style={styles.actionBase} />
             <Stack style={styles.actionFace} direction="row" align="center" gap="xs">
-              <Stack style={styles.actionTopLight} />
+              <Stack style={styles.actionGlowSoft} />
+              <Stack style={styles.actionGlowCore} />
               <Animated.View
                 pointerEvents="none"
-                style={[styles.actionShine, shineStyle]}
+                style={[styles.actionShineTravel, shineStyle]}
                 accessibilityElementsHidden
                 importantForAccessibility="no-hide-descendants"
-              />
-              <Play
-                size={sticker.icon.sm}
-                color={sticker.color.ink}
-                fill={sticker.color.ink}
-                strokeWidth={sticker.borderWidth}
-              />
+              >
+                <Stack style={styles.actionShineAngle}>
+                  <Stack style={styles.actionShineSoft} />
+                  <Stack style={styles.actionShineCore} />
+                  <Stack style={styles.actionShineSoft} />
+                </Stack>
+              </Animated.View>
+              <Stack style={styles.actionIcon}>
+                <Play
+                  style={styles.actionIconLight}
+                  size={sticker.icon.sm}
+                  color={sticker.color.engravingLight}
+                  fill={sticker.color.engravingLight}
+                  strokeWidth={sticker.borderWidth}
+                />
+                <Play
+                  style={styles.actionIconDepth}
+                  size={sticker.icon.sm}
+                  color={sticker.color.engravingDepth}
+                  fill={sticker.color.engravingDepth}
+                  strokeWidth={sticker.borderWidth}
+                />
+                <Play
+                  style={styles.actionIconSurface}
+                  size={sticker.icon.sm}
+                  color={sticker.color.engravingSurface}
+                  fill={sticker.color.engravingSurface}
+                  strokeWidth={sticker.borderWidth}
+                />
+              </Stack>
               <Text font="display" size="sm" weight="bold" color={sticker.color.ink}>
                 Ta knuten
               </Text>
@@ -260,7 +312,7 @@ const styles = StyleSheet.create({
     borderRadius: sticker.radius.md,
     borderWidth: sticker.borderWidth,
     borderColor: sticker.color.ink,
-    backgroundColor: sticker.color.accentStrong,
+    backgroundColor: sticker.color.goldDeep,
   },
   actionFace: {
     minHeight: sticker.tap.min,
@@ -268,26 +320,74 @@ const styles = StyleSheet.create({
     borderRadius: sticker.radius.md,
     borderWidth: sticker.borderWidth,
     borderColor: sticker.color.ink,
-    backgroundColor: sticker.color.accent,
+    backgroundColor: sticker.color.goldMid,
     overflow: 'hidden',
   },
-  actionTopLight: {
+  actionGlowSoft: {
     position: 'absolute',
-    top: spacing['2xs'],
-    right: spacing.sm,
+    top: -spacing.md,
+    left: -spacing.xs,
+    width: size.dailyKnotStaticGlowWidth,
+    height: size.dailyKnotStaticGlowHeight,
+    borderRadius: sticker.radius.full,
+    backgroundColor: sticker.color.card,
+    opacity: opacity.buttonGlowSoft,
+    transform: [{ rotate: animation.attention.staticGlowAngle }],
+  },
+  actionGlowCore: {
+    position: 'absolute',
+    top: -spacing.lg,
     left: spacing.sm,
-    height: spacing['2xs'],
+    width: size.dailyKnotStaticGlowCoreWidth,
+    height: size.dailyKnotStaticGlowCoreHeight,
+    borderRadius: sticker.radius.full,
+    backgroundColor: sticker.color.card,
+    opacity: opacity.buttonGlowCore,
+    transform: [{ rotate: animation.attention.staticGlowAngle }],
+  },
+  actionIcon: {
+    width: sticker.icon.sm,
+    height: sticker.icon.sm,
+  },
+  actionIconLight: {
+    position: 'absolute',
+    transform: [
+      { translateX: -sticker.engravingOffset },
+      { translateY: -sticker.engravingOffset },
+    ],
+  },
+  actionIconDepth: {
+    position: 'absolute',
+    transform: [
+      { translateX: sticker.engravingOffset },
+      { translateY: sticker.engravingOffset },
+    ],
+  },
+  actionIconSurface: {
+    position: 'absolute',
+  },
+  actionShineTravel: {
+    position: 'absolute',
+    top: -spacing.md,
+    bottom: -spacing.md,
+    left: spacing.none,
+    width: size.dailyKnotShineWidth,
+  },
+  actionShineAngle: {
+    flex: 1,
+    flexDirection: 'row',
+    transform: [{ rotate: animation.attention.shineAngle }],
+  },
+  actionShineCore: {
+    flex: 1,
     borderRadius: sticker.radius.full,
     backgroundColor: sticker.color.card,
   },
-  actionShine: {
-    position: 'absolute',
-    top: spacing.xs,
-    bottom: spacing.xs,
-    left: spacing.none,
-    width: spacing.lg,
+  actionShineSoft: {
+    flex: 1,
     borderRadius: sticker.radius.full,
     backgroundColor: sticker.color.card,
+    opacity: opacity.shineSoft,
   },
   completedIconTile: {
     width: size.otherAvatar,
