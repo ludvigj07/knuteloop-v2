@@ -10,7 +10,7 @@ import { Image } from 'expo-image'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useRouter } from 'expo-router'
-import { ChevronRight, X } from 'lucide-react-native'
+import { ChevronRight } from 'lucide-react-native'
 import { AppTabBar } from '../components/AppTabBar'
 import { UserPeekSheet } from '../components/profile/UserPeekSheet'
 import { Chip, KnoteIcon, Pressable, Skeleton, StickerButton, StickerCard, Text } from '../components/primitives'
@@ -132,22 +132,6 @@ export default function FeedScreen() {
           onEndReachedThreshold={2}
         />
       )}
-
-      <View style={[styles.closeWrap, { top: insets.top + spacing.sm }]}>
-        <StickerCard
-          radius="full"
-          shadow="sm"
-          padding="none"
-          onPress={() => router.back()}
-          haptic="light"
-          accessibilityRole="button"
-          accessibilityLabel="Lukk feeden"
-        >
-          <View style={styles.closeContent}>
-            <X size={sticker.icon.md} color={sticker.color.ink} strokeWidth={2.5} />
-          </View>
-        </StickerCard>
-      </View>
 
       <UserPeekSheet
         userId={peekUserId}
@@ -327,17 +311,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     flexWrap: 'wrap',
-  },
-  closeWrap: {
-    position: 'absolute',
-    right: spacing.base,
-    zIndex: 10,
-  },
-  closeContent: {
-    width: size.actionMinHeight,
-    height: size.actionMinHeight,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   centerFill: {
     flex: 1,
