@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
+import { Bookmark } from 'lucide-react-native'
 import { KnoteIcon, StickerCard, Text } from '../primitives'
 import { folderIconFor } from '../../lib/folder-icons'
 import type { Folder } from '../../lib/api'
@@ -9,6 +10,12 @@ import { size, spacing, sticker } from '../../lib/theme'
 // folders, as die-cut sticker pills. Folders are the student's primary browse
 // axis ("Spotify for knuter", ADR-0018); selecting one filters the knute list.
 // Bleeds to the screen edges so the row scrolls under the screen padding.
+//
+// «Bokmerker» is pinned right after «Alle»: the student's own saved knuter,
+// the way «Liked Songs» is pinned at the top of a Spotify library. It is not
+// a stored folder — the sentinel below is the selection value for it.
+
+export const BOOKMARKS_SELECTION = 'bookmarks'
 
 export function FolderChips({
   folders,
@@ -36,6 +43,19 @@ export function FolderChips({
             name="knute"
             size={sticker.icon.sm}
             color={selected === null ? sticker.color.textInverse : sticker.color.ink}
+          />
+        }
+      />
+      <FolderChip
+        label="Bokmerker"
+        active={selected === BOOKMARKS_SELECTION}
+        onPress={() => onSelect(BOOKMARKS_SELECTION)}
+        hint="Viser knutene du har bokmerket."
+        icon={
+          <Bookmark
+            size={sticker.icon.sm}
+            color={selected === BOOKMARKS_SELECTION ? sticker.color.textInverse : sticker.color.ink}
+            strokeWidth={2.5}
           />
         }
       />
@@ -67,11 +87,13 @@ function FolderChip({
   icon,
   active,
   onPress,
+  hint = 'Viser knuter i denne mappa.',
 }: {
   label: string
   icon: ReactNode
   active: boolean
   onPress: () => void
+  hint?: string
 }) {
   return (
     <StickerCard
@@ -83,7 +105,7 @@ function FolderChip({
       haptic="selection"
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityHint="Viser knuter i denne mappa."
+      accessibilityHint={hint}
       accessibilitySelected={active}
     >
       <View style={styles.chipContent}>

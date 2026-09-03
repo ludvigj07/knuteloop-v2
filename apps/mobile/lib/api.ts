@@ -45,6 +45,8 @@ export type Knute = {
   myStatus: 'pending' | 'approved' | null
   /** Which knutemapper the knute sits in ([] = only the implicit «Alle knuter»). */
   folderIds: string[]
+  /** Whether the CALLER has bookmarked this knute (private — never anyone else's). */
+  isBookmarked: boolean
 }
 
 export type KnuterResponse = { knuter: Knute[] }
@@ -166,6 +168,8 @@ async function apiFetch<T>(path: string, init?: RequestInit, retried = false): P
     throw new ApiError(res.status, (serverMessage ?? fallback) + devHint)
   }
 
+  // 204 No Content (bookmark toggles) has no body — res.json() would throw.
+  if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
 }
 
@@ -282,10 +286,13 @@ export type FeedItem = {
   caption: string | null
   createdAt: string
   russenavn: string
+  knuteId: string
   knuteTitle: string
   knutePoints: number
   /** 'text' → render a text card instead of a photo. */
   evidenceType: 'media' | 'text'
+  /** Whether the VIEWER has bookmarked this item's knute. */
+  isBookmarked: boolean
 }
 export type FeedResponse = { feed: FeedItem[]; nextCursor: string | null }
 
@@ -631,6 +638,27 @@ export function fetchKnuterByFolder(folderId: string): Promise<KnuterResponse> {
 // age-gated). Drives the folder chips on the "Knuter" tab.
 export function fetchKnuterInFolder(folderId: string): Promise<KnuterResponse> {
   return apiFetch<KnuterResponse>(`/api/knuter?folderId=${encodeURIComponent(folderId)}`)
+}
+
+// ---- Bookmarks (a student's private «save for later» list) ----
+
+/** The caller's bookmarked knuter, newest bookmark first. Same row shape as the
+ *  catalog minus folderIds (a flat list), plus bookmarkedAt. */
+export type BookmarkedKnute = Omit<Knute, 'folderIds'> & { bookmarkedAt: string }
+export type BookmarksResponse = { knuter: BookmarkedKnute[] }
+
+export function fetchBookmarks(): Promise<BookmarksResponse> {
+  return apiFetch<BookmarksResponse>('/api/knuter/bookmarks')
+}
+
+/** Idempotent — bookmarking twice is a no-op on the server. */
+export function bookmarkKnute(knuteId: string): Promise<void> {
+  return apiFetch<void>(`/api/knuter/${knuteId}/bookmark`, { method: 'PUT' })
+}
+
+/** Idempotent — removing a missing bookmark still succeeds. */
+export function unbookmarkKnute(knuteId: string): Promise<void> {
+  return apiFetch<void>(`/api/knuter/${knuteId}/bookmark`, { method: 'DELETE' })
 }
 
 export { ApiError }
