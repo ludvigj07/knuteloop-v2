@@ -1,10 +1,10 @@
 import { Hono } from 'hono'
-import { and, desc, eq, lt, lte } from 'drizzle-orm'
+import { and, desc, eq, inArray, lt, lte } from 'drizzle-orm'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 import { auth, type AuthVariables } from '../middleware/auth.js'
 import { tenantContext } from '../middleware/tenant-context.js'
-import { knuter, submissions, users } from '../db/schema/index.js'
+import { knuteBookmarks, knuter, submissions, users } from '../db/schema/index.js'
 import { isValidImageKey, publicUrlForKey, requestOrigin } from '../lib/storage.js'
 import type { db } from '../db/client.js'
 
@@ -83,6 +83,7 @@ export const feedRoutes = new Hono<{ Variables: Variables }>()
           createdAt: submissions.createdAt,
           sharedAt: submissions.sharedAt,
           russenavn: users.russenavn,
+          knuteId: submissions.knuteId,
           knuteTitle: knuter.title,
           knutePoints: knuter.points,
           evidenceType: knuter.evidenceType,
@@ -100,6 +101,25 @@ export const feedRoutes = new Hono<{ Variables: Variables }>()
         ? (page[page.length - 1]!.sharedAt?.toISOString() ?? null)
         : null
 
+      // isBookmarked = whether the VIEWER has bookmarked this item's knute (their
+      // own private list — routes/knute-bookmarks.ts). The feed is where a
+      // bookmark is usually made, so the button must render the true state.
+      // One batched query over the page, never per row.
+      const knuteIds = [...new Set(page.map((r) => r.knuteId))]
+      const bookmarked = knuteIds.length
+        ? await tx
+            .select({ knuteId: knuteBookmarks.knuteId })
+            .from(knuteBookmarks)
+            .where(
+              and(
+                eq(knuteBookmarks.schoolId, schoolId),
+                eq(knuteBookmarks.userId, userId),
+                inArray(knuteBookmarks.knuteId, knuteIds),
+              ),
+            )
+        : []
+      const bookmarkedIds = new Set(bookmarked.map((b) => b.knuteId))
+
       // Resolve each stored key to a loadable URL (null for legacy placeholder
       // keys — the client shows a placeholder for those).
       const origin = requestOrigin(c.req.url)
@@ -107,6 +127,7 @@ export const feedRoutes = new Hono<{ Variables: Variables }>()
         ...r,
         imageUrl:
           r.imageKey && isValidImageKey(r.imageKey) ? publicUrlForKey(r.imageKey, origin) : null,
+        isBookmarked: bookmarkedIds.has(r.knuteId),
       }))
 
       return c.json({ feed, nextCursor })
