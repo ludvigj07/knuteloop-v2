@@ -7,8 +7,9 @@ import {
   StyleSheet,
   View,
 } from 'react-native'
+import Animated, { FadeIn, SlideInDown, useReducedMotion } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { sticker, spacing } from '../../lib/theme'
+import { animation, sticker, spacing } from '../../lib/theme'
 
 // A bottom-sheet-style panel built on React Native's Modal — which, unlike
 // @gorhom/bottom-sheet, renders reliably on react-native-web AND native. Used for
@@ -23,21 +24,34 @@ export type SheetProps = {
 
 export function Sheet({ open, onClose, children }: SheetProps) {
   const insets = useSafeAreaInsets()
+  const reduceMotion = useReducedMotion()
+  const backdropEntering = FadeIn.duration(
+    reduceMotion ? animation.duration.fast : animation.duration.base,
+  )
+  const panelEntering = reduceMotion
+    ? FadeIn.duration(animation.duration.fast)
+    : SlideInDown.duration(animation.duration.base)
+
   return (
     <Modal
       visible={open}
       transparent
-      animationType="slide"
+      // RN's built-in "slide" moves the entire transparent modal, including
+      // the dim backdrop, up as one rectangular slab. Keep the modal itself
+      // still and animate the backdrop and panel independently instead.
+      animationType="none"
       statusBarTranslucent
       onRequestClose={onClose}
     >
       <View style={styles.fill}>
-        <Pressable
-          style={styles.backdrop}
-          onPress={onClose}
-          accessibilityRole="button"
-          accessibilityLabel="Lukk"
-        />
+        <Animated.View style={styles.backdrop} entering={backdropEntering}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Lukk"
+          />
+        </Animated.View>
         {/* The KAV spans the FULL viewport (flex:1) so the panel's %-maxHeight
             resolves against the screen on web too — with an auto-height parent
             RN-web ignored it, the panel outgrew the viewport and the CTA ended
@@ -48,10 +62,13 @@ export function Sheet({ open, onClose, children }: SheetProps) {
           pointerEvents="box-none"
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <View style={[styles.panel, { paddingBottom: insets.bottom + spacing.lg }]}>
+          <Animated.View
+            entering={panelEntering}
+            style={[styles.panel, { paddingBottom: insets.bottom + spacing.lg }]}
+          >
             <View style={styles.handle} />
             {children}
-          </View>
+          </Animated.View>
         </KeyboardAvoidingView>
       </View>
     </Modal>
