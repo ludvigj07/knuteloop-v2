@@ -79,3 +79,7 @@ apps/api/scripts/seed-media/*
 # Misc
 *.tgz
 .eslintcache
+
+# Local AI-agent artefacts (Codex etc.) — never part of the repo
+.codex/
+.agents/

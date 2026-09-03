@@ -22,7 +22,7 @@ let knuteA18Id: string
 let knuteARetiredId: string
 let knuteBId: string
 
-type BookmarkRow = { id: string; title: string; isBookmarked: boolean; bookmarkedAt: string }
+type BookmarkRow = { id: string; title: string; isBookmarked: boolean }
 type ListResponse = { knuter: BookmarkRow[] }
 type CatalogResponse = { knuter: { id: string; isBookmarked: boolean }[] }
 type FeedResponse = { feed: { id: string; knuteId: string; isBookmarked: boolean }[] }
@@ -133,7 +133,6 @@ describe('PUT / DELETE /api/knuter/:id/bookmark', () => {
     const list = await listFor(authFrida)
     expect(list.map((k) => k.id)).toEqual([knuteA2Id, knuteA1Id])
     expect(list.every((k) => k.isBookmarked)).toBe(true)
-    expect(list[0]?.bookmarkedAt).toBeTruthy()
   })
 
   it('removes a bookmark, and removing a missing one still succeeds', async () => {
@@ -259,9 +258,6 @@ describe('RLS cross-tenant isolation — knute_bookmarks', () => {
     ).rejects.toThrow(/row-level security/i)
   })
 
-  it('FORCE RLS is verified live (relforcerowsecurity = true)', async () => {
-    const rows = await h.superSql<{ relforcerowsecurity: boolean }[]>`
-      SELECT relforcerowsecurity FROM pg_class WHERE relname = 'knute_bookmarks'`
-    expect(rows[0]?.relforcerowsecurity).toBe(true)
-  })
+  // ENABLE + FORCE + policy shape is asserted for every school_id table by
+  // rls-meta.test.ts automatically — not repeated here.
 })

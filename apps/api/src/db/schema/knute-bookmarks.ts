@@ -49,7 +49,9 @@ export const knuteBookmarks = pgTable(
     unique('knute_bookmarks_user_knute_unique').on(table.userId, table.knuteId),
     // The list query: this user's stars, newest first.
     index('knute_bookmarks_user_idx').on(table.schoolId, table.userId, table.createdAt.desc()),
-    // The reverse lookup used to mark isBookmarked on feed/catalog rows.
+    // For the ON DELETE CASCADE from knuter: without an index leading on knute_id,
+    // deleting a knute scans this whole table to find its bookmarks. (The
+    // isBookmarked lookups filter on user first and are served by user_idx.)
     index('knute_bookmarks_knute_idx').on(table.schoolId, table.knuteId),
   ],
 ).enableRLS()

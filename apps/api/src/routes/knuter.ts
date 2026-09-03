@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { and, eq, inArray, lte, sql } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 import { auth, type AuthVariables } from '../middleware/auth.js'
@@ -10,10 +10,10 @@ import {
   knuter,
   knuteFolderMemberships,
   submissions,
-  users,
 } from '../db/schema/index.js'
 import { NotFoundError, ValidationError } from '../lib/errors.js'
 import { pickDagensKnute } from '../lib/dagens-knute.js'
+import { knuteAgeGate } from '../lib/knute-age-gate.js'
 import type { db } from '../db/client.js'
 
 type Variables = AuthVariables & {
@@ -84,12 +84,8 @@ export const knuterRoutes = new Hono<{ Variables: Variables }>()
       // Age gate (ADR-0015): in the student catalog, non-adults see only all-ages
       // knuter (min_age <= 17). The manager view is unfiltered (they curate 18+).
       if (!includeInactive) {
-        const [me] = await tx
-          .select({ isAdult: users.isAdult })
-          .from(users)
-          .where(and(eq(users.id, userId), eq(users.schoolId, schoolId)))
-          .limit(1)
-        if (!me?.isAdult) conditions.push(lte(knuter.minAge, 17))
+        const ageGate = await knuteAgeGate(tx, schoolId, userId)
+        if (ageGate) conditions.push(ageGate)
       }
 
       // myStatus = the CALLER's active submission for each knute ('pending' |
@@ -188,12 +184,8 @@ export const knuterRoutes = new Hono<{ Variables: Variables }>()
     const userId = c.get('userId')
 
     const conditions = [eq(knuter.schoolId, schoolId), eq(knuter.isActive, true)]
-    const [me] = await tx
-      .select({ isAdult: users.isAdult })
-      .from(users)
-      .where(and(eq(users.id, userId), eq(users.schoolId, schoolId)))
-      .limit(1)
-    if (!me?.isAdult) conditions.push(lte(knuter.minAge, 17))
+    const ageGate = await knuteAgeGate(tx, schoolId, userId)
+    if (ageGate) conditions.push(ageGate)
 
     const pool = await tx
       .select({

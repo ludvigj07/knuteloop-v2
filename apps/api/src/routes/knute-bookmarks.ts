@@ -1,11 +1,12 @@
 import { Hono } from 'hono'
-import { and, desc, eq, inArray, lte } from 'drizzle-orm'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 import { auth, type AuthVariables } from '../middleware/auth.js'
 import { tenantContext } from '../middleware/tenant-context.js'
-import { knuteBookmarks, knuter, submissions, users } from '../db/schema/index.js'
+import { knuteBookmarks, knuter, submissions } from '../db/schema/index.js'
 import { NotFoundError } from '../lib/errors.js'
+import { knuteAgeGate } from '../lib/knute-age-gate.js'
 import type { SchoolId, UserId } from '../lib/ids.js'
 import type { db } from '../db/client.js'
 
@@ -22,18 +23,13 @@ const knuteParamSchema = z.object({ id: z.string().uuid() })
 // not become a side door around the age gate: a minor who guesses an 18+
 // knute's id gets the same 404 the catalog gives them.
 async function findVisibleKnute(tx: Tx, schoolId: SchoolId, userId: UserId, knuteId: string) {
-  const [me] = await tx
-    .select({ isAdult: users.isAdult })
-    .from(users)
-    .where(and(eq(users.id, userId), eq(users.schoolId, schoolId)))
-    .limit(1)
-
   const conditions = [
     eq(knuter.id, knuteId),
     eq(knuter.schoolId, schoolId),
     eq(knuter.isActive, true),
   ]
-  if (!me?.isAdult) conditions.push(lte(knuter.minAge, 17))
+  const ageGate = await knuteAgeGate(tx, schoolId, userId)
+  if (ageGate) conditions.push(ageGate)
 
   const [row] = await tx
     .select({ id: knuter.id })
@@ -64,18 +60,13 @@ export const knuteBookmarkRoutes = new Hono<{ Variables: Variables }>()
     const schoolId = c.get('schoolId')
     const userId = c.get('userId')
 
-    const [me] = await tx
-      .select({ isAdult: users.isAdult })
-      .from(users)
-      .where(and(eq(users.id, userId), eq(users.schoolId, schoolId)))
-      .limit(1)
-
     const conditions = [
       eq(knuteBookmarks.schoolId, schoolId),
       eq(knuteBookmarks.userId, userId),
       eq(knuter.isActive, true),
     ]
-    if (!me?.isAdult) conditions.push(lte(knuter.minAge, 17))
+    const ageGate = await knuteAgeGate(tx, schoolId, userId)
+    if (ageGate) conditions.push(ageGate)
 
     // myStatus = the caller's active submission for each knute, so the list can
     // mark what is already taken — same meaning as in the catalog. The partial
@@ -92,7 +83,6 @@ export const knuteBookmarkRoutes = new Hono<{ Variables: Variables }>()
         isGold: knuter.isGold,
         isActive: knuter.isActive,
         createdAt: knuter.createdAt,
-        bookmarkedAt: knuteBookmarks.createdAt,
         myStatus: submissions.status,
       })
       .from(knuteBookmarks)

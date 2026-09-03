@@ -1,11 +1,12 @@
 import { Hono } from 'hono'
-import { and, desc, eq, inArray, lt, lte } from 'drizzle-orm'
+import { and, desc, eq, inArray, lt } from 'drizzle-orm'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 import { auth, type AuthVariables } from '../middleware/auth.js'
 import { tenantContext } from '../middleware/tenant-context.js'
 import { knuteBookmarks, knuter, submissions, users } from '../db/schema/index.js'
 import { isValidImageKey, publicUrlForKey, requestOrigin } from '../lib/storage.js'
+import { knuteAgeGate } from '../lib/knute-age-gate.js'
 import type { db } from '../db/client.js'
 
 type Variables = AuthVariables & {
@@ -61,15 +62,10 @@ export const feedRoutes = new Hono<{ Variables: Variables }>()
       }
 
       // Age gate (ADR-0015, S0-3): a non-adult viewer must never be served 18+
-      // knuter in the feed, even from their own school. Mirrors the student
-      // catalog gate in routes/knuter.ts and the submit gate in submissions.ts.
-      // Fail-safe: if the viewer row is missing, treat as non-adult.
-      const [viewer] = await tx
-        .select({ isAdult: users.isAdult })
-        .from(users)
-        .where(and(eq(users.id, userId), eq(users.schoolId, schoolId)))
-        .limit(1)
-      if (!viewer?.isAdult) conditions.push(lte(knuter.minAge, 17))
+      // knuter in the feed, even from their own school. lib/knute-age-gate.ts
+      // is the one source for the rule.
+      const ageGate = await knuteAgeGate(tx, schoolId, userId)
+      if (ageGate) conditions.push(ageGate)
 
       // Fetch one extra row to know whether another page exists. sharedAt is
       // selected only to build nextCursor — every row here has it non-null
