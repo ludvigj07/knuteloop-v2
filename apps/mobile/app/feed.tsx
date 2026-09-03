@@ -10,10 +10,10 @@ import { Image } from 'expo-image'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useRouter } from 'expo-router'
-import { ChevronRight } from 'lucide-react-native'
 import { AppTabBar } from '../components/AppTabBar'
+import { FeedInfoPanel } from '../components/feed/FeedInfoPanel'
 import { UserPeekSheet } from '../components/profile/UserPeekSheet'
-import { Chip, KnoteIcon, Pressable, Skeleton, StickerButton, StickerCard, Text } from '../components/primitives'
+import { KnoteIcon, Skeleton, StickerButton, StickerCard, Text } from '../components/primitives'
 import { fetchFeed, type FeedItem } from '../lib/api'
 import { formatNumber } from '../lib/format'
 import { animation, colors, fontSize, size, spacing, sticker } from '../lib/theme'
@@ -217,36 +217,7 @@ const FeedCard = memo(function FeedCard({
       <View
         style={[styles.overlay, { paddingBottom: bottomInset + size.bottomNavMinHeight + spacing.lg }]}
       >
-        <StickerCard radius="lg" shadow="sm" padding="md">
-          <View style={styles.infoContent}>
-            {/* The name is the profile tap target («stalke»-flow) — just the
-                name row, so the card body never fights the vertical swipe. */}
-            <Pressable
-              onPress={onOpenProfile}
-              haptic="light"
-              accessibilityRole="link"
-              accessibilityLabel={`Se profilen til ${item.russenavn}`}
-              style={styles.nameRow}
-            >
-              <Text font="display" weight="bold" size="lg" color={sticker.color.ink} numberOfLines={1} style={styles.nameText}>
-                {item.russenavn}
-              </Text>
-              <ChevronRight size={sticker.icon.sm} color={sticker.color.textMuted} strokeWidth={2.5} />
-            </Pressable>
-            <Text size="sm" color={sticker.color.textSoft} numberOfLines={2}>
-              {item.knuteTitle}
-            </Text>
-            <View style={styles.chipRow}>
-              <Chip label={`+${formatNumber(item.knutePoints)} P`} tone="accent" mono />
-              <Chip label="Godkjent" tone="success" />
-            </View>
-            {!isText && item.caption ? (
-              <Text size="sm" color={sticker.color.textMuted} numberOfLines={3}>
-                {item.caption}
-              </Text>
-            ) : null}
-          </View>
-        </StickerCard>
+        <FeedInfoPanel item={item} onOpenProfile={onOpenProfile} />
       </View>
     </View>
   )
@@ -294,23 +265,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     paddingHorizontal: spacing.base,
-  },
-  infoContent: {
-    gap: spacing.xs,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  nameText: {
-    flexShrink: 1,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    flexWrap: 'wrap',
   },
   centerFill: {
     flex: 1,
