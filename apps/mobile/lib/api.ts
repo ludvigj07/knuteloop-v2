@@ -643,8 +643,8 @@ export function fetchKnuterInFolder(folderId: string): Promise<KnuterResponse> {
 // ---- Bookmarks (a student's private «save for later» list) ----
 
 /** The caller's bookmarked knuter, newest bookmark first. Same row shape as the
- *  catalog minus folderIds (a flat list), plus bookmarkedAt. */
-export type BookmarkedKnute = Omit<Knute, 'folderIds'> & { bookmarkedAt: string }
+ *  catalog minus folderIds (a flat list). */
+export type BookmarkedKnute = Omit<Knute, 'folderIds'>
 export type BookmarksResponse = { knuter: BookmarkedKnute[] }
 
 export function fetchBookmarks(): Promise<BookmarksResponse> {

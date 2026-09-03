@@ -78,6 +78,7 @@ export function FeedInfoPanel({
             knuteId={item.knuteId}
             bookmarked={item.isBookmarked}
             color={colors.feed.panelText}
+            hint="Bokmerkede knuter ligger under «Bokmerker» i knuteboka."
           />
         </Stack>
 
