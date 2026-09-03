@@ -1,5 +1,5 @@
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
-import { ChevronRight, Trash2 } from 'lucide-react-native'
+import { ChevronRight, Pencil, Trash2 } from 'lucide-react-native'
 import { Badge, Chip, KnoteIcon, Pressable, StickerCard, Text } from '../primitives'
 import { GlyphTile } from './GlyphTile'
 import type { Knute } from '../../lib/api'
@@ -64,20 +64,34 @@ export function SchoolKnuteRow({
         </Pressable>
 
         {onRemove ? (
-          <Pressable
-            onPress={onRemove}
-            disabled={removing}
-            haptic="medium"
-            accessibilityLabel={removeLabel ?? `Fjern ${knute.title} fra mappa`}
-            hitSlop={8}
-            style={styles.removeBtn}
-          >
-            {removing ? (
-              <ActivityIndicator size="small" color={sticker.color.danger} />
-            ) : (
-              <Trash2 size={sticker.icon.sm} color={sticker.color.danger} strokeWidth={2} />
-            )}
-          </Pressable>
+          <View style={styles.actions}>
+            <Pressable
+              onPress={onPress}
+              haptic="light"
+              accessibilityRole="button"
+              accessibilityLabel={`Rediger ${knute.title}`}
+              accessibilityHint="Åpner redigering av blant annet poeng."
+              hitSlop={spacing.sm}
+              style={styles.editBtn}
+            >
+              <Pencil size={sticker.icon.sm} color={sticker.color.primary} strokeWidth={sticker.borderWidth} />
+            </Pressable>
+            <Pressable
+              onPress={onRemove}
+              disabled={removing}
+              haptic="medium"
+              accessibilityRole="button"
+              accessibilityLabel={removeLabel ?? `Fjern ${knute.title} fra mappa`}
+              hitSlop={spacing.sm}
+              style={styles.removeBtn}
+            >
+              {removing ? (
+                <ActivityIndicator size="small" color={sticker.color.danger} />
+              ) : (
+                <Trash2 size={sticker.icon.sm} color={sticker.color.danger} strokeWidth={sticker.borderWidth} />
+              )}
+            </Pressable>
+          </View>
         ) : (
           <ChevronRight size={sticker.icon.md} color={sticker.color.textMuted} strokeWidth={2} />
         )}
@@ -93,6 +107,17 @@ const styles = StyleSheet.create({
   openArea: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   body: { flex: 1, gap: spacing.xs },
   meta: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  editBtn: {
+    width: size.actionMinHeight,
+    height: size.actionMinHeight,
+    borderRadius: sticker.radius.full,
+    borderWidth: sticker.borderWidth,
+    borderColor: sticker.color.primary,
+    backgroundColor: sticker.color.surfaceSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   removeBtn: {
     width: size.actionMinHeight,
     height: size.actionMinHeight,
