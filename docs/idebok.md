@@ -6,7 +6,7 @@
 > ligger trygt. Når et punkt faktisk skal bygges: scope det til en GitHub-issue
 > eller PR, og stryk det her.
 >
-> Sist oppdatert: **2026-08-23**.
+> Sist oppdatert: **2026-09-03**.
 
 ---
 
@@ -30,6 +30,11 @@ som me adde mer design-greier — mer cleen feel»**. Mindre støy, mer identite
 - **Toppliste-skjermen** poleres.
 - **Profiler** poleres.
   _Status: offentlige profiler + innsendings-rutenett finnes delvis (#86, #100)._
+- **Brukertest: to nivåer for profilåpning i feeden.** Test med noen ekte brukere om
+  trykk på profilbildet bør åpne hele profilen direkte, mens trykk på russenavnet
+  fortsatt åpner den raske profiloversikten («half commitment»). Hypotese: den mer
+  krevende plasseringen av profilbildet gjør full navigasjon bevisst. Risiko: to
+  naboelementer med ulik oppførsel kan oppleves uforutsigbart. Ikke bygg før testen.
 
 ## 📹 Media-pipeline
 
@@ -42,6 +47,8 @@ som me adde mer design-greier — mer cleen feel»**. Mindre støy, mer identite
 
 - **Knutebiblioteket og alle knutesjef-verktøyene** fikses/poleres som helhet.
   _Se [[knutesjef-operating-vision]]-minnet / handoffs — handlingsgrafen er låst («alt fra alt»)._
+- **Sensitiv knute** — knutesjefer må ha en tydelig knapp/bryter når de lager eller
+  redigerer en knute, slik at sensitive knuter behandles riktig i appen.
 - **Knute-kategorier** ses på.
   _Kontekst: legacy `category`-enumen er allerede planlagt fjernet (ADR-0014);
   mapper (knutemapper) er den ekte aksen. Avklar hva Ludvig vil her før arbeid._
@@ -65,6 +72,14 @@ som me adde mer design-greier — mer cleen feel»**. Mindre støy, mer identite
   i den rekkefølgen videoene lages._
 - **Global feed + algoritme** — den kuraterte offentlige utstillingen på tvers av skoler.
   _Stor greie: trenger egen ADR (RLS-unntaket må designes som lift-out, aldri cross-tenant)._
+- **Knuteloop for brukere som ikke går på VGS** — en begrenset versjon der personer
+  uten skoletilknytning primært kan se nasjonalfeeden. Første motivasjon er å gjøre
+  appen tilgjengelig og forståelig i App Store-review, men ideen er foreløpig svært
+  tidlig og må utredes senere (tilgang, alder, personvern og hva brukerne faktisk kan gjøre).
+- **Sponsede knuter** — et internt verktøy der Ludvig/Knuteloop kan opprette og
+  administrere sponsede knuter. Hver sponsede knute må kunne målrettes som
+  **global**, til et bestemt **område/en region**, eller bare til **én skole**.
+  Sponsor og målretting skal være tydelig i appen.
 
 ---
 

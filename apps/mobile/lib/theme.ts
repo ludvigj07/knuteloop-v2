@@ -58,6 +58,15 @@ export const colors = {
     backdrop: '#0A0A0F',
     overlay: 'rgba(0, 0, 0, 0.55)',
     textShadow: 'rgba(0, 0, 0, 0.8)',
+    // Tint laid OVER the blurred backdrop, not a standalone slab. BlurView
+    // already darkens (on web it adds its own rgba on top of backdrop-filter),
+    // so this is only the insurance that keeps white text readable when the
+    // photo behind the panel is bright.
+    panel: 'rgba(10, 10, 15, 0.18)',
+    panelBorder: 'rgba(255, 255, 255, 0.28)',
+    panelText: '#FFFFFF',
+    panelTextMuted: '#D7DAE2',
+    avatar: 'rgba(255, 255, 255, 0.14)',
   },
   // Soft backgrounds for submission-status badges (text uses success/warning/error).
   status: {
@@ -95,6 +104,19 @@ export const opacity = {
   // Skeleton shimmer pulses between these two opacities.
   shimmerLow: 0.45,
   shimmerHigh: 1,
+} as const
+
+// Frosted glass (expo-blur). Used where chrome floats over a photo and the
+// photo should stay visible-but-muted behind it instead of being covered by an
+// opaque slab. Pair with a translucent tint (colors.feed.panel) on top.
+export const glass = {
+  // BlurView intensity, 0-100. ~60 lands close to iOS systemMaterialDark.
+  intensity: 60,
+  // Android has no native backdrop blur; this opt-in method emulates it by
+  // snapshotting what is behind the view. Set to 'none' if it proves too
+  // expensive on mid-range devices — Android then falls back to the plain
+  // tint, which still reads as translucent, just not blurred.
+  androidMethod: 'dimezisBlurView',
 } as const
 
 // Soft drop shadows for cards. iOS reads shadow*, Android reads elevation —
