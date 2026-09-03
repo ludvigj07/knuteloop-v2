@@ -1,8 +1,8 @@
 import { memo } from 'react'
 import { StyleSheet, View } from 'react-native'
-import { ChevronRight } from 'lucide-react-native'
 import { Chip, KnoteIcon, StickerCard, Text } from '../primitives'
 import { GlyphTile } from './GlyphTile'
+import { BookmarkButton } from './BookmarkButton'
 import type { Knute } from '../../lib/api'
 import { formatNumber } from '../../lib/format'
 import { spacing, sticker } from '../../lib/theme'
@@ -55,7 +55,9 @@ export const KnuteListCard = memo(function KnuteListCard({
             {knute.myStatus === 'pending' ? <Chip label="Venter" tone="warning" /> : null}
           </View>
         </View>
-        <ChevronRight size={sticker.icon.md} color={sticker.color.textMuted} strokeWidth={2} />
+        {/* Sits where the chevron used to be, at the same icon size, so the row's
+            layout is untouched. The whole card is the link; the chevron was decor. */}
+        <BookmarkButton knuteId={knute.id} bookmarked={knute.isBookmarked} compact />
       </View>
     </StickerCard>
   )
