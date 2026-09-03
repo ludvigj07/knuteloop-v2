@@ -1,10 +1,11 @@
 import { Hono } from 'hono'
-import { and, desc, eq, gt, isNull, lt, lte, or, sql } from 'drizzle-orm'
+import { and, desc, eq, gt, isNull, lt, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 import { auth, type AuthVariables } from '../middleware/auth.js'
 import { tenantContext } from '../middleware/tenant-context.js'
 import { knuter, schoolClasses, submissions, users } from '../db/schema/index.js'
+import { knuteAgeGate } from '../lib/knute-age-gate.js'
 import { NotFoundError } from '../lib/errors.js'
 import { getRankTitle } from '../lib/rank-titles.js'
 import {
@@ -162,14 +163,9 @@ export const usersRoutes = new Hono<{ Variables: Variables }>()
       ]
       if (cursor) conditions.push(lt(submissions.createdAt, new Date(cursor)))
 
-      // Viewer age gate — mirrors routes/feed.ts. Fail-safe: missing viewer
-      // row is treated as non-adult.
-      const [viewer] = await tx
-        .select({ isAdult: users.isAdult })
-        .from(users)
-        .where(and(eq(users.id, viewerId), eq(users.schoolId, schoolId)))
-        .limit(1)
-      if (!viewer?.isAdult) conditions.push(lte(knuter.minAge, 17))
+      // Viewer age gate (ADR-0015) — lib/knute-age-gate.ts is the one source.
+      const ageGate = await knuteAgeGate(tx, schoolId, viewerId)
+      if (ageGate) conditions.push(ageGate)
 
       // One extra row to know whether another page exists.
       const rows = await tx

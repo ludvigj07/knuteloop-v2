@@ -4,8 +4,9 @@ import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 import { auth, type AuthVariables } from '../middleware/auth.js'
 import { tenantContext } from '../middleware/tenant-context.js'
-import { knuter, submissions, users } from '../db/schema/index.js'
+import { knuter, submissions } from '../db/schema/index.js'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../lib/errors.js'
+import { viewerIsAdult } from '../lib/knute-age-gate.js'
 import { newSubmissionImageKey, requestOrigin, uploadUrlForKey } from '../lib/storage.js'
 import { submissionReviewRoutes } from './submissions-review.js'
 import type { db } from '../db/client.js'
@@ -89,12 +90,7 @@ export const submissionRoutes = new Hono<{ Variables: Variables }>()
       // Age gate (ADR-0015): a minor may not submit an 18+ knute even with the id.
       // 404 (not 403) so we don't reveal that an adult-only knute exists.
       if (existing.minAge >= 18) {
-        const [me] = await tx
-          .select({ isAdult: users.isAdult })
-          .from(users)
-          .where(and(eq(users.id, userId), eq(users.schoolId, schoolId)))
-          .limit(1)
-        if (!me?.isAdult) throw new NotFoundError('Knute')
+        if (!(await viewerIsAdult(tx, schoolId, userId))) throw new NotFoundError('Knute')
       }
 
       // Block re-submission if there's already an active pending or approved

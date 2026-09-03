@@ -1,13 +1,19 @@
 import { Hono } from 'hono'
-import { and, eq, inArray, lte, sql } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 import { auth, type AuthVariables } from '../middleware/auth.js'
 import { tenantContext } from '../middleware/tenant-context.js'
 import { requireRole } from '../middleware/require-role.js'
-import { knuter, knuteFolderMemberships, submissions, users } from '../db/schema/index.js'
+import {
+  knuteBookmarks,
+  knuter,
+  knuteFolderMemberships,
+  submissions,
+} from '../db/schema/index.js'
 import { NotFoundError, ValidationError } from '../lib/errors.js'
 import { pickDagensKnute } from '../lib/dagens-knute.js'
+import { knuteAgeGate } from '../lib/knute-age-gate.js'
 import type { db } from '../db/client.js'
 
 type Variables = AuthVariables & {
@@ -78,12 +84,8 @@ export const knuterRoutes = new Hono<{ Variables: Variables }>()
       // Age gate (ADR-0015): in the student catalog, non-adults see only all-ages
       // knuter (min_age <= 17). The manager view is unfiltered (they curate 18+).
       if (!includeInactive) {
-        const [me] = await tx
-          .select({ isAdult: users.isAdult })
-          .from(users)
-          .where(and(eq(users.id, userId), eq(users.schoolId, schoolId)))
-          .limit(1)
-        if (!me?.isAdult) conditions.push(lte(knuter.minAge, 17))
+        const ageGate = await knuteAgeGate(tx, schoolId, userId)
+        if (ageGate) conditions.push(ageGate)
       }
 
       // myStatus = the CALLER's active submission for each knute ('pending' |
@@ -142,8 +144,29 @@ export const knuterRoutes = new Hono<{ Variables: Variables }>()
         else foldersByKnute.set(m.knuteId, [m.folderId])
       }
 
+      // isBookmarked = whether the CALLER has bookmarked each knute (their own
+      // private list — routes/knute-bookmarks.ts). Same batched shape as the
+      // folder lookup above: one query, one Set, never per row.
+      const bookmarked = knuteIds.length
+        ? await tx
+            .select({ knuteId: knuteBookmarks.knuteId })
+            .from(knuteBookmarks)
+            .where(
+              and(
+                eq(knuteBookmarks.schoolId, schoolId),
+                eq(knuteBookmarks.userId, userId),
+                inArray(knuteBookmarks.knuteId, knuteIds),
+              ),
+            )
+        : []
+      const bookmarkedIds = new Set(bookmarked.map((b) => b.knuteId))
+
       return c.json({
-        knuter: rows.map((r) => ({ ...r, folderIds: foldersByKnute.get(r.id) ?? [] })),
+        knuter: rows.map((r) => ({
+          ...r,
+          folderIds: foldersByKnute.get(r.id) ?? [],
+          isBookmarked: bookmarkedIds.has(r.id),
+        })),
       })
     },
   )
@@ -161,12 +184,8 @@ export const knuterRoutes = new Hono<{ Variables: Variables }>()
     const userId = c.get('userId')
 
     const conditions = [eq(knuter.schoolId, schoolId), eq(knuter.isActive, true)]
-    const [me] = await tx
-      .select({ isAdult: users.isAdult })
-      .from(users)
-      .where(and(eq(users.id, userId), eq(users.schoolId, schoolId)))
-      .limit(1)
-    if (!me?.isAdult) conditions.push(lte(knuter.minAge, 17))
+    const ageGate = await knuteAgeGate(tx, schoolId, userId)
+    if (ageGate) conditions.push(ageGate)
 
     const pool = await tx
       .select({

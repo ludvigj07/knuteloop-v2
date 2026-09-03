@@ -162,6 +162,20 @@
       "when": 1786729082121,
       "tag": "0022_thick_layla_miller",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1788464282446,
+      "tag": "0023_rich_fixer",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1788464282447,
+      "tag": "0024_force_rls_knute_bookmarks",
+      "breakpoints": true
     }
   ]
 }
