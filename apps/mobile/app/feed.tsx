@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react'
+import { memo, useCallback, useState } from 'react'
 import {
   View,
   StyleSheet,
@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useRouter } from 'expo-router'
 import { ChevronRight, X } from 'lucide-react-native'
 import { AppTabBar } from '../components/AppTabBar'
+import { UserPeekSheet } from '../components/profile/UserPeekSheet'
 import { Chip, KnoteIcon, Pressable, Skeleton, StickerButton, StickerCard, Text } from '../components/primitives'
 import { fetchFeed, type FeedItem } from '../lib/api'
 import { formatNumber } from '../lib/format'
@@ -26,6 +27,7 @@ export default function FeedScreen() {
   const { height, width } = useWindowDimensions()
   const insets = useSafeAreaInsets()
   const router = useRouter()
+  const [peekUserId, setPeekUserId] = useState<string | null>(null)
 
   const {
     data,
@@ -52,10 +54,10 @@ export default function FeedScreen() {
         height={height}
         width={width}
         bottomInset={insets.bottom}
-        onOpenProfile={() => router.push(`/user/${item.userId}`)}
+        onOpenProfile={() => setPeekUserId(item.userId)}
       />
     ),
-    [height, width, insets.bottom, router],
+    [height, width, insets.bottom],
   )
 
   return (
@@ -146,6 +148,12 @@ export default function FeedScreen() {
           </View>
         </StickerCard>
       </View>
+
+      <UserPeekSheet
+        userId={peekUserId}
+        onClose={() => setPeekUserId(null)}
+        onOpenFullProfile={(userId) => router.push(`/user/${userId}`)}
+      />
 
       <AppTabBar active="oyeblikk" />
     </View>

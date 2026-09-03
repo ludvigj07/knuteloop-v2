@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { RefreshControl, ScrollView, StyleSheet } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Stack as RouterStack, useRouter } from 'expo-router'
@@ -9,6 +10,7 @@ import { HomeCatalogCard } from '../components/home/HomeNavigationCards'
 import { HomeOverviewCard } from '../components/home/HomeOverviewCard'
 import { HomeErrorState, HomeLoadingState } from '../components/home/HomeScreenStates'
 import { HomeTopThree } from '../components/home/HomeTopThree'
+import { UserPeekSheet } from '../components/profile/UserPeekSheet'
 import { Stack, Text } from '../components/primitives'
 import {
   fetchDagensKnute,
@@ -24,6 +26,7 @@ const HOME_LEADER_COUNT = 3
 export default function HomeScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
+  const [peekUserId, setPeekUserId] = useState<string | null>(null)
   const meQuery = useQuery({ queryKey: ['me'], queryFn: fetchMe })
   const feedQuery = useQuery({ queryKey: ['feed', 'home'], queryFn: () => fetchFeed() })
   const leaderboardQuery = useQuery({ queryKey: ['leaderboard'], queryFn: fetchLeaderboard })
@@ -145,11 +148,16 @@ export default function HomeScreen() {
           isLoading={leaderboardQuery.isLoading}
           error={(leaderboardQuery.error as Error | null) ?? null}
           onRetry={() => void leaderboardQuery.refetch()}
-          onOpenProfile={(userId) => router.push(`/user/${userId}`)}
+          onOpenProfile={setPeekUserId}
           onOpenLeaderboard={() => router.replace('/leaderboard')}
         />
 
       </ScrollView>
+      <UserPeekSheet
+        userId={peekUserId}
+        onClose={() => setPeekUserId(null)}
+        onOpenFullProfile={(userId) => router.push(`/user/${userId}`)}
+      />
       <AppTabBar active="home" />
     </Stack>
   )

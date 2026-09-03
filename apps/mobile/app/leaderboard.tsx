@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useRouter } from 'expo-router'
 import { ChevronRight, X } from 'lucide-react-native'
 import { AppTabBar } from '../components/AppTabBar'
+import { UserPeekSheet } from '../components/profile/UserPeekSheet'
 import {
   Chip,
   Pressable,
@@ -81,6 +82,7 @@ export default function LeaderboardScreen() {
   const router = useRouter()
   const reduceMotion = useReducedMotion()
   const [view, setView] = useState<ViewKey>('skolen')
+  const [peekUserId, setPeekUserId] = useState<string | null>(null)
   // Klassekamp-drill: tap a class row to see THAT class's own list. Cleared by
   // every segment tap, so the segments always mean what they say.
   const [drilledClass, setDrilledClass] = useState<string | null>(null)
@@ -106,10 +108,7 @@ export default function LeaderboardScreen() {
 
   // Tap a russ → their public profile («stalke»-flow). Stable handler so the
   // memoized rows hold.
-  const openProfile = useCallback(
-    (userId: string) => router.push(`/user/${userId}`),
-    [router],
-  )
+  const openProfile = useCallback((userId: string) => setPeekUserId(userId), [])
 
   const rows = useMemo<RowItem[]>(() => {
     if (view === 'klassekamp') {
@@ -264,6 +263,11 @@ export default function LeaderboardScreen() {
             tintColor={sticker.color.ink}
           />
         }
+      />
+      <UserPeekSheet
+        userId={peekUserId}
+        onClose={() => setPeekUserId(null)}
+        onOpenFullProfile={(userId) => router.push(`/user/${userId}`)}
       />
       <AppTabBar active="toppliste" />
     </View>
