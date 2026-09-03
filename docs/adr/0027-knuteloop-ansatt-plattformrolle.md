@@ -213,3 +213,14 @@ En kø kan tømmes på tjue minutter; et dashboard må utforskes, og blir derfor
   eller håndteres det manuelt i databasen med `admin_user`?
 - **Varsling:** hvordan får en ansatt beskjed om en `nudity`/`safety_risk`-rapport
   (ADR-0026 punkt 3) — e-post, push, eller bare kø?
+- **Design-mock (2026-09-04):** [`docs/design/admin-superadmin-mock.html`](../design/admin-superadmin-mock.html)
+  — Ludvigs klikkbare skisse av hele plattformrollen: oversikt, eskalerte rapporter, nasjonal
+  feed, skoler sortert på tid siden siste moderering, knutesjef-tilgang, aggregert data,
+  brytere (funksjon/kategori/knute/skole) og hash-kjedet logg. Behandles som spesifikasjon
+  for UI-et. Tre ting den reiser som må avklares før bygging:
+  1. Den er tegnet som **nettside**, mens punkt 6 sier verktøyene bor **i appen**. Avklar,
+     eller oppdater punkt 6.
+  2. **«Frys bevis»** (legal hold) må vinne over rett-til-sletting i slettejobben
+     (GDPR art. 17(3)(e)) — ellers forsvinner beviset i det den anklagede sletter kontoen.
+  3. **Hash-kjeden** i loggen: SHA-256 server-side + en nattlig jobb som verifiserer kjeden.
+     Mocken bruker FNV (ikke kryptografisk) — kun for illustrasjon.

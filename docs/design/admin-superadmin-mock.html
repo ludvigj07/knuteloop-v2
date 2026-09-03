@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knuteloop admin</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
+
+/* Tokens fra apps/mobile/lib/theme.ts og .claude/skills/knuteloop-design */
+:root{
+  --paper:#FBF8EF; --ink:#0F1A2E; --card:#FFFFFF; --soft:#F3EFE2; --media:#F3F0E8;
+  --primary:#12327D; --primary-bg:#E7EAF2;
+  --accent:#FFCD29; --accent-bg:#FFF7DD; --accent-strong:#7B6A2C;
+  --line:rgba(27,33,45,.16); --text-muted:#576175; --text-soft:#112D6C;
+  --success:#2F9E63; --success-bg:rgba(47,158,99,.14); --success-ink:#1E6B42;
+  --warning:#E6A417; --warning-bg:rgba(230,164,23,.16); --warning-ink:#7A5407;
+  --danger:#D6483F; --danger-strong:#B53A32; --danger-bg:rgba(214,72,63,.12);
+  --r-sm:12px; --r-md:16px; --r-lg:20px; --r-xl:26px; --r-full:999px;
+  --sh:3px 3px 0 0 var(--ink); --sh-sm:2px 2px 0 0 var(--ink); --sh-lg:5px 5px 0 0 var(--ink);
+  --fd:'Bricolage Grotesque','Inter',sans-serif;
+  --fs:'Inter',system-ui,-apple-system,sans-serif;
+  --fm:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  --ez:cubic-bezier(.22,1,.36,1);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--fs);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{margin:0;font-family:var(--fd);font-weight:800;letter-spacing:-.03em;line-height:1}
+p{margin:0}
+button{font:inherit;color:inherit;cursor:pointer}
+input,select,textarea{font:inherit;color:inherit}
+svg{display:block}
+:where(button,a,input,select,textarea):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.mono{font-family:var(--fm)}
+.mut{color:var(--text-muted)}
+
+/* ---------------- Shell ---------------- */
+.app{display:grid;grid-template-columns:1fr;min-height:100dvh}
+.rail{position:sticky;top:0;z-index:40;background:var(--ink);color:var(--paper);border-bottom:2px solid var(--ink)}
+.railtop{display:flex;align-items:center;gap:9px;padding:11px 14px 9px}
+.railtop .logo{width:34px;height:20px;color:var(--accent);flex:none}
+.railtop .nm{font-family:var(--fd);font-weight:800;font-size:1.05rem}
+.railtop .season{margin-left:auto;font-family:var(--fm);font-size:.68rem;font-weight:700;color:var(--accent);border:1.5px solid rgba(251,248,239,.3);padding:2px 7px;border-radius:var(--r-full);white-space:nowrap}
+nav.nav{display:flex;gap:3px;padding:0 10px 10px;overflow-x:auto;scrollbar-width:none}
+nav.nav::-webkit-scrollbar{display:none}
+.nv{display:flex;align-items:center;gap:7px;flex:none;background:transparent;border:1.5px solid transparent;color:rgba(251,248,239,.72);border-radius:var(--r-full);padding:7px 12px;font-weight:600;font-size:.85rem;white-space:nowrap}
+.nv:hover{color:var(--paper);border-color:rgba(251,248,239,.35)}
+.nv.on{background:var(--paper);color:var(--ink);font-weight:700}
+.nv svg{width:16px;height:16px;flex:none}
+.nv .n{font-family:var(--fm);font-size:.66rem;font-weight:700;background:var(--danger);color:#fff;border-radius:8px;padding:1px 5px;min-width:17px;text-align:center}
+.nv.on .n{background:var(--ink);color:var(--paper)}
+.who{display:none;padding:10px 14px;border-top:1.5px solid rgba(251,248,239,.16);font-size:.78rem;color:rgba(251,248,239,.62)}
+.who b{display:block;color:var(--paper);font-size:.86rem}
+.main{min-width:0;display:flex;flex-direction:column}
+.bar{display:flex;align-items:flex-end;gap:12px;padding:18px 16px 12px;flex-wrap:wrap}
+.bar h1{font-size:clamp(1.7rem,6vw,2.2rem)}
+.bar .sub{font-size:.86rem;color:var(--text-muted);width:100%}
+.view{padding:0 16px 60px;min-width:0}
+@media(min-width:900px){
+  .app{grid-template-columns:232px 1fr}
+  .rail{height:100dvh;border-bottom:0;border-right:2px solid var(--ink);display:flex;flex-direction:column}
+  .railtop{padding:18px 16px 14px}
+  .railtop .season{display:none}
+  nav.nav{flex-direction:column;overflow:visible;padding:0 12px;gap:2px}
+  .nv{width:100%}
+  .nv .n{margin-left:auto}
+  .who{display:block;margin-top:auto}
+  .bar{padding:26px 28px 16px}
+  .view{padding:0 28px 70px}
+}
+
+/* ---------------- Bits ---------------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:0 14px;border:2px solid var(--ink);border-radius:var(--r-md);background:var(--card);font-weight:700;font-size:.88rem;box-shadow:var(--sh-sm);transition:transform .1s var(--ez),box-shadow .1s var(--ez);white-space:nowrap}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:var(--sh)}
+.btn:active{transform:translate(2px,2px);box-shadow:none}
+.btn.pri{background:var(--primary);color:var(--paper)}
+.btn.acc{background:var(--accent)}
+.btn.dan{background:var(--danger);color:#fff}
+.btn.gh{border-color:var(--line);box-shadow:none;background:transparent}
+.btn.gh:hover{background:var(--card);border-color:var(--ink);transform:none;box-shadow:none}
+.btn.sm{min-height:32px;padding:0 10px;font-size:.8rem;border-radius:var(--r-sm)}
+.btn.full{width:100%}
+.btn[disabled]{opacity:.42;pointer-events:none;box-shadow:none}
+.btn svg{width:16px;height:16px;flex:none}
+.row-btns{display:flex;gap:6px;flex-wrap:wrap}
+
+.chip{display:inline-flex;align-items:center;gap:5px;height:25px;padding:0 9px;border:1.5px solid var(--ink);border-radius:var(--r-full);font-size:.74rem;font-weight:700;background:var(--card);white-space:nowrap;line-height:1}
+.chip svg{width:13px;height:13px}
+.chip.ok{background:var(--success-bg);border-color:var(--success);color:var(--success-ink)}
+.chip.wa{background:var(--warning-bg);border-color:var(--warning);color:var(--warning-ink)}
+.chip.da{background:var(--danger-bg);border-color:var(--danger);color:var(--danger-strong)}
+.chip.mu{background:var(--soft);border-color:var(--line);color:var(--text-muted)}
+.chip.pr{background:var(--primary-bg);border-color:var(--primary);color:var(--primary)}
+.chip.ac{background:var(--accent)}
+.chip.ink{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.chips{display:flex;gap:5px;flex-wrap:wrap}
+.tap{cursor:pointer}.tap:hover{box-shadow:var(--sh-sm)}
+
+.card{border:2px solid var(--ink);border-radius:var(--r-lg);background:var(--card);box-shadow:var(--sh);padding:14px}
+.card.flat{box-shadow:none}
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:1fr}
+.g3{grid-template-columns:repeat(2,1fr)}
+@media(min-width:760px){.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}}
+.sec{font-size:.74rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.04em;margin:22px 0 9px}
+.sec:first-child{margin-top:0}
+
+.stat{border:2px solid var(--ink);border-radius:var(--r-lg);background:var(--card);box-shadow:var(--sh);padding:13px;text-align:left;display:block;width:100%}
+.stat .v{font-family:var(--fm);font-weight:700;font-size:clamp(1.5rem,5.5vw,2rem);line-height:1}
+.stat .l{font-size:.78rem;color:var(--text-muted);font-weight:600;margin-top:5px}
+.stat.hot{background:var(--accent)}
+.stat.bad{background:var(--danger-bg);border-color:var(--danger)}
+.stat.tap:hover{transform:translate(-2px,-2px);box-shadow:var(--sh-lg);transition:transform .1s var(--ez),box-shadow .1s var(--ez)}
+
+.banner{display:flex;align-items:center;gap:10px;padding:11px 14px;border:2px solid var(--ink);border-radius:var(--r-md);margin-bottom:14px;font-size:.88rem;flex-wrap:wrap}
+.banner b{font-weight:700}
+.banner svg{width:18px;height:18px;flex:none}
+.banner .btn{margin-left:auto}
+.banner.ok{background:var(--success-bg)}
+.banner.wa{background:var(--accent-bg)}
+.banner.da{background:var(--danger);color:#fff;border-color:var(--ink)}
+.banner.da .btn{background:#fff;color:var(--ink)}
+
+/* Lists / tables */
+.th{display:none}
+.r{display:grid;gap:7px;grid-template-columns:1fr;padding:12px;border:2px solid var(--ink);border-radius:var(--r-md);background:var(--card);margin-bottom:7px;align-items:center}
+.r.sel{background:var(--accent-bg);box-shadow:var(--sh-sm)}
+.r.off{opacity:.5}
+.r .c{min-width:0;font-size:.88rem}
+.r .c > b.k{display:block;font-size:.66rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:1px}
+.r .t{font-weight:700}
+.r .s{font-size:.8rem;color:var(--text-muted)}
+@media(min-width:820px){
+  .r{grid-template-columns:var(--c);gap:10px}
+  .th{display:grid;grid-template-columns:var(--c);gap:10px;padding:0 12px 7px;font-size:.68rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em}
+  .r .c > b.k{display:none}
+}
+.empty{padding:34px 16px;text-align:center;color:var(--text-muted);border:2px dashed var(--line);border-radius:var(--r-lg)}
+.empty .kn{width:44px;height:25px;color:var(--primary);margin:0 auto 8px}
+.empty h4{font-size:1.05rem;margin-bottom:4px;color:var(--ink)}
+
+/* Media placeholder */
+.med{border:2px solid var(--ink);border-radius:var(--r-md);background:repeating-linear-gradient(135deg,#F3F0E8 0 9px,#E8E3D4 9px 11px);min-height:150px;display:grid;place-items:center;position:relative;overflow:hidden}
+.med svg.ph{width:30px;height:30px;color:#9AA3B5}
+.med .tg{position:absolute;left:8px;top:8px}
+.med .veil{position:absolute;inset:0;background:rgba(15,26,46,.74);color:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-weight:700;font-size:.85rem;text-align:center;padding:12px}
+.med .veil svg{width:22px;height:22px}
+.med.txt{background:var(--soft);font-family:var(--fd);font-weight:700;padding:16px;text-align:center;font-size:1rem;line-height:1.2}
+
+/* Detail panel */
+.dp{border:2px solid var(--ink);border-radius:var(--r-lg);background:var(--card);box-shadow:var(--sh-lg);padding:16px;margin-bottom:14px}
+.dp .hd{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.dp .hd h3{font-size:1.25rem;flex:1;min-width:160px}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:.87rem;margin:0 0 12px}
+.dl dt{font-weight:700;color:var(--text-muted)}
+.dl dd{margin:0}
+.quote{border:2px dashed var(--line);border-radius:var(--r-md);background:var(--soft);padding:11px;font-size:.87rem;margin-bottom:12px}
+.quote b{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin-bottom:3px}
+.split{display:grid;gap:14px;grid-template-columns:1fr}
+@media(min-width:700px){.split{grid-template-columns:190px 1fr}}
+.bry{display:grid;gap:16px;grid-template-columns:1fr;align-items:start}
+@media(min-width:900px){.bry{grid-template-columns:minmax(0,1fr) 250px}.bry > div:last-child{position:sticky;top:20px}}
+.bry .sec:first-child{margin-top:0}
+
+/* Modal */
+.mask{position:fixed;inset:0;background:rgba(15,26,46,.55);z-index:80;display:flex;align-items:flex-end;justify-content:center;animation:fd .16s var(--ez)}
+@media(min-width:700px){.mask{align-items:center;padding:20px}}
+.mod{width:100%;max-width:460px;background:var(--card);border:2px solid var(--ink);border-radius:24px 24px 0 0;padding:16px 16px 22px;max-height:92dvh;overflow:auto;animation:up .22s var(--ez)}
+@media(min-width:700px){.mod{border-radius:var(--r-xl);box-shadow:var(--sh-lg);animation:pp .18s var(--ez)}}
+@keyframes fd{from{opacity:0}}
+@keyframes up{from{transform:translateY(100%)}}
+@keyframes pp{from{transform:scale(.96);opacity:0}}
+.mod h3{font-size:1.3rem;margin-bottom:5px}
+.mod > p{font-size:.87rem;color:var(--text-muted);margin-bottom:13px}
+.opt{display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:11px 13px;border:2px solid var(--ink);border-radius:var(--r-md);background:var(--card);margin-bottom:7px;font-weight:600}
+.opt.on{background:var(--accent-bg);box-shadow:var(--sh-sm)}
+.opt .dot{width:19px;height:19px;border:2px solid var(--ink);border-radius:50%;flex:none;display:grid;place-items:center}
+.opt.on .dot::after{content:"";width:9px;height:9px;border-radius:50%;background:var(--ink)}
+.opt small{display:block;font-weight:500;font-size:.78rem;color:var(--text-muted)}
+.seg{display:flex;gap:3px;border:2px solid var(--ink);border-radius:var(--r-full);padding:3px;background:var(--card);margin-bottom:11px}
+.seg button{flex:1;border:0;background:transparent;border-radius:var(--r-full);height:33px;font-weight:700;font-size:.83rem}
+.seg button.on{background:var(--ink);color:var(--paper)}
+.lb{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin:9px 0 5px}
+.in{width:100%;border:2px solid var(--ink);border-radius:var(--r-sm);padding:9px 11px;background:var(--card);margin-bottom:9px}
+
+/* Toggles */
+.sw{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;padding:11px 13px;border:2px solid var(--ink);border-radius:var(--r-md);background:var(--card);margin-bottom:7px}
+.sw b{display:block}
+.sw small{color:var(--text-muted);font-size:.78rem}
+.sw .t{width:48px;height:28px;border:2px solid var(--ink);border-radius:var(--r-full);background:var(--danger-bg);position:relative;flex:none}
+.sw .t::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--card);border:2px solid var(--ink);transition:transform .16s var(--ez)}
+.sw.on .t{background:var(--success)}
+.sw.on .t::after{transform:translateX(20px)}
+
+/* Mini phone preview */
+.mini{border:2px solid var(--ink);border-radius:24px;background:var(--paper);box-shadow:var(--sh);padding:11px;max-width:220px}
+.mini .st{display:flex;justify-content:space-between;font-family:var(--fm);font-size:10px;font-weight:700;margin-bottom:6px}
+.mini .h{font-family:var(--fd);font-weight:800;font-size:1rem;margin-bottom:7px}
+.mini .it{display:flex;align-items:center;gap:7px;padding:7px 9px;border:1.5px solid var(--ink);border-radius:var(--r-sm);background:var(--card);margin-bottom:5px;font-size:.79rem;font-weight:700}
+.mini .it svg{width:16px;height:16px;flex:none}
+.mini .it.off{opacity:.4;background:var(--soft);text-decoration:line-through}
+.mini .it .x{margin-left:auto;font-size:.64rem;color:var(--danger-strong);text-decoration:none;font-weight:700}
+
+/* Bars + spark */
+.bars{display:grid;gap:7px}
+.bl{display:grid;grid-template-columns:118px 1fr 58px;gap:9px;align-items:center;font-size:.85rem}
+.bl .bb{height:16px;border:1.5px solid var(--ink);border-radius:var(--r-full);background:var(--card);overflow:hidden}
+.bl .bb i{display:block;height:100%;background:var(--primary)}
+.bl .vv{font-family:var(--fm);font-weight:700;text-align:right;font-size:.82rem}
+.spark{display:flex;align-items:flex-end;gap:2px;height:22px}
+.spark i{display:block;width:6px;background:var(--primary);border-radius:2px 2px 0 0}
+.days{font-family:var(--fm);font-weight:700}
+.days.w{color:var(--warning-ink)}
+.days.d{color:var(--danger-strong)}
+
+/* Toast */
+#tst{position:fixed;left:50%;bottom:18px;transform:translateX(-50%) translateY(14px);opacity:0;z-index:120;background:var(--ink);color:var(--paper);border:2px solid var(--ink);border-radius:var(--r-md);padding:11px 15px;box-shadow:4px 4px 0 0 var(--accent);font-weight:600;font-size:.88rem;max-width:calc(100vw - 28px);pointer-events:none;transition:opacity .16s,transform .16s var(--ez)}
+#tst.on{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="railtop">
+      <svg class="logo" viewBox="0 0 100 56" fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"><path d="M 38,28 C 44,38 56,40 66,34 L 100,28"/><path d="M 0,28 C 16,28 20,12 32,8 C 44,4 60,6 68,18 C 76,30 70,46 56,50 C 42,54 28,46 28,36 C 28,24 36,16 46,16 C 56,16 64,22 66,28"/></svg>
+      <span class="nm">Admin</span>
+      <span class="season">Dag 8</span>
+    </div>
+    <nav class="nav" id="nav" aria-label="Meny"></nav>
+    <div class="who"><b>Ludvig</b>Superadmin · dag 8 av russetiden</div>
+  </aside>
+  <main class="main">
+    <div class="bar"><h1 id="ttl"></h1><span class="sub" id="sub"></span></div>
+    <div class="view" id="view"></div>
+  </main>
+</div>
+<div id="modal"></div>
+<div id="tst" role="status" aria-live="polite"></div>
+<script>
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const nb=new Intl.NumberFormat('nb-NO');
+const clock=()=>new Date().toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'});
+const esc=(s)=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function fnv(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}return (h>>>0).toString(16).padStart(8,'0');}
+
+const ic=(d,x='')=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" ${x}>${d}</svg>`;
+const I={
+ home:ic('<path d="M4 11l8-7 8 7v9H4z"/><path d="M10 20v-6h4v6"/>'),
+ flag:ic('<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>'),
+ star:ic('<path d="M12 3l2.8 5.8 6.2.9-4.5 4.4 1 6.3L12 17.5 6.5 20.4l1-6.3L3 9.7l6.2-.9z"/>'),
+ grid:ic('<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>'),
+ shield:ic('<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9.5 12l2 2 3.5-4"/>'),
+ chart:ic('<path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/>'),
+ power:ic('<path d="M12 3v9"/><path d="M6.3 7.3a8 8 0 1011.4 0"/>'),
+ book:ic('<path d="M5 4h13a1 1 0 011 1v15H6a1 1 0 01-1-1z"/><path d="M9 8h7M9 12h7"/>'),
+ eye:ic('<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
+ eyeOff:ic('<path d="M3 3l18 18"/><path d="M10.6 5.2A10.9 10.9 0 0112 5c6 0 10 7 10 7a17 17 0 01-3.2 3.9"/><path d="M6.6 6.6A16 16 0 002 12s4 7 10 7a9.6 9.6 0 004.3-1"/><path d="M9.9 9.9a3 3 0 004.2 4.2"/>'),
+ check:ic('<path d="M5 12.5l4.5 4.5L19 7"/>'),
+ x:ic('<path d="M6 6l12 12M18 6L6 18"/>'),
+ img:ic('<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M21 16l-5-5-8 8"/>','class="ph"'),
+ alert:ic('<path d="M12 3l10 18H2z"/><path d="M12 10v4"/><path d="M12 17.5v.5"/>'),
+ lock:ic('<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/>'),
+ back:ic('<path d="M15 6l-6 6 6 6"/>'),
+ plus:ic('<path d="M12 5v14M5 12h14"/>'),
+ pause:ic('<path d="M9 5v14M15 5v14"/>'),
+ snow:ic('<path d="M12 3v18M4.5 7.5l15 9M19.5 7.5l-15 9"/>'),
+ srch:ic('<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>'),
+ down:ic('<path d="M12 4v12"/><path d="M7 12l5 5 5-5"/><path d="M5 20h14"/>'),
+ clock:ic('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+ user:ic('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/>'),
+};
+const KN='<svg class="kn" viewBox="0 0 100 56" fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"><path d="M 38,28 C 44,38 56,40 66,34 L 100,28"/><path d="M 0,28 C 16,28 20,12 32,8 C 44,4 60,6 68,18 C 76,30 70,46 56,50 C 42,54 28,46 28,36 C 28,24 36,16 46,16 C 56,16 64,22 66,28"/></svg>';
+const gl=(d)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const CAT={
+ Generelle:gl('<path d="M3 12h4.5"/><path d="M16.5 12H21"/><path d="M7.5 12c0-4.2 6-4.2 6 0s-6 4.2-6 0z"/><path d="M10.5 12c0-4 6-4 6 0s-6 4-6 0z"/><path d="M9.5 10.2l5 3.6"/>'),
+ Dobbel:'<svg viewBox="0 0 24 24" fill="currentColor"><text x="12" y="17" text-anchor="middle" font-size="13" font-weight="800" font-family="inherit">2x</text></svg>',
+ Rampestrek:gl('<path d="M4 4.2l5.2 2.6c1.8-.9 3.8-.9 5.6 0L20 4.2l-1.8 7c.6 1.2.8 2.4.5 3.7C18 18.4 15 20.5 12 20.5S6 18.4 5.3 14.9c-.3-1.3-.1-2.5.5-3.7z"/><circle cx="9.2" cy="12.2" r=".9" fill="currentColor" stroke="none"/><circle cx="14.8" cy="12.2" r=".9" fill="currentColor" stroke="none"/><path d="M11 15.3l1 .8 1-.8"/>'),
+ Alkohol:gl('<path d="M6.4 8.4h9.4v11.9H6.4z"/><path d="M15.8 10.5h1.8c1.4 0 2.4 1.1 2.4 2.6v2.1c0 1.6-1 2.7-2.4 2.7h-1.8"/><path d="M6.3 8.5c-.9-1.1-.3-2.7 1.2-2.7.3-1.5 2.5-1.7 3.2-.3.7-1.5 2.9-1.3 3.2.3 1.5 0 2.1 1.6 1.7 2.7"/><path d="M8.4 11.2v7.1"/><path d="M11.1 11.2v7.1"/>'),
+ Sex:gl('<circle cx="9" cy="14" r="3.45"/><path d="M9 17.45V21"/><path d="M6.6 19.25h4.8"/><circle cx="15" cy="8.8" r="3.45"/><path d="M17.45 6.35L20.8 3"/><path d="M17.8 3h3v3"/>'),
+};
+const tone=(c)=>(c==='Alkohol'||c==='Sex')?'wa':'pr';
+
+/* ============================ DATA ============================ */
+const S={
+ view:'oversikt', sel:null, modal:null, draft:null, feedTab:'venter', logQ:'', seeAs:null, dataTab:'aktivitet',
+ rapporter:[
+  {id:'R-4471',kind:'Eskalert av knutesjef',reason:'Mulig lovbrudd',school:'Bryne VGS',knute:'Politibilen',russ:'Kaptein Krok',navn:'Mathias H.',by:'Lynet',age:'25 min',ks:'Skjult av knutesjef',note:'Ser ut som de har tuklet med en ekte politibil. Tør ikke ta denne selv.',media:1,hidden:1,hard:1},
+  {id:'R-4468',kind:'Bilde av meg',reason:'Rett til eget bilde',school:'Sandnes VGS',knute:'Bussen',russ:'Tåkefyrsten',navn:'Jonas B.',by:'Elev, ikke russ',age:'2 t',ks:'Ikke behandlet, knutesjef inaktiv',note:'Jeg er i bakgrunnen på bildet og vil ikke være der. Går i 1STA.',media:1,hidden:0,hard:0},
+  {id:'R-4465',kind:'Klage på utestenging',reason:'Klage',school:'St. Svithun VGS',knute:'Rektors kontor',russ:'Snøfnugg',navn:'Ida K.',by:'Snøfnugg',age:'5 t',ks:'Utestengt 7 d av deg 21. mai',note:'Det var ikke jeg som skrev den teksten, noen andre hadde telefonen min.',media:1,hidden:1,hard:0},
+  {id:'R-4460',kind:'Rapportert i nasjonal feed',reason:'Upassende',school:'Hetland VGS',knute:'Konfetti',russ:'Lynet',navn:'Sander V.',by:'3 personer',age:'1 d',ks:'Godkjent lokalt, publisert nasjonalt av deg',note:'Tre rapporter fra tre skoler. Ligger offentlig nå.',media:1,hidden:0,hard:0},
+ ],
+ ferdig:[],
+ noms:[
+  {id:'n1',school:'Sandnes VGS',knute:'Morgenfugl',cat:'Generelle',russ:'Bamsen',p:20,ks:'Tante Sofie'},
+  {id:'n2',school:'Kongsbakken VGS',knute:'Nordlyset',cat:'Generelle',russ:'Isbjørn',p:35,ks:'Frost'},
+  {id:'n3',school:'St. Svithun VGS',knute:'Rektors kontor',cat:'Rampestrek',russ:'Ravnen',p:60,ks:'Pusekatt'},
+  {id:'n4',school:'Godalen VGS',knute:'Skål for Norge',cat:'Alkohol',russ:'Sjefen',p:30,ks:'Bolt',blocked:1},
+  {id:'n5',school:'Nordahl Grieg VGS',knute:'Fløyen',cat:'Generelle',russ:'Regnbyen',p:25,ks:'Paraply'},
+  {id:'n6',school:'Trondheim katedralskole',knute:'Konfetti',cat:'Rampestrek',russ:'Nidaros',p:40,ks:'Munken'},
+ ],
+ live:[
+  {id:'L1',school:'Bryne VGS',knute:'Bussen',cat:'Generelle',russ:'Tante Sofie',p:25,views:'14 200'},
+  {id:'L2',school:'St. Olav VGS',knute:'Trappa',cat:'Generelle',russ:'Loke',p:15,views:'9 840'},
+  {id:'L3',school:'Hetland VGS',knute:'Konfetti',cat:'Rampestrek',russ:'Lynet',p:40,views:'21 500',flagged:1},
+ ],
+ skoler:[
+  {id:'sandnes',n:'Sandnes VGS',russ:340,ks:['Tante Sofie','Ravnen'],ko:41,d:9,akt:[9,8,7,5,3,1,0]},
+  {id:'kongsbakken',n:'Kongsbakken VGS',russ:180,ks:['Frost','Isbjørn'],ko:22,d:5,akt:[6,6,5,4,3,2,1]},
+  {id:'katedral',n:'Stavanger katedralskole',russ:150,ks:[],ko:12,d:null,akt:[2,2,1,1,0,0,0]},
+  {id:'stolav',n:'St. Olav VGS',russ:212,ks:['Loke','Bamsen'],ko:6,d:0,akt:[5,6,7,6,8,7,9]},
+  {id:'svithun',n:'St. Svithun VGS',russ:290,ks:['Pusekatt','Bolt'],ko:9,d:0,akt:[6,7,8,7,9,8,9]},
+  {id:'bryne',n:'Bryne VGS',russ:265,ks:['Lynet'],ko:3,d:0,akt:[4,5,5,6,6,7,7]},
+  {id:'hetland',n:'Hetland VGS',russ:180,ks:['Sabla','Kork'],ko:4,d:1,akt:[3,4,5,5,6,5,6]},
+  {id:'vagen',n:'Vågen VGS',russ:310,ks:['Doktoren','Nøkken'],ko:7,d:0,akt:[7,7,8,8,9,9,9]},
+  {id:'godalen',n:'Godalen VGS',russ:96,ks:['Sjefen'],ko:2,d:2,akt:[2,2,3,3,3,4,4]},
+  {id:'bergeland',n:'Bergeland VGS',russ:205,ks:['Tiger','Mynt'],ko:5,d:1,akt:[4,5,4,6,5,6,6]},
+  {id:'sola',n:'Sola VGS',russ:140,ks:['Flyet'],ko:1,d:0,akt:[3,3,4,4,4,5,5]},
+  {id:'nordahl',n:'Nordahl Grieg VGS',russ:240,ks:['Paraply','Regnbyen'],ko:8,d:1,akt:[5,6,6,7,7,8,8]},
+  {id:'trondheim',n:'Trondheim katedralskole',russ:260,ks:['Munken','Nidaros'],ko:11,d:2,akt:[6,6,7,7,7,8,8]},
+  {id:'randaberg',n:'Randaberg VGS',russ:120,ks:['Fyret'],ko:0,d:1,akt:[2,3,3,3,4,4,4]},
+ ],
+ ks:[
+  {id:'k1',rn:'Tante Sofie',navn:'Emilie R.',skole:'Sandnes VGS',sist:'9 dager',god:412,avv:38,rate:92,sek:41,status:'aktiv',warn:'inaktiv'},
+  {id:'k2',rn:'Ravnen',navn:'Oskar L.',skole:'Sandnes VGS',sist:'9 dager',god:88,avv:2,rate:98,sek:3,status:'aktiv',warn:'blind'},
+  {id:'k3',rn:'Loke',navn:'Mathias N.',skole:'St. Olav VGS',sist:'12 min',god:640,avv:71,rate:90,sek:38,status:'aktiv'},
+  {id:'k4',rn:'Bamsen',navn:'Sigrid A.',skole:'St. Olav VGS',sist:'2 t',god:588,avv:64,rate:90,sek:44,status:'aktiv'},
+  {id:'k5',rn:'Frost',navn:'Nikolai H.',skole:'Kongsbakken VGS',sist:'5 dager',god:120,avv:9,rate:93,sek:29,status:'aktiv',warn:'inaktiv'},
+  {id:'k6',rn:'Isbjørn',navn:'Vilde S.',skole:'Kongsbakken VGS',sist:'5 dager',god:96,avv:11,rate:90,sek:33,status:'aktiv'},
+  {id:'k7',rn:'Lynet',navn:'Sander V.',skole:'Bryne VGS',sist:'40 min',god:301,avv:44,rate:87,sek:52,status:'aktiv'},
+  {id:'k8',rn:'Pusekatt',navn:'Thea M.',skole:'St. Svithun VGS',sist:'1 t',god:455,avv:39,rate:92,sek:36,status:'aktiv'},
+  {id:'k9',rn:'Bolt',navn:'Henrik D.',skole:'St. Svithun VGS',sist:'3 t',god:390,avv:52,rate:88,sek:47,status:'aktiv'},
+  {id:'k10',rn:'Doktoren',navn:'Amalie T.',skole:'Vågen VGS',sist:'25 min',god:512,avv:60,rate:90,sek:40,status:'aktiv'},
+ ],
+ brytere:{
+  fn:[{k:'nasjonal',n:'Nasjonal feed',on:1,d:'Den offentlige feeden'},{k:'video',n:'Videoopplasting',on:1,d:'Maks 30 sek, 720p'},{k:'nom',n:'Nominasjon fra knutesjefer',on:1,d:'Knutesjefer kan sende inn til nasjonal feed'},{k:'nyeknuter',n:'Knutesjefer kan lage knuter',on:1,d:'Lokale knuter i Knuteboka'}],
+  cat:[{k:'Generelle',n:'Generelle',on:1,d:'Alle skoler'},{k:'Dobbel',n:'Dobbel',on:1,d:'Alle skoler'},{k:'Rampestrek',n:'Rampestrek',on:1,d:'Alle skoler'},{k:'Alkohol',n:'Alkohol',on:1,d:'Aldri nasjonal feed uansett'},{k:'Sex',n:'Sex',on:1,d:'Aldri media, aldri nasjonal feed'}],
+  kn:[{k:'trappa',n:'Trappa',on:1,d:'15 P · Generelle · alle skoler'},{k:'politibil',n:'Politibilen',on:0,d:'80 P · Rampestrek · stoppet 22. mai'}],
+  sk:[{id:'sandnes',n:'Sandnes VGS',on:1,d:'340 russ'}],
+ },
+ logg:[],
+};
+let logId=9840;
+function LOG(who,act,mal){
+ const prev=S.logg.length?S.logg[0].h:'00000000';
+ const t=clock(), id='A-'+(logId++);
+ S.logg.unshift({id,t,who,act,mal,h:fnv(prev+t+who+act+mal),prev});
+}
+[['08:04','Loke (knutesjef)','Godkjente innsending','Morgenfugl · St. Olav VGS'],
+ ['08:12','Brage','Så på skole','Sandnes VGS'],
+ ['08:31','System','Rapport mottatt','R-4468 · Bilde av meg · Sandnes VGS'],
+ ['09:02','Ludvig','Publiserte i nasjonal feed','Bussen · Bryne VGS'],
+ ['09:15','Linus','Så på skole','Kongsbakken VGS'],
+ ['09:40','Ludvig','Stoppet knute','Politibilen · nasjonalt · fysisk risiko']].forEach(([t,who,act,mal])=>{
+ const prev=S.logg.length?S.logg[0].h:'00000000';
+ S.logg.unshift({id:'A-'+(logId++),t,who,act,mal,h:fnv(prev+t+who+act+mal),prev});
+});
+
+/* ============================ HELPERS ============================ */
+let tt;
+function toast(m){const e=$('#tst');e.textContent=m;e.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('on'),3000);}
+const NAV=[['oversikt','Oversikt',I.home],['rapporter','Rapporter',I.flag],['feed','Nasjonal feed',I.star],['skoler','Skoler',I.grid],['knutesjefer','Knutesjefer',I.user],['data','Data',I.chart],['brytere','Brytere',I.power],['logg','Logg',I.shield]];
+const deadSchools=()=>S.skoler.filter(s=>s.d===null||s.d>=4);
+const pendingNoms=()=>S.noms.filter(n=>!n.done&&!n.blocked);
+function medias(o){return `<div class="med" style="min-height:${o.h||150}px">${I.img}${o.tag?`<span class="chip mu tg">${o.tag}</span>`:''}${o.veil?`<div class="veil">${o.icon||I.eyeOff}<span>${o.veil}</span></div>`:''}</div>`;}
+function dayCls(d){return d===null?'d':d>=4?'d':d>=2?'w':'';}
+function dayTxt(d){return d===null?'ingen knutesjef':d===0?'i dag':d===1?'1 dag':d+' dager';}
+
+/* ============================ VIEWS ============================ */
+const META={
+ oversikt:['Oversikt','Du sjekker to ganger om dagen. Dette er det som venter.'],
+ rapporter:['Rapporter','Bare det knutesjefene ikke skal ta selv. Alt annet er ferdig på skolen.'],
+ feed:['Nasjonal feed','Det eneste innholdet som er offentlig. Din godkjenning.'],
+ skoler:['Skoler','Sortert på hvor lenge det er siden noen modererte. Ikke alfabetisk.'],
+ knutesjefer:['Knutesjefer','Gi tilgang, suspender tilgang, se hvem som faktisk jobber.'],
+ data:['Data','Aktivitet, knuter som gjøres, sponsor. Aggregert.'],
+ brytere:['Brytere','Skru av funksjon, kategori, enkeltknute eller hel skole. Uten app-oppdatering.'],
+ logg:['Logg','Skrives alltid, leses ved behov. Søk, ikke bla.'],
+};
+
+function vOversikt(){
+ const dead=deadSchools(), rap=S.rapporter.length, nom=pendingNoms().length;
+ const hard=S.rapporter.filter(r=>r.hard).length;
+ return `
+ ${hard?`<div class="banner da">${I.alert}<b>${hard} sak er merket mulig lovbrudd.</b><span>Bryne VGS · skjult av knutesjef</span><button class="btn sm" data-go="rapporter">Åpne</button></div>`
+ :`<div class="banner ok">${I.check}<b>Ingenting haster.</b><span>Ingen saker merket mulig lovbrudd.</span></div>`}
+ <div class="grid g3" style="margin-bottom:18px">
+  <button class="stat tap ${rap?'hot':''}" data-go="rapporter"><div class="v">${rap}</div><div class="l">Rapporter til deg</div></button>
+  <button class="stat tap" data-go="feed"><div class="v">${nom}</div><div class="l">Venter i nasjonal feed</div></button>
+  <button class="stat tap ${dead.length?'bad':''}" data-go="skoler"><div class="v">${dead.length}</div><div class="l">Skoler uten moderering</div></button>
+ </div>
+
+ <div class="sec">Skoler som står stille</div>
+ <p class="mut" style="font-size:.86rem;margin-bottom:10px">Dette er den egentlige risikoen ved 100 skoler. Ikke stygt innhold, men en kø som ingen tømmer. Da slutter russen å bruke appen.</p>
+ <div class="th" style="--c:1.4fr 90px 1fr 110px"><span>Skole</span><span>Kø</span><span>Sist moderert</span><span></span></div>
+ ${dead.map(s=>`<div class="r" style="--c:1.4fr 90px 1fr 110px">
+   <div class="c"><span class="t">${s.n}</span><div class="s">${nb.format(s.russ)} russ</div></div>
+   <div class="c"><b class="k">Kø</b><span class="mono" style="font-weight:700">${s.ko}</span></div>
+   <div class="c"><b class="k">Sist moderert</b><span class="days ${dayCls(s.d)}">${dayTxt(s.d)}</span></div>
+   <div class="c"><button class="btn sm" data-go="knutesjefer">Knutesjefer</button></div>
+ </div>`).join('')}
+
+ <div class="sec">De andre superadminene</div>
+ <div class="grid g3">
+  <div class="card flat"><b>Brage</b><div class="s mut" style="font-size:.82rem">Sist inne 08:12 · så på Sandnes VGS</div></div>
+  <div class="card flat"><b>Linus</b><div class="s mut" style="font-size:.82rem">Sist inne 09:15 · så på Kongsbakken VGS</div></div>
+  <div class="card flat"><b>Ludvig</b><div class="s mut" style="font-size:.82rem">Du. Sist handling 09:40</div></div>
+ </div>`;
+}
+
+function vRapporter(){
+ if(S.sel){
+  const r=S.rapporter.find(x=>x.id===S.sel);
+  if(!r) {S.sel=null; return vRapporter();}
+  return `<button class="btn gh sm" data-act="back" style="margin-bottom:10px">${I.back} Alle rapporter</button>
+  <div class="dp">
+   <div class="hd"><h3>${r.kind}</h3>${r.hard?`<span class="chip da">${I.alert} Mulig lovbrudd</span>`:''}${r.hidden?'<span class="chip mu">Skjult nå</span>':'<span class="chip wa">Synlig nå</span>'}<span class="chip mu mono">${r.id}</span></div>
+   <div class="split">
+    <div>${medias({h:180,veil:r.hidden?'Skjult':null})}</div>
+    <div>
+     <dl class="dl">
+      <dt>Knute</dt><dd>${r.knute}</dd>
+      <dt>Innsender</dt><dd>${r.russ} <span class="mut">(${r.navn})</span></dd>
+      <dt>Skole</dt><dd>${r.school}</dd>
+      <dt>Meldt av</dt><dd>${r.by} · ${r.age} siden</dd>
+      <dt>Knutesjef</dt><dd>${r.ks}</dd>
+     </dl>
+     <div class="quote"><b>Hva som ble meldt</b>${r.note}</div>
+    </div>
+   </div>
+   <div class="row-btns" style="margin-top:4px">
+    <button class="btn" data-act="rap" data-v="La stå">La stå</button>
+    <button class="btn pri" data-act="rap" data-v="Fjernet">Fjern innholdet</button>
+    <button class="btn dan" data-act="ban-open">Fjern og utesteng</button>
+    ${r.hard?`<button class="btn dan" data-act="freeze">${I.snow} Frys bevis</button>`:''}
+   </div>
+   <p class="mut" style="font-size:.8rem;margin-top:9px">Fjern sletter også fila hos Bunny, ikke bare raden i basen. Den som blir rammet får begrunnelsen i appen.</p>
+  </div>`;
+ }
+ const list=S.rapporter;
+ return `${list.length?`<div class="th" style="--c:1.1fr 1.4fr 1fr 90px 90px"><span>Type</span><span>Innhold</span><span>Skole</span><span>Alder</span><span></span></div>
+ ${list.map(r=>`<div class="r" style="--c:1.1fr 1.4fr 1fr 90px 90px">
+  <div class="c"><b class="k">Type</b><span class="t">${r.kind}</span>${r.hard?'<br><span class="chip da" style="margin-top:4px">Mulig lovbrudd</span>':''}</div>
+  <div class="c"><b class="k">Innhold</b>${r.knute} <span class="mut">· ${r.russ}</span><div class="s">${r.reason}</div></div>
+  <div class="c"><b class="k">Skole</b>${r.school}</div>
+  <div class="c"><b class="k">Alder</b><span class="mono">${r.age}</span></div>
+  <div class="c"><button class="btn sm" data-act="open" data-id="${r.id}">Åpne</button></div>
+ </div>`).join('')}`:`<div class="empty">${KN}<h4>Ingen rapporter til deg</h4><p>Knutesjefene har tatt resten på egen skole.</p></div>`}
+ ${S.ferdig.length?`<div class="sec">Ferdig i dag</div>${S.ferdig.map(r=>`<div class="r off" style="--c:1.1fr 1.4fr 1fr 1fr"><div class="c"><span class="t">${r.kind}</span></div><div class="c">${r.knute}</div><div class="c">${r.school}</div><div class="c"><span class="chip ok">${r.utfall}</span></div></div>`).join('')}`:''}`;
+}
+
+function vFeed(){
+ const on=S.brytere.fn.find(f=>f.k==='nasjonal').on;
+ const venter=S.noms.filter(n=>!n.done);
+ const body = S.feedTab==='venter'
+ ? (venter.length?`<div class="grid g3">${venter.map(n=>`<div class="card">
+    ${medias({h:120,veil:n.blocked?'Sperret av kategori':null,icon:I.lock})}
+    <h4 style="font-size:1.05rem;margin:9px 0 3px">${n.knute}</h4>
+    <div class="s mut" style="font-size:.82rem">${n.school} · ${n.russ}</div>
+    <div class="chips" style="margin:7px 0"><span class="chip ${tone(n.cat)}">${CAT[n.cat]} ${n.cat}</span><span class="chip ac mono">+${n.p} P</span></div>
+    ${n.blocked
+      ? `<p class="mut" style="font-size:.79rem">${n.cat} går aldri nasjonalt. ${n.ks} fikk beskjed automatisk.</p>`
+      : `<div class="row-btns"><button class="btn sm" data-act="nom" data-id="${n.id}" data-v="Avslått" ${on?'':'disabled'}>Avslå</button><button class="btn sm pri" data-act="nom" data-id="${n.id}" data-v="Publisert" ${on?'':'disabled'}>Publiser</button></div>`}
+   </div>`).join('')}</div>`:`<div class="empty">${KN}<h4>Køen er tom</h4><p>Alt som er nominert er behandlet.</p></div>`)
+ : `<div class="grid g3">${S.live.map(l=>`<div class="card">
+    ${medias({h:120,tag:'Offentlig'})}
+    <h4 style="font-size:1.05rem;margin:9px 0 3px">${l.knute}</h4>
+    <div class="s mut" style="font-size:.82rem">${l.school} · ${l.russ}</div>
+    <div class="chips" style="margin:7px 0"><span class="chip ${tone(l.cat)}">${CAT[l.cat]} ${l.cat}</span><span class="chip mu mono">${l.views} visninger</span>${l.flagged?'<span class="chip da">3 rapporter</span>':''}</div>
+    <button class="btn sm dan full" data-act="pull" data-id="${l.id}">Ta ned</button>
+   </div>`).join('')}</div>`;
+ return `
+ ${on?'':`<div class="banner da">${I.power}<b>Nasjonal feed er skrudd av.</b><span>Ingenting publiseres.</span><button class="btn sm" data-go="brytere">Brytere</button></div>`}
+ <div class="seg" style="max-width:340px"><button class="${S.feedTab==='venter'?'on':''}" data-act="ftab" data-v="venter">Venter (${venter.filter(n=>!n.blocked).length})</button><button class="${S.feedTab==='live'?'on':''}" data-act="ftab" data-v="live">Publisert (${S.live.length})</button></div>
+ ${body}`;
+}
+
+function spark(a){const m=Math.max(...a,1);return `<div class="spark">${a.map(v=>`<i style="height:${Math.max(3,Math.round(v/m*22))}px"></i>`).join('')}</div>`;}
+function vSkoler(){
+ if(S.seeAs){
+  const s=S.skoler.find(x=>x.id===S.seeAs);
+  return `<div class="banner da">${I.eye}<b>Du ser ${s.n} som en vanlig russ.</b><span>Kun lesing. Ingen får varsel. Oppslaget står i loggen.</span><button class="btn sm" data-act="seeas-end">Lukk</button></div>
+  <div class="grid g3">${[['Bamsen','Morgenfugl',20,'i dag'],['Tante Sofie','Bussen',25,'i dag'],['Ravnen','Konfetti',40,'i går'],['Lynet','Dobbelt opp',50,'i går'],['Frost','Trappa',15,'i går'],['Isbjørn','Bibliotekaren',30,'2 dager']].map(([r,k,p,t])=>`<div class="card">${medias({h:110})}<h4 style="font-size:1rem;margin:8px 0 3px">${k}</h4><div class="s mut" style="font-size:.8rem">${r} · ${t}</div><div class="chips" style="margin-top:6px"><span class="chip ac mono">+${p} P</span></div></div>`).join('')}</div>
+  <p class="mut" style="font-size:.83rem;margin-top:12px">Du ser det russen ser. Skjult innhold og private innsendinger vises ikke her, de åpnes bare fra en konkret rapport.</p>`;
+ }
+ const sorted=[...S.skoler].sort((a,b)=>(b.d===null?99:b.d)-(a.d===null?99:a.d));
+ return `<div class="th" style="--c:1.5fr 70px 1.1fr 60px 110px 80px 90px"><span>Skole</span><span>Russ</span><span>Knutesjefer</span><span>Kø</span><span>Sist moderert</span><span>7 dager</span><span></span></div>
+ ${sorted.map(s=>`<div class="r" style="--c:1.5fr 70px 1.1fr 60px 110px 80px 90px">
+  <div class="c"><span class="t">${s.n}</span></div>
+  <div class="c"><b class="k">Russ</b><span class="mono">${nb.format(s.russ)}</span></div>
+  <div class="c"><b class="k">Knutesjefer</b>${s.ks.length?s.ks.join(', '):'<span class="chip da">Ingen</span>'}</div>
+  <div class="c"><b class="k">Kø</b><span class="mono" style="font-weight:700">${s.ko}</span></div>
+  <div class="c"><b class="k">Sist moderert</b><span class="days ${dayCls(s.d)}">${dayTxt(s.d)}</span></div>
+  <div class="c"><b class="k">7 dager</b>${spark(s.akt)}</div>
+  <div class="c"><button class="btn sm" data-act="seeas" data-id="${s.id}">${I.eye} Se som</button></div>
+ </div>`).join('')}`;
+}
+
+function vKnutesjefer(){
+ const warn={inaktiv:['wa','Ikke logget inn på 5 dager eller mer'],blind:['da','Godkjenner nesten alt, nesten uten å se']};
+ return `<div class="row-btns" style="margin-bottom:14px"><button class="btn acc" data-act="ny-ks">${I.plus} Ny knutesjef</button></div>
+ <div class="th" style="--c:1.2fr 1.2fr 90px 130px 120px 150px"><span>Knutesjef</span><span>Skole</span><span>Sist inne</span><span>Godkjent / avvist</span><span>Snitt tid per sak</span><span></span></div>
+ ${S.ks.map(k=>{
+  const w=k.warn?warn[k.warn]:null;
+  return `<div class="r ${k.status==='suspendert'?'off':''}" style="--c:1.2fr 1.2fr 90px 130px 120px 150px">
+  <div class="c"><span class="t">${k.rn}</span><div class="s">${k.navn}</div>${k.status==='suspendert'?'<span class="chip da" style="margin-top:4px">Suspendert</span>':''}</div>
+  <div class="c"><b class="k">Skole</b>${k.skole}</div>
+  <div class="c"><b class="k">Sist inne</b><span class="mono ${/dager/.test(k.sist)&&parseInt(k.sist)>=4?'days d':''}">${k.sist}</span></div>
+  <div class="c"><b class="k">Godkjent / avvist</b><span class="mono">${k.god} / ${k.avv}</span><div class="s">${k.rate} % godkjent</div></div>
+  <div class="c"><b class="k">Snitt tid</b><span class="mono">${k.sek} sek</span></div>
+  <div class="c">${w?`<span class="chip ${w[0]}" title="${w[1]}">${I.alert} ${k.warn==='blind'?'Godkjenner blindt':'Inaktiv'}</span><br>`:''}
+   ${k.status==='suspendert'?`<button class="btn sm" data-act="ks-on" data-id="${k.id}">Gi tilgang</button>`:`<button class="btn sm gh" data-act="ks-off" data-id="${k.id}">${I.pause} Suspender</button>`}</div>
+ </div>`;}).join('')}
+ <p class="mut" style="font-size:.83rem;margin-top:12px">«Godkjenner blindt» er ikke en algoritme. Det er to tall du allerede har: godkjenningsrate og sekunder per sak. 98 % på 3 sekunder betyr at noen trykker gjennom uten å se.</p>`;
+}
+
+function vData(){
+ const bars=[['Morgenfugl',18240],['Bussen',15900],['Konfetti',12410],['Trappa',11020],['Dobbelt opp',8760],['Bibliotekaren',6300]];
+ const mx=bars[0][1];
+ const spons=[['Hekkan-knuten',1240,38],['Ouch-knuten',760,22]];
+ const body=S.dataTab==='aktivitet'?`
+  <div class="grid g3" style="margin-bottom:16px">
+   <div class="stat"><div class="v">4 812</div><div class="l">Aktive i dag</div></div>
+   <div class="stat"><div class="v">2 940</div><div class="l">Innsendinger i dag</div></div>
+   <div class="stat"><div class="v">104</div><div class="l">Skoler live</div></div>
+  </div>
+  <div class="grid g3" style="margin-bottom:18px">
+   <div class="stat"><div class="v">14 903</div><div class="l">Russ totalt</div></div>
+   <div class="stat"><div class="v">91 %</div><div class="l">Har sendt inn minst én</div></div>
+   <div class="stat"><div class="v">96 %</div><div class="l">Godkjent av knutesjefer</div></div>
+  </div>
+  <div class="sec">Mest gjorte knuter denne sesongen</div>
+  <div class="card flat"><div class="bars">${bars.map(([n,v])=>`<div class="bl"><span>${n}</span><div class="bb"><i style="width:${Math.round(v/mx*100)}%"></i></div><span class="vv">${nb.format(v)}</span></div>`).join('')}</div></div>`
+ :`
+  <div class="banner wa">${I.lock}<span>Sponsortall er alltid aggregert. Ingen navn, ingen bilder, ingen skoler med så få russ at noen kan gjenkjennes.</span></div>
+  ${spons.map(([n,f,sk])=>`<div class="card" style="margin-bottom:10px">
+   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h4 style="font-size:1.1rem">${n}</h4><span class="chip ok">Sesongplassering</span><span class="chip mu">15. mai til sommerferie</span></div>
+   <div class="grid g3" style="margin-top:11px">
+    <div class="stat flat" style="box-shadow:none"><div class="v">${nb.format(f)}</div><div class="l">Fullført</div></div>
+    <div class="stat flat" style="box-shadow:none"><div class="v">${sk}</div><div class="l">Skoler</div></div>
+    <div class="stat flat" style="box-shadow:none"><div class="v">${Math.round(f/sk)}</div><div class="l">Snitt per skole</div></div>
+   </div>
+   <button class="btn sm" style="margin-top:11px" data-act="eksport" data-n="${n}">${I.down} Eksporter rapport</button>
+  </div>`).join('')}`;
+ return `<div class="seg" style="max-width:340px"><button class="${S.dataTab==='aktivitet'?'on':''}" data-act="dtab" data-v="aktivitet">Aktivitet</button><button class="${S.dataTab==='sponsor'?'on':''}" data-act="dtab" data-v="sponsor">Sponsor</button></div>${body}`;
+}
+
+function mini(){
+ const nat=S.brytere.fn.find(f=>f.k==='nasjonal').on;
+ const sand=S.brytere.sk[0].on;
+ return `<div class="mini"><div class="st"><span>09:41</span><span>5G</span></div><div class="h">Knuter</div>
+ ${S.brytere.cat.map(c=>`<div class="it ${c.on?'':'off'}">${CAT[c.k]} ${c.k}${c.on?'':'<span class="x">Skjult</span>'}</div>`).join('')}
+ ${S.brytere.kn.map(k=>`<div class="it ${k.on?'':'off'}" style="background:var(--soft)">${I.book} ${k.n}${k.on?'':'<span class="x">Stoppet</span>'}</div>`).join('')}
+ <div class="it ${nat?'':'off'}" style="border-style:dashed">${I.star} Nasjonal feed${nat?'':'<span class="x">Av</span>'}</div>
+ ${sand?'':`<div class="quote" style="margin:7px 0 0;font-size:.75rem"><b>Sandnes VGS ser</b>Knuteloop er pauset for skolen din. Poengene er trygge.</div>`}
+ </div>`;
+}
+function swRow(g,f){return `<button class="sw ${f.on?'on':''}" data-act="bryter" data-g="${g}" data-k="${f.k||f.id}" role="switch" aria-checked="${!!f.on}"><span><b>${f.n}</b><small>${f.d}</small></span><span class="t"></span></button>`;}
+function vBrytere(){
+ return `<div class="bry">
+ <div style="display:grid;gap:0">
+  <div class="sec">Funksjoner</div>${S.brytere.fn.map(f=>swRow('fn',f)).join('')}
+  <div class="sec">Kategorier, nasjonalt</div>${S.brytere.cat.map(f=>swRow('cat',f)).join('')}
+  <div class="sec">Enkeltknuter</div><input class="in" placeholder="Søk etter knute" aria-label="Søk etter knute">${S.brytere.kn.map(f=>swRow('kn',f)).join('')}
+  <div class="sec">Hel skole</div>${S.brytere.sk.map(f=>swRow('sk',f)).join('')}
+ </div>
+ <div><div class="sec">Slik ser russen det</div>${mini()}
+  <div class="banner wa" style="margin-top:12px">${I.shield}<span>Får ikke appen tak i bryterne, er Alkohol og Sex av. Sikker som standard.</span></div>
+ </div></div>`;
+}
+
+function vLogg(){
+ const q=S.logQ.toLowerCase();
+ const rows=q?S.logg.filter(r=>(r.who+r.act+r.mal+r.id).toLowerCase().includes(q)):S.logg.slice(0,8);
+ return `<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+  <input class="in" style="flex:1;min-width:190px;margin:0" id="lq" placeholder="Søk på person, skole eller sak" value="${esc(S.logQ)}" aria-label="Søk i loggen">
+  <button class="btn" data-act="eksport-logg">${I.down} Eksporter</button>
+ </div>
+ <p class="mut" style="font-size:.83rem;margin-bottom:12px">${q?`${rows.length} treff.`:'Viser de siste 8. Loggen er ikke ment å leses fra toppen, den er ment å søkes i når noen spør.'}</p>
+ ${rows.map(r=>`<div class="r" style="--c:70px 100px 1.1fr 1.5fr 120px">
+  <div class="c"><b class="k">Tid</b><span class="mono">${r.t}</span></div>
+  <div class="c"><b class="k">Sak</b><span class="mono" style="font-size:.78rem">${r.id}</span></div>
+  <div class="c"><b class="k">Hvem</b><span class="t">${r.who}</span></div>
+  <div class="c"><b class="k">Hva</b>${r.act}<div class="s">${r.mal}</div></div>
+  <div class="c"><b class="k">Kjede</b><span class="mono mut" style="font-size:.72rem">${r.h}</span></div>
+ </div>`).join('')||`<div class="empty">${KN}<h4>Ingen treff</h4></div>`}`;
+}
+
+const VIEWS={oversikt:vOversikt,rapporter:vRapporter,feed:vFeed,skoler:vSkoler,knutesjefer:vKnutesjefer,data:vData,brytere:vBrytere,logg:vLogg};
+function render(){
+ const counts={rapporter:S.rapporter.length,feed:pendingNoms().length,skoler:deadSchools().length};
+ $('#nav').innerHTML=NAV.map(([k,l,i])=>`<button class="nv ${S.view===k?'on':''}" data-go="${k}">${i}<span>${l}</span>${counts[k]?`<span class="n">${counts[k]}</span>`:''}</button>`).join('');
+ $('#ttl').textContent=META[S.view][0];
+ $('#sub').textContent=META[S.view][1];
+ $('#view').innerHTML=VIEWS[S.view]();
+ renderModal();
+}
+
+/* ============================ MODALS ============================ */
+const BAN=[[24,'24 timer'],[168,'7 dager'],[-1,'Permanent']];
+const GRUNN=['Trakassering','Upassende innhold','Rett til eget bilde','Gjentatt regelbrudd','Annet'];
+function renderModal(){
+ const m=$('#modal');
+ if(!S.modal){m.innerHTML='';return;}
+ if(S.modal==='ban'){
+  const r=S.rapporter.find(x=>x.id===S.sel), d=S.draft;
+  const dur=BAN.find(b=>b[0]===d.dur)[1];
+  m.innerHTML=`<div class="mask" data-act="lukk"><div class="mod">
+   <h3>Utesteng ${r.russ}</h3><p>Innholdet fjernes samtidig. ${r.navn}, ${r.school}.</p>
+   <div class="lb">Hvor lenge</div>
+   <div class="seg">${BAN.map(([v,l])=>`<button class="${d.dur===v?'on':''}" data-act="ban-dur" data-v="${v}">${l}</button>`).join('')}</div>
+   <div class="lb">Grunn</div>
+   ${GRUNN.map(g=>`<button class="opt ${d.grunn===g?'on':''}" data-act="ban-grunn" data-v="${g}"><span class="dot"></span><span>${g}</span></button>`).join('')}
+   <div class="quote" style="margin-top:11px"><b>Dette får ${r.russ} se i appen</b>Innlegget ditt er fjernet, og du er utestengt ${dur.toLowerCase()}. Grunn: ${d.grunn.toLowerCase()}. Poengene dine er trygge. Du kan klage på avgjørelsen.</div>
+   <div class="row-btns"><button class="btn gh" data-act="lukk">Avbryt</button><button class="btn dan" style="flex:1" data-act="ban-do">Fjern og utesteng</button></div>
+  </div></div>`;
+ }
+ if(S.modal==='ny-ks'){
+  const d=S.draft;
+  const ledige=S.skoler.filter(s=>s.ks.length<2);
+  m.innerHTML=`<div class="mask" data-act="lukk"><div class="mod">
+   <h3>Ny knutesjef</h3><p>Personen får knutesjef-tilgang på én skole. Rollen varer sesongen ut.</p>
+   <div class="lb">Skole</div>
+   <select class="in" data-in="skole">${ledige.map(s=>`<option value="${s.id}" ${d.skole===s.id?'selected':''}>${s.n} (${s.ks.length} av 2)</option>`).join('')}</select>
+   <div class="lb">Navn</div><input class="in" data-in="navn" value="${esc(d.navn)}" placeholder="Fornavn og etternavn">
+   <div class="lb">E-post</div><input class="in" data-in="epost" value="${esc(d.epost)}" placeholder="navn@skole.no">
+   <div class="quote"><b>Før tilgangen aktiveres</b>Personen må godta ansvaret for moderering på sin skole i appen. Godkjenningen lagres med tidspunkt. Uten den er tilgangen ikke aktiv.</div>
+   <div class="row-btns"><button class="btn gh" data-act="lukk">Avbryt</button><button class="btn pri" style="flex:1" data-act="ks-ny-do" ${d.navn.trim()?'':'disabled'}>Send invitasjon</button></div>
+  </div></div>`;
+ }
+ if(S.modal==='suspend'){
+  const k=S.ks.find(x=>x.id===S.draft.id);
+  const skole=S.skoler.find(s=>s.n===k.skole);
+  const alene=skole.ks.length<=1;
+  m.innerHTML=`<div class="mask" data-act="lukk"><div class="mod">
+   <h3>Suspender ${k.rn}</h3><p>${k.navn}, ${k.skole}. Tilgangen stenges umiddelbart.</p>
+   ${alene?`<div class="banner da" style="margin-bottom:12px">${I.alert}<span>Dette er den eneste knutesjefen på skolen. Køen på ${skole.ko} saker blir stående til noen andre får tilgang.</span></div>`:''}
+   <div class="quote"><b>Du tar praten selv</b>Systemet varsler ikke russestyret. Du ringer dem.</div>
+   <div class="row-btns"><button class="btn gh" data-act="lukk">Avbryt</button><button class="btn dan" style="flex:1" data-act="suspend-do">Suspender tilgang</button></div>
+  </div></div>`;
+ }
+ if(S.modal==='freeze'){
+  const r=S.rapporter.find(x=>x.id===S.sel);
+  m.innerHTML=`<div class="mask" data-act="lukk"><div class="mod">
+   <h3>Frys bevis</h3><p>Sak ${r.id}, ${r.school}.</p>
+   <div class="quote"><b>Dette skjer</b>Media, metadata og hele loggsporet låses mot sletting. Innholdet forblir skjult for alle. Du får en fil du kan ta med til politiet eller advokat.</div>
+   <div class="quote"><b>Dette skjer ikke</b>Ingen melding sendes automatisk noe sted. Politianmeldelse gjør du selv.</div>
+   <div class="row-btns"><button class="btn gh" data-act="lukk">Avbryt</button><button class="btn dan" style="flex:1" data-act="freeze-do">${I.snow} Frys og last ned</button></div>
+  </div></div>`;
+ }
+}
+
+/* ============================ EVENTS ============================ */
+document.addEventListener('input',(e)=>{
+ if(e.target.id==='lq'){S.logQ=e.target.value;const p=e.target.selectionStart;render();const n=$('#lq');if(n){n.focus();n.setSelectionRange(p,p);}return;}
+ const k=e.target.dataset.in; if(k&&S.draft){S.draft[k]=e.target.value; if(k==='navn')renderModal();}
+});
+document.addEventListener('keydown',(e)=>{if(e.key==='Escape'&&S.modal){S.modal=null;S.draft=null;renderModal();}});
+document.addEventListener('click',(e)=>{
+ const go=e.target.closest('[data-go]');
+ if(go){S.view=go.dataset.go;S.sel=null;S.seeAs=null;window.scrollTo({top:0});render();return;}
+ const el=e.target.closest('[data-act]'); if(!el) return;
+ const a=el.dataset.act, d=el.dataset;
+ if(a==='lukk'&&e.target!==el) return;
+ switch(a){
+  case 'back': S.sel=null; render(); break;
+  case 'open': S.sel=d.id; render(); break;
+  case 'lukk': S.modal=null; S.draft=null; renderModal(); break;
+
+  case 'rap':{
+   const r=S.rapporter.find(x=>x.id===S.sel);
+   S.rapporter=S.rapporter.filter(x=>x.id!==S.sel);
+   S.ferdig.unshift({...r,utfall:d.v});
+   if(d.v==='Fjernet'){LOG('Ludvig','Fjernet innhold',`${r.id} · ${r.knute} · ${r.school} · media slettet`);}
+   else LOG('Ludvig','Lot innhold stå',`${r.id} · ${r.knute} · ${r.school}`);
+   S.sel=null; render(); toast(d.v==='Fjernet'?'Fjernet. Media slettet hos Bunny, begrunnelse sendt.':'Lot stå. Den som meldte får svar.');
+   break;}
+  case 'ban-open': S.draft={dur:168,grunn:'Trakassering'}; S.modal='ban'; renderModal(); break;
+  case 'ban-dur': S.draft.dur=+d.v; renderModal(); break;
+  case 'ban-grunn': S.draft.grunn=d.v; renderModal(); break;
+  case 'ban-do':{
+   const r=S.rapporter.find(x=>x.id===S.sel), dur=BAN.find(b=>b[0]===S.draft.dur)[1];
+   S.rapporter=S.rapporter.filter(x=>x.id!==S.sel);
+   S.ferdig.unshift({...r,utfall:'Utestengt '+dur.toLowerCase()});
+   LOG('Ludvig',`Utestengte ${r.russ}`,`${dur} · ${S.draft.grunn} · ${r.school} · ${r.id}`);
+   LOG('System','Begrunnelse sendt',`${r.russ} · ${r.id}`);
+   S.modal=null;S.draft=null;S.sel=null;render();toast(`${r.russ} er utestengt ${dur.toLowerCase()} og har fått begrunnelsen.`);
+   break;}
+  case 'freeze': S.modal='freeze'; renderModal(); break;
+  case 'freeze-do':{
+   const r=S.rapporter.find(x=>x.id===S.sel);
+   LOG('Ludvig','Frøs bevis',`${r.id} · ${r.school} · media låst mot sletting`);
+   S.modal=null;render();toast('Bevis frosset. Filen er lastet ned.');
+   break;}
+
+  case 'ftab': S.feedTab=d.v; render(); break;
+  case 'nom':{
+   const n=S.noms.find(x=>x.id===d.id); n.done=d.v;
+   if(d.v==='Publisert'){S.live.unshift({id:'L'+Date.now(),school:n.school,knute:n.knute,cat:n.cat,russ:n.russ,p:n.p,views:'0'});}
+   LOG('Ludvig',d.v==='Publisert'?'Publiserte i nasjonal feed':'Avslo fra nasjonal feed',`${n.knute} · ${n.school}`);
+   render(); toast(d.v==='Publisert'?`«${n.knute}» er offentlig nå.`:`Avslått. ${n.ks} får begrunnelsen.`);
+   break;}
+  case 'pull':{
+   const l=S.live.find(x=>x.id===d.id); S.live=S.live.filter(x=>x.id!==d.id);
+   LOG('Ludvig','Tok ned fra nasjonal feed',`${l.knute} · ${l.school}`);
+   render(); toast(`«${l.knute}» er tatt ned. Ligger fortsatt på skolen.`);
+   break;}
+
+  case 'seeas':{
+   const s=S.skoler.find(x=>x.id===d.id); S.seeAs=d.id;
+   LOG('Ludvig','Så på skole',`${s.n} · kun lesing`);
+   render(); break;}
+  case 'seeas-end': S.seeAs=null; render(); break;
+
+  case 'ny-ks': S.draft={skole:S.skoler.find(s=>s.ks.length<2).id,navn:'',epost:''}; S.modal='ny-ks'; renderModal(); break;
+  case 'ks-ny-do':{
+   const s=S.skoler.find(x=>x.id===S.draft.skole);
+   s.ks.push(S.draft.navn.split(' ')[0]);
+   S.ks.push({id:'k'+Date.now(),rn:'(ikke valgt)',navn:S.draft.navn,skole:s.n,sist:'aldri',god:0,avv:0,rate:0,sek:0,status:'aktiv'});
+   LOG('Ludvig','Inviterte knutesjef',`${S.draft.navn} · ${s.n}`);
+   S.modal=null;S.draft=null;S.view='knutesjefer';render();toast('Invitasjon sendt. Tilgangen aktiveres når personen godtar ansvaret.');
+   break;}
+  case 'ks-off': S.draft={id:d.id}; S.modal='suspend'; renderModal(); break;
+  case 'suspend-do':{
+   const k=S.ks.find(x=>x.id===S.draft.id); k.status='suspendert';
+   const s=S.skoler.find(x=>x.n===k.skole); if(s) s.ks=s.ks.filter(n=>n!==k.rn);
+   LOG('Ludvig','Suspenderte knutesjef',`${k.rn} (${k.navn}) · ${k.skole}`);
+   S.modal=null;S.draft=null;render();toast(`${k.rn} har ikke lenger tilgang. Ring russestyret.`);
+   break;}
+  case 'ks-on':{
+   const k=S.ks.find(x=>x.id===d.id); k.status='aktiv';
+   const s=S.skoler.find(x=>x.n===k.skole); if(s&&!s.ks.includes(k.rn)) s.ks.push(k.rn);
+   LOG('Ludvig','Ga tilbake tilgang',`${k.rn} · ${k.skole}`);
+   render();toast(`${k.rn} har tilgang igjen.`);
+   break;}
+
+  case 'dtab': S.dataTab=d.v; render(); break;
+  case 'eksport': LOG('Ludvig','Eksporterte sponsorrapport',`${d.n} · aggregert`); toast('Lastet ned. Kun tall, ingen navn.'); render(); break;
+  case 'eksport-logg': LOG('Ludvig','Eksporterte logg',S.logQ?`søk: ${S.logQ}`:'siste 30 dager'); toast('Loggen er eksportert som CSV.'); render(); break;
+
+  case 'bryter':{
+   const g=d.g, arr=S.brytere[g], f=arr.find(x=>(x.k||x.id)===d.k);
+   f.on=f.on?0:1;
+   const hva=g==='cat'?'kategori':g==='fn'?'funksjon':g==='kn'?'knute':'skole';
+   LOG('Ludvig',f.on?'Skrudde på':'Skrudde av',`${f.n} · ${hva}`);
+   render(); toast(`${f.n} er ${f.on?'på':'av'}. Slår inn i appen innen 5 minutter.`);
+   break;}
+ }
+});
+render();
+</script>
+</body>
+</html>
