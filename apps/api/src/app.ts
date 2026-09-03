@@ -9,6 +9,7 @@ import { errorHandler } from './middleware/error.js'
 import { healthRoutes } from './routes/health.js'
 import { knuterRoutes } from './routes/knuter.js'
 import { knuteBookmarkRoutes } from './routes/knute-bookmarks.js'
+import { knuterDagensRoutes } from './routes/knuter-dagens.js'
 import { submissionRoutes } from './routes/submissions.js'
 import { feedRoutes } from './routes/feed.js'
 import { leaderboardRoutes } from './routes/leaderboard.js'
@@ -53,9 +54,10 @@ export function buildApp() {
   app.use('*', timeout(30_000))
 
   app.route('/healthz', healthRoutes)
-  // Bookmarks mount on /api/knuter BEFORE knuterRoutes so /api/knuter/bookmarks
-  // can never be swallowed by a future GET /:id on the knuter router.
+  // Bookmarks and dagens mount on /api/knuter BEFORE knuterRoutes so their fixed
+  // paths can never be swallowed by a future GET /:id on the knuter router.
   app.route('/api/knuter', knuteBookmarkRoutes)
+  app.route('/api/knuter', knuterDagensRoutes)
   app.route('/api/knuter', knuterRoutes)
   app.route('/api/submissions', submissionRoutes)
   app.route('/api/feed', feedRoutes)
