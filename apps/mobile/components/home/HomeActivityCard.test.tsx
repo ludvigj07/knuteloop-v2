@@ -10,9 +10,11 @@ const ITEM: FeedItem = {
   caption: 'Dette skjedde i storefri.',
   createdAt: '2026-07-24T10:00:00.000Z',
   russenavn: 'Løkka',
+  knuteId: 'knute-1',
   knuteTitle: 'Spis frokost under pulten',
   knutePoints: 15,
   evidenceType: 'text',
+  isBookmarked: false,
 }
 
 const baseProps = {
