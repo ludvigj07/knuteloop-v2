@@ -72,6 +72,10 @@ som me adde mer design-greier — mer cleen feel»**. Mindre støy, mer identite
   i den rekkefølgen videoene lages._
 - **Global feed + algoritme** — den kuraterte offentlige utstillingen på tvers av skoler.
   _Stor greie: trenger egen ADR (RLS-unntaket må designes som lift-out, aldri cross-tenant)._
+- **Knuteloop for brukere som ikke går på VGS** — en begrenset versjon der personer
+  uten skoletilknytning primært kan se nasjonalfeeden. Første motivasjon er å gjøre
+  appen tilgjengelig og forståelig i App Store-review, men ideen er foreløpig svært
+  tidlig og må utredes senere (tilgang, alder, personvern og hva brukerne faktisk kan gjøre).
 - **Sponsede knuter** — et internt verktøy der Ludvig/Knuteloop kan opprette og
   administrere sponsede knuter. Hver sponsede knute må kunne målrettes som
   **global**, til et bestemt **område/en region**, eller bare til **én skole**.
