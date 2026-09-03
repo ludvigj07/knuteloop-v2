@@ -2,6 +2,7 @@ import { StyleSheet } from 'react-native'
 import { BlurView } from 'expo-blur'
 import { ChevronRight } from 'lucide-react-native'
 import { Chip, Pressable, Stack, Text } from '../primitives'
+import { BookmarkButton } from '../knute/BookmarkButton'
 import type { FeedItem } from '../../lib/api'
 import { formatNumber, formatShortDate } from '../../lib/format'
 import { colors, glass, size, spacing, sticker } from '../../lib/theme'
@@ -59,9 +60,27 @@ export function FeedInfoPanel({
           <Chip label={`+${formatNumber(item.knutePoints)} P`} tone="accent" mono />
         </Stack>
 
-        <Text font="display" weight="bold" size="lg" color={colors.feed.panelText} numberOfLines={2}>
-          {item.knuteTitle}
-        </Text>
+        {/* The bookmark sits ON the knute title, not up by the person: next to
+            the name it would read as a reaction to the post; here it reads as
+            «save this knute» — which is what it is. */}
+        <Stack direction="row" align="center" gap="sm">
+          <Text
+            font="display"
+            weight="bold"
+            size="lg"
+            color={colors.feed.panelText}
+            numberOfLines={2}
+            style={styles.title}
+          >
+            {item.knuteTitle}
+          </Text>
+          <BookmarkButton
+            knuteId={item.knuteId}
+            bookmarked={item.isBookmarked}
+            color={colors.feed.panelText}
+            hint="Bokmerkede knuter ligger under «Bokmerker» i knuteboka."
+          />
+        </Stack>
 
         {item.evidenceType !== 'text' && item.caption ? (
           <Text size="sm" color={colors.feed.panelTextMuted} numberOfLines={3}>
@@ -102,4 +121,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.feed.avatar,
   },
   profileText: { minWidth: spacing.none, flex: 1 },
+  title: { minWidth: spacing.none, flex: 1 },
 })

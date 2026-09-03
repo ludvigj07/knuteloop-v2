@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useRouter } from 'expo-router'
 import { Shuffle } from 'lucide-react-native'
 import { AppTabBar } from '../components/AppTabBar'
-import { FolderChips } from '../components/knute/FolderChips'
+import { BOOKMARKS_SELECTION, FolderChips } from '../components/knute/FolderChips'
 import { KnuteCatalogError, KnuteCatalogLoading } from '../components/knute/KnuteCatalogStates'
 import { KnuteListCard } from '../components/knute/KnuteListCard'
 import {
@@ -18,7 +18,14 @@ import {
   StickerCard,
   Text,
 } from '../components/primitives'
-import { fetchFolders, fetchKnuter, fetchKnuterInFolder, type Knute } from '../lib/api'
+import {
+  fetchBookmarks,
+  fetchFolders,
+  fetchKnuter,
+  fetchKnuterInFolder,
+  type Knute,
+  type KnuterResponse,
+} from '../lib/api'
 import { formatNumber } from '../lib/format'
 import { animation, fontFamily, fontSize, size, spacing, sticker } from '../lib/theme'
 
@@ -51,9 +58,22 @@ export default function KnuterScreen() {
   // "Alle" reuses the shared ['knuter'] entry (same one the knute-detail screen reads);
   // a folder gets its own entry. keepPreviousData keeps the list on screen while a new
   // folder loads instead of flashing the skeleton.
+  // «Bokmerker» is a third source, not a folder: the caller's own saved knuter.
+  const isBookmarks = folderId === BOOKMARKS_SELECTION
   const { data, error, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: folderId ? (['knuter', 'folder', folderId] as const) : (['knuter'] as const),
-    queryFn: () => (folderId ? fetchKnuterInFolder(folderId) : fetchKnuter()),
+    queryKey: isBookmarks
+      ? (['knuter', 'bookmarks'] as const)
+      : folderId
+        ? (['knuter', 'folder', folderId] as const)
+        : (['knuter'] as const),
+    queryFn: (): Promise<KnuterResponse> =>
+      isBookmarks
+        ? // Flat list — give each row an empty folderIds so it walks the same
+          // render path as the catalog.
+          fetchBookmarks().then((r) => ({ knuter: r.knuter.map((k) => ({ ...k, folderIds: [] })) }))
+        : folderId
+          ? fetchKnuterInFolder(folderId)
+          : fetchKnuter(),
     placeholderData: keepPreviousData,
   })
 
@@ -123,14 +143,18 @@ export default function KnuterScreen() {
     : noneCompleted
       ? 'Ingenting fullført ennå'
       : isEmptyFolder
-        ? 'Tom mappe'
+        ? isBookmarks
+          ? 'Ingen bokmerker ennå'
+          : 'Tom mappe'
         : 'Ingen treff'
   const emptyText = allCompleted
     ? 'Du har fullført alt her. Sterkt! Se samlingen under «Fullført».'
     : noneCompleted
       ? 'Knutene du fullfører havner her. Gå til «Tilgjengelige» og sett i gang!'
       : isEmptyFolder
-        ? `Ingen knuter i «${selectedFolder?.name ?? 'mappa'}» ennå. Velg «Alle» for hele knuteboka.`
+        ? isBookmarks
+          ? 'Ser du en knute i feeden du vil gjøre? Trykk på bokmerket, så ligger den her.'
+          : `Ingen knuter i «${selectedFolder?.name ?? 'mappa'}» ennå. Velg «Alle» for hele knuteboka.`
         : 'Prøv et annet søk, eller trykk Tilfeldig når listen har knuter igjen.'
 
   const openRandomKnute = () => {
@@ -198,7 +222,7 @@ export default function KnuterScreen() {
 
       <View style={styles.sectionHeader}>
         <Text weight="semibold" size="lg" color={sticker.color.ink}>
-          {selectedFolder?.name ?? 'Alle knuter'}
+          {isBookmarks ? 'Bokmerker' : (selectedFolder?.name ?? 'Alle knuter')}
         </Text>
         <Text size="sm" color={sticker.color.textMuted}>
           {formatNumber(visibleKnuter.length)}/

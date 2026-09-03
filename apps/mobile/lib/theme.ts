@@ -290,6 +290,11 @@ export const interaction = {
   },
   // How long a destructive action stays undoable.
   undoWindow: 2800,
+  // Pinch on a feed photo: toggles «tom visning» (clear view) and zooms while
+  // held. maxScale caps how far the photo can be pulled before it snaps back.
+  pinch: {
+    maxScale: 3,
+  },
 } as const
 
 // ============================================================
