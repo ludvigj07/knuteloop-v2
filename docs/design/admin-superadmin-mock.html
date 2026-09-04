@@ -1,4 +1,13 @@
 <!doctype html>
+<!--
+  Knuteloop superadmin — klikkbar skisse (Ludvig, 2026-09-04).
+  Bor I APPEN bak en «Knuteloop»-knapp (som knutesjef-knappen) — ingen egen nettside
+  (ADR-0027 pkt 6). Se den på TELEFONBREDDE først: under 820 px blir radene kort, og det
+  er den kanoniske visningen. Bred visning er iPad-varianten.
+  Reglene bak skjermene: docs/superadmin-spec.md. Oppdatert 2026-09-04: baner
+  RØD/GUL/GRØNN, «ta saken», uskarpt media, karantene i stedet for sletting, «Frys» uten
+  nedlasting for nakenhet/mindreårig, «Ny sak», «Se som» bak støttesak.
+-->
 <html lang="nb">
 <head>
 <meta charset="utf-8">
@@ -147,6 +156,14 @@ nav.nav::-webkit-scrollbar{display:none}
 .med .veil{position:absolute;inset:0;background:rgba(15,26,46,.74);color:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-weight:700;font-size:.85rem;text-align:center;padding:12px}
 .med .veil svg{width:22px;height:22px}
 .med.txt{background:var(--soft);font-family:var(--fd);font-weight:700;padding:16px;text-align:center;font-size:1rem;line-height:1.2}
+/* Uskarpt + gråtoner til du trykker «Vis» (Cinder-standard; forskning: mindre belastning, samme treffsikkerhet) */
+.medwrap{position:relative}
+.medwrap .med.blur{filter:grayscale(1) blur(7px)}
+.medwrap .reveal{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
+.medwrap .reveal:hover{transform:translate(-50%,-50%) translate(-1px,-1px)}
+.medwrap .reveal:active{transform:translate(-50%,-50%) translate(2px,2px)}
+.police{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:10px 12px;border:2px solid var(--danger);border-radius:var(--r-md);background:var(--danger-bg);font-size:.85rem;margin-bottom:12px}
+.police b{font-family:var(--fm);font-size:1rem}
 
 /* Detail panel */
 .dp{border:2px solid var(--ink);border-radius:var(--r-lg);background:var(--card);box-shadow:var(--sh-lg);padding:16px;margin-bottom:14px}
@@ -228,7 +245,7 @@ nav.nav::-webkit-scrollbar{display:none}
       <span class="season">Dag 8</span>
     </div>
     <nav class="nav" id="nav" aria-label="Meny"></nav>
-    <div class="who"><b>Ludvig</b>Superadmin · dag 8 av russetiden</div>
+    <div class="who"><b>Ludvig</b>owner · dag 8 av russetiden · vakt i dag: Brage<br><span style="opacity:.7">Bor i appen bak «Knuteloop»-knappen. Telefonbredde er fasit.</span></div>
   </aside>
   <main class="main">
     <div class="bar"><h1 id="ttl"></h1><span class="sub" id="sub"></span></div>
@@ -284,12 +301,17 @@ const tone=(c)=>(c==='Alkohol'||c==='Sex')?'wa':'pr';
 /* ============================ DATA ============================ */
 const S={
  view:'oversikt', sel:null, modal:null, draft:null, feedTab:'venter', logQ:'', seeAs:null, dataTab:'aktivitet',
+ /* sev: 'rod' (push til alle, < 1 t) | 'gul' (vakten, < 24 t) | 'gronn' (neste vakt).
+    noExport: frys uten nedlasting (nakenhet/mindreårig). claimed: hvem som har tatt saken.
+    brig: brigading-signal (bare et signal — aldri auto-skjul, ADR-0026 pkt 3). */
  rapporter:[
-  {id:'R-4471',kind:'Eskalert av knutesjef',reason:'Mulig lovbrudd',school:'Bryne VGS',knute:'Politibilen',russ:'Kaptein Krok',navn:'Mathias H.',by:'Lynet',age:'25 min',ks:'Skjult av knutesjef',note:'Ser ut som de har tuklet med en ekte politibil. Tør ikke ta denne selv.',media:1,hidden:1,hard:1},
-  {id:'R-4468',kind:'Bilde av meg',reason:'Rett til eget bilde',school:'Sandnes VGS',knute:'Bussen',russ:'Tåkefyrsten',navn:'Jonas B.',by:'Elev, ikke russ',age:'2 t',ks:'Ikke behandlet, knutesjef inaktiv',note:'Jeg er i bakgrunnen på bildet og vil ikke være der. Går i 1STA.',media:1,hidden:0,hard:0},
-  {id:'R-4465',kind:'Klage på utestenging',reason:'Klage',school:'St. Svithun VGS',knute:'Rektors kontor',russ:'Snøfnugg',navn:'Ida K.',by:'Snøfnugg',age:'5 t',ks:'Utestengt 7 d av deg 21. mai',note:'Det var ikke jeg som skrev den teksten, noen andre hadde telefonen min.',media:1,hidden:1,hard:0},
-  {id:'R-4460',kind:'Rapportert i nasjonal feed',reason:'Upassende',school:'Hetland VGS',knute:'Konfetti',russ:'Lynet',navn:'Sander V.',by:'3 personer',age:'1 d',ks:'Godkjent lokalt, publisert nasjonalt av deg',note:'Tre rapporter fra tre skoler. Ligger offentlig nå.',media:1,hidden:0,hard:0},
+  {id:'R-4471',sev:'rod',kind:'Eskalert av knutesjef',reason:'Mulig lovbrudd',school:'Bryne VGS',knute:'Politibilen',russ:'Kaptein Krok',navn:'Mathias H.',by:'Knutesjef',age:'25 min',ks:'Skjult av knutesjef',note:'Ser ut som de har tuklet med en ekte politibil. Tør ikke ta denne selv.',media:1,hidden:1,hard:1,noExport:0,claimed:null},
+  {id:'R-4468',sev:'gul',kind:'Bilde av meg',reason:'Rett til eget bilde',school:'Sandnes VGS',knute:'Bussen',russ:'Tåkefyrsten',navn:'Jonas B.',by:'Elev, ikke russ',age:'2 t',ks:'Ikke behandlet, knutesjef inaktiv',note:'Jeg er i bakgrunnen på bildet og vil ikke være der. Går i 1STA.',media:1,hidden:0,hard:0,noExport:0,claimed:'Brage'},
+  {id:'R-4465',sev:'gul',kind:'Klage på utestenging',reason:'Klage',school:'St. Svithun VGS',knute:'Rektors kontor',russ:'Snøfnugg',navn:'Ida K.',by:'Russ',age:'5 t',ks:'Utestengt 7 d av Brage 21. mai',note:'Det var ikke jeg som skrev den teksten, noen andre hadde telefonen min.',media:1,hidden:1,hard:0,noExport:0,claimed:null,brig:0},
+  {id:'R-4460',sev:'gronn',kind:'Rapportert i nasjonal feed',reason:'Upassende',school:'Hetland VGS',knute:'Konfetti',russ:'Lynet',navn:'Sander V.',by:'3 personer',age:'1 d',ks:'Godkjent lokalt, publisert nasjonalt av deg',note:'Tre rapporter fra tre skoler. Ligger offentlig nå.',media:1,hidden:0,hard:0,noExport:0,claimed:null,brig:'3 rapporter fra samme klasse på 9 min'},
  ],
+ revealed:{},
+ stotte:null,
  ferdig:[],
  noms:[
   {id:'n1',school:'Sandnes VGS',knute:'Morgenfugl',cat:'Generelle',russ:'Bamsen',p:20,ks:'Tante Sofie'},
@@ -362,14 +384,23 @@ function toast(m){const e=$('#tst');e.textContent=m;e.classList.add('on');clearT
 const NAV=[['oversikt','Oversikt',I.home],['rapporter','Rapporter',I.flag],['feed','Nasjonal feed',I.star],['skoler','Skoler',I.grid],['knutesjefer','Knutesjefer',I.user],['data','Data',I.chart],['brytere','Brytere',I.power],['logg','Logg',I.shield]];
 const deadSchools=()=>S.skoler.filter(s=>s.d===null||s.d>=4);
 const pendingNoms=()=>S.noms.filter(n=>!n.done&&!n.blocked);
-function medias(o){return `<div class="med" style="min-height:${o.h||150}px">${I.img}${o.tag?`<span class="chip mu tg">${o.tag}</span>`:''}${o.veil?`<div class="veil">${o.icon||I.eyeOff}<span>${o.veil}</span></div>`:''}</div>`;}
+/* o.blur: uskarpt + gråtoner til «Vis» er trykket (o.id brukes som nøkkel i S.revealed). Ett trykk = én logg-rad. */
+function medias(o){
+ const inner=`<div class="med${o.blur&&!S.revealed[o.id]?' blur':''}" style="min-height:${o.h||150}px">${I.img}${o.tag?`<span class="chip mu tg">${o.tag}</span>`:''}${o.veil?`<div class="veil">${o.icon||I.eyeOff}<span>${o.veil}</span></div>`:''}</div>`;
+ if(!o.blur) return inner;
+ return `<div class="medwrap">${inner}${S.revealed[o.id]?'':`<button class="btn sm reveal" data-act="reveal" data-id="${o.id}">${I.eye} Vis</button>`}</div>`;
+}
 function dayCls(d){return d===null?'d':d>=4?'d':d>=2?'w':'';}
 function dayTxt(d){return d===null?'ingen knutesjef':d===0?'i dag':d===1?'1 dag':d+' dager';}
+/* Baner: RØD = push til alle, < 1 t · GUL = vakten, < 24 t · GRØNN = neste vakt */
+const LANE={rod:['da','RØD'],gul:['wa','GUL'],gronn:['ok','GRØNN']};
+const laneChip=(s)=>`<span class="chip ${LANE[s][0]}">${LANE[s][1]}</span>`;
+const laneOrder={rod:0,gul:1,gronn:2};
 
 /* ============================ VIEWS ============================ */
 const META={
  oversikt:['Oversikt','Du sjekker to ganger om dagen. Dette er det som venter.'],
- rapporter:['Rapporter','Bare det knutesjefene ikke skal ta selv. Alt annet er ferdig på skolen.'],
+ rapporter:['Saker','RØD først, så GUL, så GRØNN. Bare det knutesjefene ikke skal ta selv.'],
  feed:['Nasjonal feed','Det eneste innholdet som er offentlig. Din godkjenning.'],
  skoler:['Skoler','Sortert på hvor lenge det er siden noen modererte. Ikke alfabetisk.'],
  knutesjefer:['Knutesjefer','Gi tilgang, suspender tilgang, se hvem som faktisk jobber.'],
@@ -412,11 +443,15 @@ function vRapporter(){
  if(S.sel){
   const r=S.rapporter.find(x=>x.id===S.sel);
   if(!r) {S.sel=null; return vRapporter();}
-  return `<button class="btn gh sm" data-act="back" style="margin-bottom:10px">${I.back} Alle rapporter</button>
+  // Én ansatt eier saken om gangen. Har en annen tatt den, er knappene låst (claim slippes etter 30 min uten aktivitet).
+  const locked=r.claimed&&r.claimed!=='Ludvig';
+  const dis=locked?'disabled':'';
+  return `<button class="btn gh sm" data-act="back" style="margin-bottom:10px">${I.back} Alle saker</button>
   <div class="dp">
-   <div class="hd"><h3>${r.kind}</h3>${r.hard?`<span class="chip da">${I.alert} Mulig lovbrudd</span>`:''}${r.hidden?'<span class="chip mu">Skjult nå</span>':'<span class="chip wa">Synlig nå</span>'}<span class="chip mu mono">${r.id}</span></div>
+   <div class="hd"><h3>${r.kind}</h3>${laneChip(r.sev)}${r.hard?`<span class="chip da">${I.alert} Mulig lovbrudd</span>`:''}${r.hidden?'<span class="chip mu">Skjult nå</span>':'<span class="chip wa">Synlig nå</span>'}${r.claimed?`<span class="chip pr">${I.user} ${r.claimed} har saken</span>`:''}<span class="chip mu mono">${r.id}</span></div>
+   ${r.sev==='rod'?`<div class="police">${I.alert}<span>Fare for liv <u>nå</u>: ring <b>112</b>. Ellers politiet <b>02800</b>. Nakenhet / mindreårig: <b>tips.kripos.no</b> — ikke last ned, ikke videresend, ikke ta skjermbilde.</span></div>`:''}
    <div class="split">
-    <div>${medias({h:180,veil:r.hidden?'Skjult':null})}</div>
+    <div>${medias({h:180,id:r.id,blur:1,veil:r.hidden?'Skjult':null})}</div>
     <div>
      <dl class="dl">
       <dt>Knute</dt><dd>${r.knute}</dd>
@@ -426,27 +461,34 @@ function vRapporter(){
       <dt>Knutesjef</dt><dd>${r.ks}</dd>
      </dl>
      <div class="quote"><b>Hva som ble meldt</b>${r.note}</div>
+     ${r.brig?`<div class="chips" style="margin-bottom:12px;align-items:center"><span class="chip wa">${I.alert} ${r.brig}</span><span class="mut" style="font-size:.78rem">Bare et signal. Ingenting skjules automatisk.</span></div>`:''}
     </div>
    </div>
+   ${r.claimed?'':`<button class="btn acc" data-act="claim" style="margin-bottom:10px">${I.user} Ta saken</button>`}
+   ${locked?`<p class="mut" style="font-size:.85rem;margin-bottom:8px">${r.claimed} jobber med denne. Knappene låses opp om ${r.claimed} slipper den, eller etter 30 min uten aktivitet.</p>`:''}
    <div class="row-btns" style="margin-top:4px">
-    <button class="btn" data-act="rap" data-v="La stå">La stå</button>
-    <button class="btn pri" data-act="rap" data-v="Fjernet">Fjern innholdet</button>
-    <button class="btn dan" data-act="ban-open">Fjern og utesteng</button>
-    ${r.hard?`<button class="btn dan" data-act="freeze">${I.snow} Frys bevis</button>`:''}
+    <button class="btn" data-act="rap" data-v="La stå" ${dis}>La stå</button>
+    <button class="btn pri" data-act="rap" data-v="Fjernet" ${dis}>Fjern</button>
+    <button class="btn dan" data-act="ban-open" ${dis}>Fjern og utesteng</button>
+    ${r.hard||r.sev==='rod'?`<button class="btn dan" data-act="freeze" ${dis}>${I.snow} Frys bevis</button>`:''}
+    <button class="btn gh" data-act="rap" data-v="Til knutesjef" ${dis}>Til knutesjef</button>
    </div>
-   <p class="mut" style="font-size:.8rem;margin-top:9px">Fjern sletter også fila hos Bunny, ikke bare raden i basen. Den som blir rammet får begrunnelsen i appen.</p>
+   <p class="mut" style="font-size:.8rem;margin-top:9px">«Fjern» legger innsendingen i karantene i 30 dager (kan gjenopprettes ved klage), trekker poengene for denne knuten og sender begrunnelsen i appen: hva, grunn, grunnlag, om det kom fra et varsel, og hvordan klage. «Til knutesjef» = saken var ikke vår (poeng, juks) — den går til skolens kø med notat.</p>
   </div>`;
  }
- const list=S.rapporter;
- return `${list.length?`<div class="th" style="--c:1.1fr 1.4fr 1fr 90px 90px"><span>Type</span><span>Innhold</span><span>Skole</span><span>Alder</span><span></span></div>
- ${list.map(r=>`<div class="r" style="--c:1.1fr 1.4fr 1fr 90px 90px">
-  <div class="c"><b class="k">Type</b><span class="t">${r.kind}</span>${r.hard?'<br><span class="chip da" style="margin-top:4px">Mulig lovbrudd</span>':''}</div>
+ const list=[...S.rapporter].sort((a,b)=>laneOrder[a.sev]-laneOrder[b.sev]);
+ const C='--c:80px 1.1fr 1.4fr 1fr 80px 90px';
+ return `<div class="row-btns" style="margin-bottom:12px;align-items:center"><button class="btn acc" data-act="ny-sak">${I.plus} Ny sak</button><span class="mut" style="font-size:.82rem">Telefon, e-post, forelder, rektor — alt kommer inn som sak <em>først</em>. Ingen sak, ingen skjerm.</span></div>
+ ${list.length?`<div class="th" style="${C}"><span>Bane</span><span>Type</span><span>Innhold</span><span>Skole</span><span>Alder</span><span></span></div>
+ ${list.map(r=>`<div class="r" style="${C}">
+  <div class="c"><b class="k">Bane</b>${laneChip(r.sev)}</div>
+  <div class="c"><b class="k">Type</b><span class="t">${r.kind}</span>${r.hard?'<br><span class="chip da" style="margin-top:4px">Mulig lovbrudd</span>':''}${r.claimed?`<br><span class="chip pr" style="margin-top:4px">${r.claimed} har saken</span>`:''}</div>
   <div class="c"><b class="k">Innhold</b>${r.knute} <span class="mut">· ${r.russ}</span><div class="s">${r.reason}</div></div>
   <div class="c"><b class="k">Skole</b>${r.school}</div>
   <div class="c"><b class="k">Alder</b><span class="mono">${r.age}</span></div>
   <div class="c"><button class="btn sm" data-act="open" data-id="${r.id}">Åpne</button></div>
- </div>`).join('')}`:`<div class="empty">${KN}<h4>Ingen rapporter til deg</h4><p>Knutesjefene har tatt resten på egen skole.</p></div>`}
- ${S.ferdig.length?`<div class="sec">Ferdig i dag</div>${S.ferdig.map(r=>`<div class="r off" style="--c:1.1fr 1.4fr 1fr 1fr"><div class="c"><span class="t">${r.kind}</span></div><div class="c">${r.knute}</div><div class="c">${r.school}</div><div class="c"><span class="chip ok">${r.utfall}</span></div></div>`).join('')}`:''}`;
+ </div>`).join('')}`:`<div class="empty">${KN}<h4>Ingen saker til deg</h4><p>Knutesjefene har tatt resten på egen skole.</p></div>`}
+ ${S.ferdig.length?`<div class="sec">Ferdig i dag</div>${S.ferdig.map(r=>`<div class="r off" style="--c:1.1fr 1.4fr 1fr 1fr 110px"><div class="c"><span class="t">${r.kind}</span></div><div class="c">${r.knute}</div><div class="c">${r.school}</div><div class="c"><span class="chip ok">${r.utfall}</span></div><div class="c">${/Fjernet|Utestengt/.test(r.utfall)?`<button class="btn sm gh" data-act="restore" data-id="${r.id}">Gjenopprett</button>`:''}</div></div>`).join('')}`:''}`;
 }
 
 function vFeed(){
@@ -479,9 +521,10 @@ function spark(a){const m=Math.max(...a,1);return `<div class="spark">${a.map(v=
 function vSkoler(){
  if(S.seeAs){
   const s=S.skoler.find(x=>x.id===S.seeAs);
-  return `<div class="banner da">${I.eye}<b>Du ser ${s.n} som en vanlig russ.</b><span>Kun lesing. Ingen får varsel. Oppslaget står i loggen.</span><button class="btn sm" data-act="seeas-end">Lukk</button></div>
+  // «Se som» finnes bare gjennom en støttesak: eget lese-token, 30 min, kun approved + shared. Mørk ramme i appen.
+  return `<div class="banner da">${I.eye}<b>Støttesak ${S.stotte.id} · ${s.n} · kun lesing · ${S.stotte.min} min igjen</b><span>Grunn: ${S.stotte.grunn.toLowerCase()}. Du ser det russen ser. Ingen får varsel. Visningen står i loggen.</span><button class="btn sm" data-act="seeas-end">Avslutt</button></div>
   <div class="grid g3">${[['Bamsen','Morgenfugl',20,'i dag'],['Tante Sofie','Bussen',25,'i dag'],['Ravnen','Konfetti',40,'i går'],['Lynet','Dobbelt opp',50,'i går'],['Frost','Trappa',15,'i går'],['Isbjørn','Bibliotekaren',30,'2 dager']].map(([r,k,p,t])=>`<div class="card">${medias({h:110})}<h4 style="font-size:1rem;margin:8px 0 3px">${k}</h4><div class="s mut" style="font-size:.8rem">${r} · ${t}</div><div class="chips" style="margin-top:6px"><span class="chip ac mono">+${p} P</span></div></div>`).join('')}</div>
-  <p class="mut" style="font-size:.83rem;margin-top:12px">Du ser det russen ser. Skjult innhold og private innsendinger vises ikke her, de åpnes bare fra en konkret rapport.</p>`;
+  <p class="mut" style="font-size:.83rem;margin-top:12px">Bare godkjent og delt innhold. Skjult, privat og ventende vises ikke her — det åpnes bare fra en konkret sak. Alle skrivinger avvises mens tokenet er aktivt.</p>`;
  }
  const sorted=[...S.skoler].sort((a,b)=>(b.d===null?99:b.d)-(a.d===null?99:a.d));
  return `<div class="th" style="--c:1.5fr 70px 1.1fr 60px 110px 80px 90px"><span>Skole</span><span>Russ</span><span>Knutesjefer</span><span>Kø</span><span>Sist moderert</span><span>7 dager</span><span></span></div>
@@ -492,8 +535,9 @@ function vSkoler(){
   <div class="c"><b class="k">Kø</b><span class="mono" style="font-weight:700">${s.ko}</span></div>
   <div class="c"><b class="k">Sist moderert</b><span class="days ${dayCls(s.d)}">${dayTxt(s.d)}</span></div>
   <div class="c"><b class="k">7 dager</b>${spark(s.akt)}</div>
-  <div class="c"><button class="btn sm" data-act="seeas" data-id="${s.id}">${I.eye} Se som</button></div>
- </div>`).join('')}`;
+  <div class="c"><button class="btn sm" data-act="stotte" data-id="${s.id}">${I.eye} Se som</button></div>
+ </div>`).join('')}
+ <p class="mut" style="font-size:.83rem;margin-top:12px">«Se som» åpner ikke skolen. Den oppretter en <b>støttesak</b> med grunn fra liste, og saken gir 30 minutter kun-lesing av det russen ser. Kontakt (russepresident) ligger på hver rad når tabellen school_contacts finnes.</p>`;
 }
 
 function vKnutesjefer(){
@@ -611,7 +655,8 @@ function renderModal(){
    <div class="seg">${BAN.map(([v,l])=>`<button class="${d.dur===v?'on':''}" data-act="ban-dur" data-v="${v}">${l}</button>`).join('')}</div>
    <div class="lb">Grunn</div>
    ${GRUNN.map(g=>`<button class="opt ${d.grunn===g?'on':''}" data-act="ban-grunn" data-v="${g}"><span class="dot"></span><span>${g}</span></button>`).join('')}
-   <div class="quote" style="margin-top:11px"><b>Dette får ${r.russ} se i appen</b>Innlegget ditt er fjernet, og du er utestengt ${dur.toLowerCase()}. Grunn: ${d.grunn.toLowerCase()}. Poengene dine er trygge. Du kan klage på avgjørelsen.</div>
+   <div class="quote" style="margin-top:11px"><b>Dette får ${r.russ} se i appen (Din status)</b>Innlegget ditt for «${r.knute}» er fjernet, og du kan ikke ${d.dur===-1?'sende inn resten av sesongen':'sende inn i '+dur.toLowerCase()}. Grunn: ${d.grunn.toLowerCase()}. Grunnlag: ${d.grunn==='Rett til eget bilde'?'åndsverkloven § 104':'Knuteloops retningslinjer'}. Poengene for denne knuten er trukket; resten er trygge. Du kan klage innen 30 dager.</div>
+   <p class="mut" style="font-size:.78rem;margin-bottom:11px">Fem faste felt: hva, grunn, grunnlag, om det kom fra et varsel (aldri hvem), klagevei. ${d.dur===-1?'<b>Permanent krever fire øyne</b> — en annen med operator-nivå må bekrefte fra sin telefon.':''}</p>
    <div class="row-btns"><button class="btn gh" data-act="lukk">Avbryt</button><button class="btn dan" style="flex:1" data-act="ban-do">Fjern og utesteng</button></div>
   </div></div>`;
  }
@@ -641,11 +686,41 @@ function renderModal(){
  }
  if(S.modal==='freeze'){
   const r=S.rapporter.find(x=>x.id===S.sel);
+  // Nakenhet / mindreårig: aldri nedlasting — å laste ned er straffbart i seg selv. Politiet får tilgang via formell forespørsel.
   m.innerHTML=`<div class="mask" data-act="lukk"><div class="mod">
-   <h3>Frys bevis</h3><p>Sak ${r.id}, ${r.school}.</p>
-   <div class="quote"><b>Dette skjer</b>Media, metadata og hele loggsporet låses mot sletting. Innholdet forblir skjult for alle. Du får en fil du kan ta med til politiet eller advokat.</div>
-   <div class="quote"><b>Dette skjer ikke</b>Ingen melding sendes automatisk noe sted. Politianmeldelse gjør du selv.</div>
-   <div class="row-btns"><button class="btn gh" data-act="lukk">Avbryt</button><button class="btn dan" style="flex:1" data-act="freeze-do">${I.snow} Frys og last ned</button></div>
+   <h3>Frys bevis</h3><p>Sak ${r.id}, ${r.school}. Krever fire øyne: en annen med owner-nivå må bekrefte fra sin telefon innen 60 min.</p>
+   <div class="quote"><b>Dette skjer</b>Innsending, media, saken og loggsporet låses mot sletting — også mot at brukeren sletter kontoen (GDPR art. 17(3)(e)). Innholdet forblir skjult for alle.</div>
+   ${r.noExport
+     ?`<div class="quote" style="border-color:var(--danger)"><b>Ingen nedlasting</b>Dette gjelder nakenhet eller en mulig mindreårig. Ingen fil, ingen bevispakke, ingen skjermbilder. Politiet får tilgang via formell forespørsel — meld via tips.kripos.no.</div>`
+     :`<div class="quote"><b>Bevispakke</b>Etter bekreftelse kan du laste ned en zip (media + metadata + logg-utdrag) med SHA-256-sum, via en lenke som varer 15 min. Nedlastingen logges.</div>`}
+   <div class="quote"><b>Dette skjer ikke</b>Ingen melding sendes automatisk noe sted. Politianmeldelse gjør du selv — «Eskaler til politi» på saken gir sjekklista.</div>
+   <div class="row-btns"><button class="btn gh" data-act="lukk">Avbryt</button><button class="btn dan" style="flex:1" data-act="freeze-do">${I.snow} ${r.noExport?'Frys':'Frys (nedlasting etter bekreftelse)'}</button></div>
+  </div></div>`;
+ }
+ if(S.modal==='ny-sak'){
+  const d=S.draft;
+  const TYPER=[['Bilde av meg','gul'],['Klage på utestenging','gul'],['Innsyn / sletting (GDPR)','gul'],['Politiforespørsel','gul'],['Knutesjef er anklaget','gul'],['Rapportør-misbruk','gul'],['Fare for liv','rod'],['Annet','gronn']];
+  m.innerHTML=`<div class="mask" data-act="lukk"><div class="mod">
+   <h3>Ny sak</h3><p>Døra inn for telefon og e-post. Først når saken finnes ser du noe.</p>
+   <div class="lb">Skole</div>
+   <select class="in" data-in="skole">${S.skoler.map(s=>`<option value="${s.id}" ${d.skole===s.id?'selected':''}>${s.n}</option>`).join('')}</select>
+   <div class="lb">Type</div>
+   ${TYPER.map(([t,sev])=>`<button class="opt ${d.type===t?'on':''}" data-act="ny-sak-type" data-v="${t}" data-sev="${sev}"><span class="dot"></span><span>${t}</span>${laneChip(sev)}</button>`).join('')}
+   <div class="lb">Hvem gjelder det (eksakt russenavn, eller innsendings-ID fra knutesjefen)</div>
+   <input class="in" data-in="maal" value="${esc(d.maal)}" placeholder="f.eks. Tåkefyrsten eller INN-8812">
+   <div class="quote"><b>Ikke et søk</b>Feltet må treffe eksakt. Det finnes ingen liste over brukere å bla i.</div>
+   <div class="row-btns"><button class="btn gh" data-act="lukk">Avbryt</button><button class="btn pri" style="flex:1" data-act="ny-sak-do" ${d.type&&d.maal.trim()?'':'disabled'}>Opprett sak</button></div>
+  </div></div>`;
+ }
+ if(S.modal==='stotte'){
+  const s=S.skoler.find(x=>x.id===S.draft.skole), d=S.draft;
+  const GR=['Skolen melder tom feed','Onboarding-hjelp','Rapport peker på mønster','Annet (krever notat)'];
+  m.innerHTML=`<div class="mask" data-act="lukk"><div class="mod">
+   <h3>Støttesak · ${s.n}</h3><p>Gir deg 30 minutter kun-lesing av det russen ser. Eget token, mørk ramme i appen, rad i loggen.</p>
+   <div class="lb">Grunn</div>
+   ${GR.map(g=>`<button class="opt ${d.grunn===g?'on':''}" data-act="stotte-grunn" data-v="${g}"><span class="dot"></span><span>${g}</span></button>`).join('')}
+   <div class="quote"><b>Du får ikke se</b>Private innsendinger, køen, skjult innhold, topplista eller brukerlister. Det åpnes bare fra en konkret sak.</div>
+   <div class="row-btns"><button class="btn gh" data-act="lukk">Avbryt</button><button class="btn pri" style="flex:1" data-act="stotte-do">${I.eye} Start 30 min</button></div>
   </div></div>`;
  }
 }
@@ -653,7 +728,7 @@ function renderModal(){
 /* ============================ EVENTS ============================ */
 document.addEventListener('input',(e)=>{
  if(e.target.id==='lq'){S.logQ=e.target.value;const p=e.target.selectionStart;render();const n=$('#lq');if(n){n.focus();n.setSelectionRange(p,p);}return;}
- const k=e.target.dataset.in; if(k&&S.draft){S.draft[k]=e.target.value; if(k==='navn')renderModal();}
+ const k=e.target.dataset.in; if(k&&S.draft){S.draft[k]=e.target.value; if(k==='navn'||k==='maal'){const p=e.target.selectionStart;renderModal();const n=$(`[data-in="${k}"]`);if(n){n.focus();n.setSelectionRange(p,p);}}}
 });
 document.addEventListener('keydown',(e)=>{if(e.key==='Escape'&&S.modal){S.modal=null;S.draft=null;renderModal();}});
 document.addEventListener('click',(e)=>{
@@ -667,30 +742,59 @@ document.addEventListener('click',(e)=>{
   case 'open': S.sel=d.id; render(); break;
   case 'lukk': S.modal=null; S.draft=null; renderModal(); break;
 
+  case 'claim':{
+   const r=S.rapporter.find(x=>x.id===S.sel); r.claimed='Ludvig';
+   LOG('Ludvig','Tok saken',`${r.id} · ${r.school}`);
+   render(); toast('Du har saken. Tid til første handling er registrert.'); break;}
+  case 'reveal':{
+   S.revealed[d.id]=1; const r=S.rapporter.find(x=>x.id===d.id);
+   LOG('Ludvig','Viste media',`${d.id}${r?' · '+r.school:''} · kryss-skole-lesing`);
+   render(); break;}
   case 'rap':{
    const r=S.rapporter.find(x=>x.id===S.sel);
    S.rapporter=S.rapporter.filter(x=>x.id!==S.sel);
    S.ferdig.unshift({...r,utfall:d.v});
-   if(d.v==='Fjernet'){LOG('Ludvig','Fjernet innhold',`${r.id} · ${r.knute} · ${r.school} · media slettet`);}
+   if(d.v==='Fjernet'){LOG('Ludvig','Fjernet innhold',`${r.id} · ${r.knute} · ${r.school} · karantene 30 d · poeng for knuten trukket`);LOG('System','Begrunnelse sendt',`${r.russ} · ${r.id}`);}
+   else if(d.v==='Til knutesjef'){LOG('Ludvig','Sendte saken tilbake til knutesjef',`${r.id} · ${r.school} · ikke vår`);}
    else LOG('Ludvig','Lot innhold stå',`${r.id} · ${r.knute} · ${r.school}`);
-   S.sel=null; render(); toast(d.v==='Fjernet'?'Fjernet. Media slettet hos Bunny, begrunnelse sendt.':'Lot stå. Den som meldte får svar.');
+   S.sel=null; render();
+   toast(d.v==='Fjernet'?'Fjernet. I karantene 30 dager, poeng for knuten trukket, begrunnelse sendt.':d.v==='Til knutesjef'?'Sendt til skolens kø med notat.':'Lot stå. Den som meldte får svar: «vi har sett på det, innlegget står».');
    break;}
+  case 'restore':{
+   const r=S.ferdig.find(x=>x.id===d.id); S.ferdig=S.ferdig.filter(x=>x.id!==d.id);
+   S.rapporter.push({...r,claimed:null,utfall:undefined});
+   LOG('Ludvig','Gjenopprettet',`${r.id} · ${r.knute} · ${r.school} · ut av karantene · poeng tilbake`);
+   render(); toast('Gjenopprettet. Poengene er tilbake, Din status er oppdatert.'); break;}
   case 'ban-open': S.draft={dur:168,grunn:'Trakassering'}; S.modal='ban'; renderModal(); break;
   case 'ban-dur': S.draft.dur=+d.v; renderModal(); break;
   case 'ban-grunn': S.draft.grunn=d.v; renderModal(); break;
   case 'ban-do':{
    const r=S.rapporter.find(x=>x.id===S.sel), dur=BAN.find(b=>b[0]===S.draft.dur)[1];
+   if(S.draft.dur===-1){
+    // Permanent = fire øyne. Saken blir stående til en annen bekrefter.
+    LOG('Ludvig','Ba om fire øyne: permanent utestenging',`${r.russ} · ${S.draft.grunn} · ${r.school} · ${r.id}`);
+    S.modal=null;S.draft=null;render();toast('Venter på bekreftelse fra Brage (utløper om 60 min). Ingenting er gjort ennå.');
+    break;
+   }
    S.rapporter=S.rapporter.filter(x=>x.id!==S.sel);
    S.ferdig.unshift({...r,utfall:'Utestengt '+dur.toLowerCase()});
-   LOG('Ludvig',`Utestengte ${r.russ}`,`${dur} · ${S.draft.grunn} · ${r.school} · ${r.id}`);
-   LOG('System','Begrunnelse sendt',`${r.russ} · ${r.id}`);
+   LOG('Ludvig',`Utestengte ${r.russ}`,`${dur} · ${S.draft.grunn} · ${r.school} · ${r.id} · karantene 30 d`);
+   LOG('System','Begrunnelse sendt',`${r.russ} · ${r.id} · Din status oppdatert`);
    S.modal=null;S.draft=null;S.sel=null;render();toast(`${r.russ} er utestengt ${dur.toLowerCase()} og har fått begrunnelsen.`);
    break;}
   case 'freeze': S.modal='freeze'; renderModal(); break;
   case 'freeze-do':{
    const r=S.rapporter.find(x=>x.id===S.sel);
-   LOG('Ludvig','Frøs bevis',`${r.id} · ${r.school} · media låst mot sletting`);
-   S.modal=null;render();toast('Bevis frosset. Filen er lastet ned.');
+   LOG('Ludvig','Ba om fire øyne: frys bevis',`${r.id} · ${r.school} · ${r.noExport?'ingen nedlasting':'bevispakke etter bekreftelse'}`);
+   S.modal=null;render();toast(r.noExport?'Frys venter på bekreftelse. Ingen nedlasting for denne sakstypen.':'Frys venter på bekreftelse. Bevispakke kan lastes ned etterpå.');
+   break;}
+  case 'ny-sak': S.draft={skole:S.skoler[0].id,type:null,sev:'gul',maal:''}; S.modal='ny-sak'; renderModal(); break;
+  case 'ny-sak-type': S.draft.type=d.v; S.draft.sev=d.sev; renderModal(); break;
+  case 'ny-sak-do':{
+   const s=S.skoler.find(x=>x.id===S.draft.skole), id='S-'+(4480+S.rapporter.length+S.ferdig.length);
+   S.rapporter.push({id,sev:S.draft.sev,kind:S.draft.type,reason:'Manuell sak',school:s.n,knute:'—',russ:S.draft.maal.trim(),navn:'(slås opp)',by:'Ansatt',age:'nå',ks:s.ks.length?s.ks.join(', '):'Ingen knutesjef',note:'Opprettet manuelt. Det som kom inn på telefon/e-post skrives her.',media:0,hidden:0,hard:S.draft.sev==='rod'?1:0,noExport:0,claimed:'Ludvig'});
+   LOG('Ludvig','Opprettet sak',`${id} · ${S.draft.type} · ${s.n}`);
+   S.modal=null;S.draft=null;S.view='rapporter';S.sel=id;render();toast(`Sak ${id} opprettet. Nå kan du se det den peker på.`);
    break;}
 
   case 'ftab': S.feedTab=d.v; render(); break;
@@ -706,11 +810,16 @@ document.addEventListener('click',(e)=>{
    render(); toast(`«${l.knute}» er tatt ned. Ligger fortsatt på skolen.`);
    break;}
 
-  case 'seeas':{
-   const s=S.skoler.find(x=>x.id===d.id); S.seeAs=d.id;
-   LOG('Ludvig','Så på skole',`${s.n} · kun lesing`);
-   render(); break;}
-  case 'seeas-end': S.seeAs=null; render(); break;
+  case 'stotte': S.draft={skole:d.id,grunn:'Skolen melder tom feed'}; S.modal='stotte'; renderModal(); break;
+  case 'stotte-grunn': S.draft.grunn=d.v; renderModal(); break;
+  case 'stotte-do':{
+   const s=S.skoler.find(x=>x.id===S.draft.skole), id='S-'+(4480+S.rapporter.length+S.ferdig.length+1);
+   S.stotte={id,grunn:S.draft.grunn,min:30}; S.seeAs=s.id;
+   LOG('Ludvig','Opprettet støttesak · så på skole',`${id} · ${s.n} · ${S.draft.grunn} · lese-token 30 min`);
+   S.modal=null;S.draft=null;render(); break;}
+  case 'seeas-end':{
+   if(S.stotte) LOG('Ludvig','Avsluttet støttesak',`${S.stotte.id} · lese-token trukket`);
+   S.seeAs=null; S.stotte=null; render(); break;}
 
   case 'ny-ks': S.draft={skole:S.skoler.find(s=>s.ks.length<2).id,navn:'',epost:''}; S.modal='ny-ks'; renderModal(); break;
   case 'ks-ny-do':{
