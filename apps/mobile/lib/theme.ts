@@ -225,6 +225,10 @@ export const size = {
   // opening screen into a fullscreen feed.
   homeActivityMediaHeight: 220,
   dailyKnotShineTravel: 160,
+  // Staff preview: readable on phones and restrained on wider screens.
+  staffContentMaxWidth: 720,
+  staffMetricMinWidth: 100,
+  staffListItemEstimate: 180,
 } as const
 
 export const fontWeight = {

@@ -4,11 +4,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, useRouter } from 'expo-router'
 import { ChevronRight, FolderHeart, Inbox, LibraryBig, SquarePen } from 'lucide-react-native'
 import { AppTabBar } from '../../components/AppTabBar'
-import { Eyebrow, Pressable, Skeleton, StickerButton, StickerCard, Text } from '../../components/primitives'
+import { Eyebrow, Pressable, Skeleton, Stack as LayoutStack, StickerButton, StickerCard, Text } from '../../components/primitives'
 import { GlyphTile } from '../../components/knute/GlyphTile'
 import { ApiError, fetchAllKnuter, tryFetchPendingCount } from '../../lib/api'
 import { formatNumber } from '../../lib/format'
 import { size, sticker, spacing } from '../../lib/theme'
+import { StaffPreviewEntry } from '../../components/staff/StaffPreviewEntry'
 
 export default function KnutesjefPanel() {
   const insets = useSafeAreaInsets()
@@ -119,6 +120,9 @@ export default function KnutesjefPanel() {
             last
           />
         </StickerCard>
+        {__DEV__ ? <LayoutStack style={styles.previewEntry}>
+          <StaffPreviewEntry />
+        </LayoutStack> : null}
       </ScrollView>
       <AppTabBar active="knutesjef" />
     </Screen>
@@ -177,6 +181,7 @@ function ToolRow({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: sticker.color.paper },
+  previewEntry: { padding: spacing.base },
   gutter: { paddingHorizontal: spacing.base },
   headerBlock: { paddingHorizontal: spacing.base, paddingBottom: spacing.base, gap: spacing['2xs'] },
   skeletonList: { marginTop: spacing.base },

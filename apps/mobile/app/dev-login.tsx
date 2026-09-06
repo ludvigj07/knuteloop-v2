@@ -6,6 +6,7 @@ import { Button, Pressable, Stack, Text } from '../components/primitives'
 import { fetchDevUsers, type DevUser } from '../lib/api'
 import { getActiveUser, setActiveIdentity } from '../lib/auth'
 import { borderWidth, colors, radius, spacing } from '../lib/theme'
+import { StaffPreviewEntry } from '../components/staff/StaffPreviewEntry'
 
 // Dev-only identity switcher. Lists every seeded user (from the gated
 // /api/dev/users) so you can act as a knutesjef or student at either school and
@@ -45,6 +46,7 @@ export default function DevLoginScreen() {
           gap: spacing.lg,
         }}
       >
+        <StaffPreviewEntry />
         <Text size="sm" color="muted">
           Kun for lokal testing. Velg hvem du vil opptre som — appen byttes umiddelbart.
         </Text>
