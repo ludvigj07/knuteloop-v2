@@ -98,9 +98,10 @@ export const borderWidth = {
 export const opacity = {
   disabled: 0.5,
   shadow: 0.18,
-  shine: 0.72,
-  featuredFrameIdle: 0,
-  featuredFrameBright: 0.82,
+  shine: 0.48,
+  shineSoft: 0.32,
+  buttonGlowSoft: 0.26,
+  buttonGlowCore: 0.2,
   // Skeleton shimmer pulses between these two opacities.
   shimmerLow: 0.45,
   shimmerHigh: 1,
@@ -225,6 +226,11 @@ export const size = {
   // opening screen into a fullscreen feed.
   homeActivityMediaHeight: 220,
   dailyKnotShineTravel: 160,
+  dailyKnotShineWidth: 36,
+  dailyKnotStaticGlowWidth: 96,
+  dailyKnotStaticGlowHeight: 46,
+  dailyKnotStaticGlowCoreWidth: 64,
+  dailyKnotStaticGlowCoreHeight: 34,
 } as const
 
 export const fontWeight = {
@@ -242,11 +248,19 @@ export const minimumFontScale = {
 // pressScale is the brand "tap" feel — every Pressable primitive scales to this.
 export const animation = {
   duration: {
+    instant: 1,
     fast: 150,
     base: 250,
     slow: 400,
     // One half-cycle of the skeleton shimmer pulse.
     shimmer: 900,
+  },
+  attention: {
+    shineDelay: 120,
+    reminderPause: 1800,
+    secondShinePause: 1000,
+    shineAngle: '-16deg',
+    staticGlowAngle: '-10deg',
   },
   spring: {
     gentle: { damping: 25, stiffness: 150 },
@@ -357,6 +371,11 @@ export const sticker = {
     accentBg: '#FFF7DD', // pale amber tint (sensitive folder tiles)
     accentStrong: '#7B6A2C', // readable text/icon on amber tints
     dailyKnot: '#F0DDBD', // Fargerike Pudder FR1114 — warm daily-feature surface
+    goldMid: '#F2B91F', // polished-gold body
+    goldDeep: '#8C5708', // button depth / hard shadow
+    engravingLight: 'rgba(255, 241, 184, 0.42)', // upper bevel of engraved play symbol
+    engravingDepth: 'rgba(113, 72, 8, 0.38)', // lower recess of engraved play symbol
+    engravingSurface: 'rgba(242, 185, 31, 0.9)', // gold covering the engraving centre
 
     line: 'rgba(27, 33, 45, 0.16)', // hairline dividers
     lineStrong: '#1B212D',
@@ -398,8 +417,8 @@ export const sticker = {
   icon: { sm: 18, md: 22, lg: 28 },
   featuredFrame: {
     borderWidth: 3,
-    inset: 3,
   },
+  engravingOffset: 1,
 } as const
 
 export type StickerTone = 'surface' | 'soft' | 'media' | 'primary' | 'accent' | 'daily'
