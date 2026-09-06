@@ -6,7 +6,7 @@
 > ligger trygt. Når et punkt faktisk skal bygges: scope det til en GitHub-issue
 > eller PR, og stryk det her.
 >
-> Sist oppdatert: **2026-09-03**.
+> Sist oppdatert: **2026-09-04**.
 
 ---
 
@@ -52,6 +52,16 @@ som me adde mer design-greier — mer cleen feel»**. Mindre støy, mer identite
 - **Knute-kategorier** ses på.
   _Kontekst: legacy `category`-enumen er allerede planlagt fjernet (ADR-0014);
   mapper (knutemapper) er den ekte aksen. Avklar hva Ludvig vil her før arbeid._
+
+## 🛡️ Trygghet & moderering
+
+- **«Din status»-side i russ-appen** (fra superadmin-arbeidet 4. sep): én side under
+  profil/innstillinger som viser alt Knuteloop eller knutesjefen har gjort mot deg —
+  fjernet innlegg, utestenging med sluttdato, begrunnelse i fem faste felt — og en
+  «Klag»-knapp som lager en sak hos Knuteloop-ansatt. Instagram «Account Status»-mønsteret.
+  Uten den er begrunnelsen bare en push som forsvinner.
+  _Spec: [`docs/superadmin-spec.md`](./superadmin-spec.md) §5. Bygges i steg 7 av
+  byggerekkefølgen der, etter at ADR-0026/0027 er Accepted._
 
 ## 🌍 Vekst & utad
 

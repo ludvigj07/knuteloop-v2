@@ -87,6 +87,16 @@ Vi bygger altså ikke et adminpanel som ser alt. Vi bygger «handle på denne ra
 og den henter nøyaktig den ene raden det gjelder. Blast-radiusen ved en feil blir da
 én innsending, ikke en hel skole.
 
+**Tillegg 2026-09-04 — støttesak («Se som»).** Mocken har en «Se som»-knapp på hver
+skole. Den beholdes, men bare gjennom en *sak*: en ansatt oppretter en støttesak på skolen
+med grunn fra fast liste («skolen melder tom feed», «onboarding-hjelp», «rapport peker på
+mønster»). Saken gir et eget lese-token i 30 minutter som viser nøyaktig det en russ ser
+(`approved` + `shared`) — aldri private innsendinger, aldri køen. Tokenet bærer
+`read_only`, og middleware avviser alle skrivinger før forretningslogikk. Appen viser en
+mørk ramme og sak-ID mens det er aktivt, og visningen er en rad i loggen. Dermed gjelder
+fortsatt regelen i punkt 7: ingenting vises uten en sak-ID. Detaljer i
+[`docs/superadmin-spec.md`](../superadmin-spec.md) §12.
+
 ### 4. Alt logges
 
 Ny tabell `audit_log` — **ikke** skole-scopet (den spenner på tvers per definisjon),
@@ -157,6 +167,46 @@ To regler som følger av det:
 Det passer også hvordan Ludvig faktisk jobber: tjue minutter av gangen, ofte i tjeneste.
 En kø kan tømmes på tjue minutter; et dashboard må utforskes, og blir derfor aldri gjort.
 
+### 8. Tre nivåer, og fire øyne på det som ikke kan angres
+
+*(Lagt til 2026-09-04.)* `platform_staff.level` har tre verdier, ikke én «superadmin»:
+
+| Nivå | Kan | 2027 |
+|---|---|---|
+| `moderator` | køen og handlingene, unntatt permanent utestenging og frys | Linus |
+| `operator` | + brytere, knutesjefer, skoler, aggregerte data, eksporter | Brage |
+| `owner` | + ansatte, permanent utestenging, frys bevis, politiforespørsler, lesemodus, logg-eksport | Ludvig |
+
+Mønsteret er Anthropic Consoles rolle-stige (User → Developer → Billing → Admin → Owner):
+den som kan *se* er ikke automatisk den som kan *slette*.
+
+**Fire øyne:** permanent utestenging, frys, pause av hel skole, lesemodus, suspendering av
+eneste knutesjef, logg-eksport og frigivelse av frosset bevis krever at en *annen* ansatt med
+nivå nok bekrefter fra sin telefon. Forespørselen utløper etter 60 minutter. Med tre personer
+er det realistisk, og det betyr at ingen — heller ikke Ludvig — kan gjøre noe uopprettelig
+alene. «Bryt glasset» over dette finnes ikke; det som eventuelt må gjøres manuelt i databasen
+med `admin_user` er en hendelse som skrives opp i `docs/incidents/`.
+
+**Steg-opp:** re-autentisering + tofaktor før hver handling som skriver kryss-skole.
+Tofaktor-metoden avgjøres i auth-arbeidet; kravet gjør det ikke.
+
+### 9. Karantene før sletting, og frosset bevis uten nedlasting
+
+*(Lagt til 2026-09-04.)* Mocken sa «Fjern sletter også fila hos Bunny». Det ryker.
+
+- **Fjern = karantene.** Innsendingen får `status = 'removed'`, media flyttes til et
+  `quarantine/`-prefiks som CDN-en ikke serverer, poengene for akkurat den innsendingen
+  trekkes, og alt kan gjenopprettes i 30 dager. Retensjonsjobben sletter etterpå. Grunnen er
+  tallet fra VSCOs 2025-rapport: 45 % av klager på utestenging ble omgjort. Feil skjer, og
+  en feil som ikke kan rettes er verre enn 30 dagers lagring.
+- **Frys = legal hold** (GDPR art. 17(3)(e)). Innsending, media, sak og logg-rader låses mot
+  retensjon *og* mot brukerens egen sletting. Innholdet forblir skjult for alle.
+- **Ingen nedlasting for nakenhet/mindreårig.** Å laste ned slikt materiale er straffbart i
+  seg selv, uansett hensikt. Frys av en `nudity_minor`-sak setter `no_export = true`; politiet
+  får tilgang via formell forespørsel, og vi peker på tips.kripos.no. Bevispakke (zip med
+  SHA-256) finnes bare for andre lovbruddstyper, går via signert lenke, og logges.
+- Frigivelse av frosset bevis: `owner` + fire øyne.
+
 ## Alternativer vurdert
 
 - **Utvid `admin`-rollen.** Avvist — det er fella beskrevet over: hver skoles oppgraderte
@@ -202,25 +252,38 @@ En kø kan tømmes på tjue minutter; et dashboard må utforskes, og blir derfor
 
 ## Åpne spørsmål
 
-- **Tofaktor for ansattkontoer?** (Anbefaling: ja, men det er en avhengighet til auth-arbeidet.)
+Det meste ble avklart 2026-09-04 sammen med [`docs/superadmin-spec.md`](../superadmin-spec.md).
+Svarene står her; detaljene der.
+
+- ~~**Tofaktor for ansattkontoer?**~~ **Ja** — steg-opp (re-autentisering + tofaktor) før hver
+  handling som skriver kryss-skole (punkt 8). Metoden (TOTP/passkey) avgjøres i auth-arbeidet.
 - ~~**Hvor mange ansatte** skal ha dette i 2027?~~ **Avklart 2026-09-02: tre.**
   Det bekrefter premisset for punkt 6 — tre bærer valget om å la verktøyene bo i appen.
   Utløseren for å revurdere står fast: vokser tallet vesentlig (f.eks. en moderator per
   region), skal egen nettside opp igjen. Hvem de tre er, er en provisjoneringsdetalj og
   ingen designforutsetning; kontoene opprettes uansett manuelt (punkt 5).
-- **Oppbevaringstid på `audit_log`** — hvor lenge, og hva sier GDPR-minimering her?
-- **Trenger vi et «bryt glasset»-nivå** over det rapport-scopede (f.eks. politiforespørsel),
-  eller håndteres det manuelt i databasen med `admin_user`?
-- **Varsling:** hvordan får en ansatt beskjed om en `nudity`/`safety_risk`-rapport
-  (ADR-0026 punkt 3) — e-post, push, eller bare kø?
+- ~~**Oppbevaringstid på `audit_log`**~~ **Forslag: 3 år**, uten russenavn/e-post i noen rad
+  (kun UUID-er + sak-ID). Jurist bekrefter mot DPIA §1 (som i dag sier 1 år for
+  innloggingslogg — den raden må oppdateres samtidig).
+- ~~**«Bryt glasset»-nivå?**~~ **Nei.** `owner` + fire øyne er toppen (punkt 8).
+  Politiforespørsler er en sakstype med egen sjekkliste (spec §9), ikke et tilgangsnivå.
+  Manuelt arbeid i databasen med `admin_user` er en hendelse som skrives opp i `docs/incidents/`.
+- ~~**Varsling**~~ **Push til alle tre + e-post** for RØD (`nudity`/`safety_risk`/mulig
+  lovbrudd), push til vakten for GUL, bare kø for GRØNN. Ingen SMS-leverandør nå (ingen
+  EU-leverandør avklart); revurderes hvis push ikke når fram om natta.
 - **Design-mock (2026-09-04):** [`docs/design/admin-superadmin-mock.html`](../design/admin-superadmin-mock.html)
-  — Ludvigs klikkbare skisse av hele plattformrollen: oversikt, eskalerte rapporter, nasjonal
-  feed, skoler sortert på tid siden siste moderering, knutesjef-tilgang, aggregert data,
-  brytere (funksjon/kategori/knute/skole) og hash-kjedet logg. Behandles som spesifikasjon
-  for UI-et. Tre ting den reiser som må avklares før bygging:
-  1. Den er tegnet som **nettside**, mens punkt 6 sier verktøyene bor **i appen**. Avklar,
-     eller oppdater punkt 6.
-  2. **«Frys bevis»** (legal hold) må vinne over rett-til-sletting i slettejobben
-     (GDPR art. 17(3)(e)) — ellers forsvinner beviset i det den anklagede sletter kontoen.
-  3. **Hash-kjeden** i loggen: SHA-256 server-side + en nattlig jobb som verifiserer kjeden.
-     Mocken bruker FNV (ikke kryptografisk) — kun for illustrasjon.
+  — Ludvigs klikkbare skisse av hele plattformrollen. Behandles som UI-skisse; reglene bak
+  står i spec-en. De tre tingene den reiste:
+  1. ~~Nettside vs. app.~~ **I appen** (Ludvig, 2026-09-04: «bare legga te ein knapp, litt som
+     knutesjefene har sin»). Punkt 6 står. Mocken er responsiv — telefonvisningen (under
+     820 px) er den kanoniske; bred visning er iPad-varianten. Ingen `admin.knuteloop.no`.
+  2. ~~«Frys bevis» må vinne over sletting.~~ **Ja**, og mer: ingen nedlasting for
+     nakenhet/mindreårig (punkt 9). Mockens «Frys og last ned» er rettet.
+  3. ~~Hash-kjeden.~~ **SHA-256 server-side** (`hash = sha256(prev_hash || rad)`), append-only,
+     nattlig jobb som regner kjeden fra genesis og lager en RØD sak hvis den ryker (spec §7).
+     Mockens FNV var bare illustrasjon.
+- **Fortsatt åpent, og det er Konrads:** BYPASSRLS-klient (punkt 2 her) eller policy-gren på
+  `app.admin_read` ([moderering-spec §6](../moderering-spec.md)). Spec-en fungerer med begge.
+  Bør avgjøres før ADR-en aksepteres.
+- **Fortsatt åpent:** hvordan ansattkontoer opprettes før ekte innlogging finnes (i dag er
+  auth en dev-stub). Henger på auth-arbeidet, ikke på denne ADR-en.

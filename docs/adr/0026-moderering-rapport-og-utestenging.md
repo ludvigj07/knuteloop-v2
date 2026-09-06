@@ -118,13 +118,26 @@ Selvsagt på en skole. Alt annet gjør rapportknappen ubrukelig.
 
 ## Åpne spørsmål
 
-- **Ankemulighet?** Kan en utestengt russ si ifra at knutesjefen tok feil? (Knutesjefen er
-  en medelev — feilbruk er en reell risiko.)
-- **Får rapportøren beskjed** om hva som skjedde med rapporten?
-- **Automatisk utløp** av utestenging — egen jobb, eller bare `expires_at` sjekket ved lesing?
-  (Sistnevnte er enklere og har ingen jobb-infrastruktur som avhengighet.)
-- **Hva med innsendinger som allerede er godkjent** når en rapport kommer? Trekkes poengene
-  tilbake hvis den fjernes?
+Avklart 2026-09-04 i arbeidet med [`docs/superadmin-spec.md`](../superadmin-spec.md)
+(§4–§5 og §8). Svarene står her; begrunnelsen står der.
+
+- ~~**Ankemulighet?**~~ **Ja.** En utestengt russ trykker «Klag» på siden «Din status» i
+  appen (som viser alt som er gjort mot deg, med begrunnelse). Klagen blir en sak hos
+  Knuteloop-ansatt (ADR-0027) og behandles alltid av en *annen* person enn den som fattet
+  vedtaket — også når vedtaket var knutesjefens. VSCO omgjorde 45 % av slike klager i 2025;
+  det er grunnen til at klage er obligatorisk, ikke valgfritt.
+- ~~**Får rapportøren beskjed?**~~ **Ja, om utfallet — aldri om sanksjonen.** «Takk for at
+  du sa ifra. Vi har sett på innlegget og lar det stå / har fjernet det.» Ikke hvem som
+  gjorde hva, ikke om noen ble utestengt (punkt 6 gjelder begge veier). DSA art. 16(5)
+  krever at den som varsler får vite avgjørelsen.
+- ~~**Automatisk utløp?**~~ **`expires_at` sjekkes ved lesing.** Ingen jobb. Utestenging
+  virker sammen med `token_version` (bumpes ved utestenging), så et gyldig token ikke
+  fortsetter.
+- ~~**Godkjent innsending som fjernes — trekkes poengene?**~~ **Ja, for akkurat den
+  innsendingen.** Fjerning setter `submissions.status = 'removed'`, legger media i karantene
+  i 30 dager (kan gjenopprettes ved klage) og trekker knutens poeng. Alt annet står.
+  Begrunnelsen sier det rett ut: «Poengene for denne knuten er trukket; resten er trygge.»
+  Uten dette er «post noe upassende, få poeng, bli fjernet» en jukse-vei.
 
 ## Hvorfor to ADR-er
 
